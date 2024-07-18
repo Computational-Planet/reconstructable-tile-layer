@@ -1,0 +1,193 @@
+import { ImageryProvider } from "cesium";
+import { defaultFS, defaultVS } from "./shader/defaultShaders";
+import {
+  drawScene,
+  generateTexture,
+  initPositionBuffer,
+  initShaderProgram,
+  initTextureCoordBuffer,
+} from "./GlInitFunc";
+
+/**
+ * 获取指定瓦片，并使用WebGL进行重投影，随后输出处理后的影像的类。
+ */
+export class CesiumTileProcesser {
+  private _canvas: HTMLCanvasElement;
+  private _context: WebGLRenderingContext | null;
+  //vsSource?: string; // 顶点着色器
+  //fsSource?: string; // 片段着色器
+  private _programInfo: WebGLProgramInfo;
+  private _buffers: Buffers;
+  private _vertexRowNum: number = 64;
+  provider: ImageryProvider & {
+    [key: string]: any;
+  }; // 瓦片影像提供器，由Cesium支持
+  private _currentTileXYZ: { x: number; y: number; z: number } | undefined =
+    undefined; // 当前处理的瓦片xyz
+  private _currentResult: string | null = null;
+
+  constructor(canvas: HTMLCanvasElement, options: CesiumTileProcesserOptions) {
+    // 获取画布
+    this._canvas = canvas;
+    // 设置宽高
+    this._canvas.width = options.width ?? 256;
+    this._canvas.height = options.height ?? 256;
+
+    this.provider = options.provider;
+
+    //获取webgl上下文
+    this._context = this._canvas.getContext("webgl");
+    // 确认WebGL支持性
+    if (!this._context) {
+      throw new Error(
+        "无法初始化WebGl，你的浏览器、操作系统或硬件可能不支持WebGL"
+      );
+    }
+    // 设置清除颜色为黑色
+    this._context.clearColor(0.0, 0.0, 0.0, 1.0);
+    // 使用清除颜色清空颜色缓冲区
+    this._context.clear(this._context.COLOR_BUFFER_BIT);
+
+    // 初始化shader
+    const vsSource = options.vsSource ?? defaultVS; // 引入顶点着色器，若未定义则使用默认值。
+    const fsSource = options.fsSource ?? defaultFS; // 引入片段着色器，若未定义则使用默认值。
+
+    // 初始化着色器程序
+    const shaderProgram = initShaderProgram(this._context, vsSource, fsSource);
+    if (!shaderProgram) {
+      throw new Error("初始化着色器程序失败");
+    }
+    // 注意，uniform和attribute等变量的声明是在着色器程序那边定义的。在上一步加载、编译、初始化着色器的过程中，这些变量的声明其实已经完成了。虽然还没有实际的值，但是我们已经可以获取指针。这里获取的其实就是指向这些变量的指针。
+    //初始化程序信息
+    this._programInfo = {
+      program: shaderProgram, // 着色器程序
+      attribLocations: {
+        //attribLocations存放属性
+        vertexPosition: this._context.getAttribLocation(
+          shaderProgram,
+          "aVertexPosition" // 这个变量的定义是在glsl的代码中，我们在这里只是获取了其指针
+        ),
+        //vertexColor: this.context.getAttribLocation(shaderProgram, "aVertexColor"),
+        textureCoord: this._context.getAttribLocation(
+          shaderProgram,
+          "aTextureCoord"
+        ),
+      },
+      uniformLocations: {
+        //uniformLocations存放Uniform
+        projectionMatrix: this._context.getUniformLocation(
+          shaderProgram,
+          "uProjectionMatrix" // 这个变量的定义是在glsl的代码中，我们在这里只是获取了其指针
+        ),
+        modelViewMatrix: this._context.getUniformLocation(
+          shaderProgram,
+          "uModelViewMatrix" // 这个变量的定义是在glsl的代码中，我们在这里只是获取了其指针
+        ),
+        uSampler: this._context.getUniformLocation(shaderProgram, "uSampler"), //纹理的采样器，也是Uniform
+      },
+    };
+
+    // 初始化顶点缓冲区（纹理缓冲区之后需要在绘制时实时处理）
+    // 初始化顶点行数（默认每幅图使用64*2个顶点）
+    this._vertexRowNum = options.vertexRowNum ?? 64;
+    //初始化buffers
+    this._buffers = {
+      position: initPositionBuffer(this._context, this._vertexRowNum),
+      textureCoord: null,
+    };
+  }
+
+  get width() {
+    return this._canvas.width;
+  }
+  get height() {
+    return this._canvas.height;
+  }
+  get canvas() {
+    return this._canvas;
+  }
+  get vertexRowNum() {
+    return this._vertexRowNum;
+  }
+  get currentTileXYZ() {
+    return this._currentTileXYZ;
+  }
+  get currentResult() {
+    return this._currentResult;
+  }
+
+  // 产出重投影的结果
+  async reprojectTile(x: number, y: number, level: number) {
+    if (this._context == null) {
+      console.error("gl上下文未正确定义");
+      return null;
+    }
+    // 根据瓦片具体位置初始化纹理坐标
+    this._buffers.textureCoord = initTextureCoordBuffer(
+      this._context,
+      this._vertexRowNum,
+      this.provider,
+      x,
+      y,
+      level
+    );
+
+    // 加载瓦片
+    const image = await this.provider.requestImage(x, y, level);
+    if (!image) {
+      // 如果获取图像失败则返回
+      console.error("图像获取失败");
+      return null;
+    }
+    //将瓦片转换成纹理
+    const texture = generateTexture(this._context, image);
+
+    drawScene(
+      this._context,
+      this._vertexRowNum,
+      this._programInfo,
+      texture,
+      this._buffers
+    );
+  }
+}
+
+// 输出类的选项
+export type CesiumTileProcesserOptions = {
+  provider: ImageryProvider & {
+    [key: string]: any; // 索引签名，允许任意数量的属性
+  };
+  width?: number; // 瓦片宽度
+  height?: number; // 瓦片高度
+  vsSource?: string; // 顶点着色器
+  fsSource?: string; // 片段着色器
+  vertexRowNum?: number; //顶点行数
+
+  // tileX: number;
+  // tileY: number;
+  // tileZ: number;
+};
+
+//TS中需要定义该变量的类型（没有预定义）
+export type WebGLProgramInfo = {
+  // 着色器程序(shaderProgram)
+  program: WebGLProgram;
+  // 所有传入着色器的属性(attribute)
+  attribLocations: {
+    vertexPosition: number;
+    //vertexColor: number;
+    textureCoord: number;
+  };
+  // 所有传入着色器的统一状态(uniform state)
+  uniformLocations: {
+    projectionMatrix: WebGLUniformLocation | null;
+    modelViewMatrix: WebGLUniformLocation | null;
+    uSampler: WebGLUniformLocation | null;
+  };
+};
+
+// 缓冲区的类型
+export type Buffers = {
+  position: WebGLBuffer | null; // 顶点位置缓冲区
+  textureCoord: WebGLBuffer | null; // 纹理坐标缓冲区
+};
