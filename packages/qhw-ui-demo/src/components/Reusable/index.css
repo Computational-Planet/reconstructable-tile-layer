@@ -1,0 +1,37 @@
+.prime-button {
+  margin: 0;
+  padding: 0;
+  width: 65px;
+  height: 33px;
+  display: flex;
+  text-align: center;
+  line-height: 100%;
+  justify-content: center;
+  align-items: center;
+  background: linear-gradient(
+    160deg,
+    #ca570a,
+    #ca570a 60%,
+    rgba(37, 37, 39, 0)
+  );
+  transition: all 0.1s ease-in-out;
+  border: none;
+  border-radius: 10px;
+  font-size: 18px;
+  font-weight: 500;
+  color: #b2b2b2;
+  cursor: pointer;
+  user-select: none; /* 标准语法 */
+}
+
+.prime-button:hover {
+  background: linear-gradient(#ca570a, #ca570a);
+  color: white;
+}
+
+.prime-button:active {
+  /* background: linear-gradient(#ff8615, #ff8615); */
+  background: linear-gradient(#ca570a, #ca570a);
+  color: white;
+  transform: scale(0.95);
+}
