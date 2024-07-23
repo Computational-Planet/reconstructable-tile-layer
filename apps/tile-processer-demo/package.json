@@ -11,10 +11,11 @@
   },
   "dependencies": {
     "cesium": "^1.119.0",
+    "clsx": "^2.1.1",
+    "qhw-ui-demo": "workspace:*",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "tile-processer-webgl": "workspace:*",
-    "qhw-ui-demo": "workspace:*"
+    "tile-processer-webgl": "workspace:*"
   },
   "devDependencies": {
     "@types/react": "^18.3.3",
