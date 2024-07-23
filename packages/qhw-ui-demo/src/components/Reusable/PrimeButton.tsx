@@ -1,25 +1,36 @@
 import React from "react";
 import clsx from "clsx";
 import "./index.css";
-type PrimeButtonProps = {
+type ButtonProps = {
+  level?: "prime" | "secondary";
   style?: React.CSSProperties;
   className?: string;
   onClick?: () => void;
   children?: React.ReactNode;
 };
 
-function PrimeButton(props: PrimeButtonProps) {
-  const { style: userStyle, className, onClick, children } = props;
+function Button(props: ButtonProps) {
+  const {
+    level = "prime",
+    style: userStyle,
+    className,
+    onClick,
+    children,
+  } = props;
 
   return (
-    <div
+    <span
       style={{ ...userStyle }}
-      className={clsx("prime-button", className)}
+      className={
+        level === "prime"
+          ? clsx("prime-button", className)
+          : clsx("secondary-button", className)
+      }
       onClick={onClick}
     >
       {children}
-    </div>
+    </span>
   );
 }
 
-export default PrimeButton;
+export default Button;
