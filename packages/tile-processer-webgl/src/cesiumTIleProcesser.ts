@@ -6,7 +6,7 @@ import {
   initPositionBuffer,
   initShaderProgram,
   initTextureCoordBuffer,
-} from "./GlInitFunc";
+} from "./glInitFunc";
 
 /**
  * 获取指定瓦片，并使用WebGL进行重投影，随后输出处理后的影像的类。
@@ -149,6 +149,9 @@ export class CesiumTileProcesser {
       texture,
       this._buffers
     );
+
+    this._currentResult = this._canvas.toDataURL();
+    return this._currentResult;
   }
 }
 
