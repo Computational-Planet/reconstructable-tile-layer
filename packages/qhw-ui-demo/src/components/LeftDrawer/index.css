@@ -8,7 +8,7 @@
   top: 0;
   bottom: 0;
   padding: 20px 0 20px 20px;
-  min-width: 350px;
+  min-width: 450px;
   width: 30%;
   margin: 0;
   pointer-events: none;
@@ -71,7 +71,7 @@
   transition: all 0.2s ease-in-out;
   /* scrollbar-color: #25252799 #0000; */
 }
-.drawer-card * {
+.drawer-card {
   /* 字体设置 */
   color: white;
   font-family: sans-serif;

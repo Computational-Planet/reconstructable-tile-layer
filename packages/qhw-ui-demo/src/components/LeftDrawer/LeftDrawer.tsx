@@ -57,6 +57,7 @@ function LeftDrawer(props: LeftDrawerProps) {
           transform: `translate(${open ? "0" : "-30%"},0)`,
           opacity: `${open ? "1" : "0"}`,
           transition: "all 0.2s ease-in-out",
+          borderRadius: 5,
           overflow: "hidden",
           overflowY: "scroll",
           scrollbarWidth: "none",

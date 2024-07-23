@@ -37,7 +37,7 @@ function DrawerCard(props: DrawerCardProps) {
           width: "100%",
         }}
       >
-        {title && <h2 style={{ margin: 0 }}>{title}</h2>}
+        {title && <h2 style={{ margin: 0, userSelect: "none" }}>{title}</h2>}
         <div
           className={"button-theme-opacity"}
           style={{ margin: 0, width: 30, height: 30 }}
@@ -52,8 +52,9 @@ function DrawerCard(props: DrawerCardProps) {
           )}
         </div>
       </div>
-
-      {expand && children}
+      <div style={{ display: `${expand ? "block" : "none"}`, marginTop: 20 }}>
+        {children}
+      </div>
     </div>
   );
 }
