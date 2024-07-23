@@ -6,17 +6,18 @@ import {
   WebMapTileServiceImageryProvider,
   WebMercatorTilingScheme,
 } from "cesium";
-import { DrawerCard, LeftDrawer, PrimeButton } from "qhw-ui-demo";
+import { Button, DrawerCard, LeftDrawer } from "qhw-ui-demo";
 
 import "./App.css";
 import CesiumTileProcesser from "tile-processer-webgl";
+import { TileGeneratorPanel } from "./components/TileGenerator";
 
 function App() {
   const container = useRef<HTMLDivElement | null>(null);
   const viewerRef = useRef<Viewer | null>(null);
   const [ready, setReady] = useState(false);
-  const glcanvas = useRef<HTMLCanvasElement>(null);
-  const tileProcesser = useRef<CesiumTileProcesser>();
+  const glcanvas = useRef<HTMLCanvasElement | null>(null);
+  const tileProcesserRef = useRef<CesiumTileProcesser>();
 
   useEffect(() => {
     if (container.current) {
@@ -34,7 +35,7 @@ function App() {
         timeline: false,
         navigationHelpButton: false,
         shouldAnimate: true,
-        requestRenderMode: true,
+        requestRenderMode: true, // 可以使用scene.requestRender()来手动控制渲染的时机
         maximumRenderTimeChange: Infinity,
         useBrowserRecommendedResolution: false,
         orderIndependentTranslucency: false,
@@ -68,10 +69,10 @@ function App() {
 
   useEffect(() => {
     if (glcanvas.current) {
-      tileProcesser.current = new CesiumTileProcesser(glcanvas.current, {
+      tileProcesserRef.current = new CesiumTileProcesser(glcanvas.current, {
         provider: DefaultProvider,
       });
-      tileProcesser.current.reprojectTile(0, 0, 0);
+      tileProcesserRef.current.reprojectTile(0, 0, 0);
     }
 
     return () => {};
@@ -90,14 +91,20 @@ function App() {
       >
         你的浏览器似乎不支持或者禁用了 HTML5 <code>&lt;canvas&gt;</code> 元素。
       </canvas>
-      <LeftDrawer>
-        <DrawerCard className={"custom-card"} title="POLYGON GENERATOR">
-          <PrimeButton>hello</PrimeButton>
-        </DrawerCard>
-        <DrawerCard className={"custom-card"} title="TILE REPROJECT FUNCTION">
-          <PrimeButton>hello</PrimeButton>
-        </DrawerCard>
-      </LeftDrawer>
+      {/* 在viewer初始化完毕后再加载相关组件，防止组件初始化失败 */}
+      {ready && (
+        <LeftDrawer>
+          <DrawerCard className={"custom-card"} title="TILE GENERATOR">
+            <TileGeneratorPanel
+              viewerRef={viewerRef}
+              tileProcesserRef={tileProcesserRef}
+            />
+          </DrawerCard>
+          <DrawerCard className={"custom-card"} title="TILE REPROJECT FUNCTION">
+            <Button>hello</Button>
+          </DrawerCard>
+        </LeftDrawer>
+      )}
     </>
   );
 }
