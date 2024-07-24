@@ -5,7 +5,6 @@ import {
   ImageryProvider,
   Material,
   Primitive,
-  Rectangle,
   RectangleGeometry,
   Viewer,
 } from "cesium";
