@@ -254,7 +254,76 @@ function drawScene(
     return;
   }
 
-  gl.clearColor(0.0, 0.0, 0.0, 1.0); // 设置清除颜色为黑色
+  gl.clearColor(0.0, 0.0, 0.0, 0.0); // 设置清除颜色为透明
+  gl.clearDepth(1.0); // 设置清除深度为1.0
+  gl.enable(gl.DEPTH_TEST); // 开启深度检测
+  gl.depthFunc(gl.LEQUAL); // 深度检测方法为近的东西遮盖远的东西
+
+  // 清除画布，这里清除了颜色的缓冲和深度的缓冲
+
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+  //不进行变换，显示原本的状态
+  const projectionMatrix = mat4.create(); //创建一个4x4空矩阵，用于存储透视投影的结果
+  const modelViewMatrix = mat4.create();
+  //mat4.scale(modelViewMatrix, modelViewMatrix, [1, -1, 1]); // 从模型上实现垂直翻转（顶点和纹理的对应不变，防止重投影出问题）
+
+  //一系列读取缓冲的函数，其实他的核心步骤都是，告诉WebGL如何从一个一维数组中读取出各个顶点需要的属性，并告诉他要把这些属性传递到什么地方。
+  // 告诉WebGL如何从顶点缓冲区中获取顶点，并将顶点存入programInfo里的vertexPosition属性中
+  setPositionAttribute(gl, buffers, programInfo);
+  //设置颜色
+  //setColorAttribute(gl, buffers, programInfo);
+  //设置纹理坐标属性
+  setTextureCoordAttribute(gl, buffers, programInfo);
+
+  // 告知WebGL使用我们的ShaderProgram进行渲染
+  gl.useProgram(programInfo.program);
+
+  //设置统一状态（Uniform state）
+  gl.uniformMatrix4fv(
+    programInfo.uniformLocations.projectionMatrix,
+    false,
+    projectionMatrix
+  ); //设置模型变换矩阵
+  gl.uniformMatrix4fv(
+    programInfo.uniformLocations.modelViewMatrix,
+    false,
+    modelViewMatrix
+  );
+
+  // 处理纹理
+  // Tell WebGL we want to affect texture unit 0
+  gl.activeTexture(gl.TEXTURE0);
+  // Bind the texture to texture unit 0
+  gl.bindTexture(gl.TEXTURE_2D, texture);
+  // 设置纹理采样器统一状态
+  // Tell the shader we bound the texture to texture unit 0
+  gl.uniform1i(programInfo.uniformLocations.uSampler, 0);
+
+  //使用渲染命令绘制图形
+  {
+    const offset = 0;
+    const vertexCount = vertexRowNum * 2; //顶点数目
+    gl.drawArrays(gl.TRIANGLE_STRIP, offset, vertexCount); //TRIANGLE_STRIP模式下，上个三角形的一条边和下一个点组成新的三角形。
+  }
+}
+
+// 绘制场景
+function drawSceneClipped(
+  gl: WebGLRenderingContext,
+  vertexRowNum: number,
+  programInfo: WebGLProgramInfo,
+  texture: WebGLTexture | null,
+  buffers: Buffers,
+  polygonVertices: Array<number>
+) {
+  //如果canvas类型不是HTMLCanvasElement则报错并返回
+  if (!("clientWidth" in gl.canvas)) {
+    alert("canvas 类型有误");
+    return;
+  }
+
+  gl.clearColor(0.0, 0.0, 0.0, 0.0); // 设置清除颜色为透明
   gl.clearDepth(1.0); // 设置清除深度为1.0
   gl.enable(gl.DEPTH_TEST); // 开启深度检测
   gl.depthFunc(gl.LEQUAL); // 深度检测方法为近的东西遮盖远的东西
@@ -293,12 +362,20 @@ function drawScene(
 
   // Tell WebGL we want to affect texture unit 0
   gl.activeTexture(gl.TEXTURE0);
-
   // Bind the texture to texture unit 0
   gl.bindTexture(gl.TEXTURE_2D, texture);
-
   // Tell the shader we bound the texture to texture unit 0
   gl.uniform1i(programInfo.uniformLocations.uSampler, 0);
+
+  // 处理裁剪多边形
+  gl.uniform1iv(
+    programInfo.uniformLocations.polygonVerticesCount,
+    new Int32Array([polygonVertices.length])
+  );
+  gl.uniform2fv(
+    programInfo.uniformLocations.polygonVertices,
+    new Float32Array(polygonVertices)
+  );
 
   //使用渲染命令绘制图形
   {
@@ -308,4 +385,4 @@ function drawScene(
   }
 }
 
-export { drawScene };
+export { drawScene, drawSceneClipped };
