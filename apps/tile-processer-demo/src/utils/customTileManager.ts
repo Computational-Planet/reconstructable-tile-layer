@@ -49,6 +49,7 @@ export class CustomTilePrimitive {
       }),
     });
     this.primitive = viewer.scene.primitives.add(this.primitive);
+    viewer.scene.primitives.raiseToTop(this.primitive);
   }
 
   get shown(): Boolean {

@@ -5,6 +5,14 @@ import {
   Quaternion,
   Viewer,
   Math as CMath,
+  ArcType,
+  Color,
+  EllipsoidSurfaceAppearance,
+  GeometryInstance,
+  Material,
+  PolygonGeometry,
+  PolygonHierarchy,
+  Primitive,
 } from "cesium";
 import clsx from "clsx";
 import { CSSProperties, RefObject, useEffect, useRef, useState } from "react";
@@ -12,6 +20,11 @@ import CesiumTileProcesser from "tile-processer-webgl";
 import { NeatTable, Button } from "qhw-ui-demo";
 import { CustomTileManager } from "../../utils/customTileManager";
 import "./index.css";
+
+const defaultClippedPolygon = [
+  0.0, 0.33, 0.5, 0.33, 0.5, 0.0, 1.0, 0.5, 0.5, 1.0, 0.5, 0.66, 0.0, 0.66, 0.0,
+  0.33,
+];
 
 type TileGeneratorPanelProps = {
   style?: CSSProperties;
@@ -26,6 +39,7 @@ function TileGeneratorPanel(props: TileGeneratorPanelProps) {
   const tileManager = useRef<CustomTileManager | null>();
   const updateTimer = useRef<number>();
   const isRotating = useRef<boolean>(false);
+  const comparedPolygon = useRef<Primitive | null>();
   const [x, setX] = useState(0);
   const [y, setY] = useState(0);
   const [l, setL] = useState(0);
@@ -206,6 +220,30 @@ function TileGeneratorPanel(props: TileGeneratorPanelProps) {
                 processCanvasRef.current
               );
               updateTilesTable();
+              const polygon = new Primitive({
+                geometryInstances: new GeometryInstance({
+                  /* geometry: new RectangleGeometry({
+                    rectangle: Rectangle.fromDegrees(-120.0, 20.0, -60.0, 40.0),
+                    vertexFormat: EllipsoidSurfaceAppearance.VERTEX_FORMAT,
+                  }), */
+                  id: "test-polygon",
+                  geometry: new PolygonGeometry({
+                    polygonHierarchy: new PolygonHierarchy(
+                      Cartesian3.fromDegreesArray([
+                        0.5, 0.5, 0.5, 85.0, 180.0, 0.5, 0.5, 0.5,
+                      ])
+                    ),
+                    arcType: ArcType.RHUMB,
+                  }),
+                }),
+                appearance: new EllipsoidSurfaceAppearance({
+                  //aboveGround: true,
+                  material: Material.fromType("Color", {
+                    color: new Color(1.0, 0.0, 0.0, 0.1),
+                  }),
+                }),
+              });
+              viewerRef.current.scene.primitives.add(polygon);
             }
           }}
         >
@@ -250,10 +288,7 @@ function TileGeneratorPanel(props: TileGeneratorPanelProps) {
                 y,
                 l,
                 tileProcesserRef.current,
-                [
-                  0.0, 0.33, 0.66, 0.33, 0.66, 0.0, 1.0, 0.5, 0.66, 1.0, 0.66,
-                  0.66, 0.0, 0.66, 0.0, 0.33,
-                ]
+                defaultClippedPolygon
               );
               updateTilesTable();
             }
@@ -345,10 +380,7 @@ function TileGeneratorPanel(props: TileGeneratorPanelProps) {
                     yt,
                     lt,
                     tileProcesserRef.current,
-                    [
-                      0.0, 0.33, 0.66, 0.33, 0.66, 0.0, 1.0, 0.5, 0.66, 1.0,
-                      0.66, 0.66, 0.0, 0.66, 0.0, 0.33,
-                    ]
+                    defaultClippedPolygon
                   );
                 }
               }
@@ -397,7 +429,7 @@ function TileGeneratorPanel(props: TileGeneratorPanelProps) {
           Start/Stop Rotation
         </Button>
       </div>
-      <div style={{ marginBottom: 10 }}>
+      <div style={{ marginBottom: 20 }}>
         <Button
           onClick={() => {
             if (
@@ -413,6 +445,63 @@ function TileGeneratorPanel(props: TileGeneratorPanelProps) {
           }}
         >
           Clear All Tiles
+        </Button>
+      </div>
+      <h3 style={{ marginBottom: 10 }}>Other Tests: </h3>
+      <div style={{ marginBottom: 10 }}>
+        <Button
+          onClick={() => {
+            if (
+              viewerRef.current &&
+              tileProcesserRef.current &&
+              processCanvasRef.current &&
+              tileManager.current
+            ) {
+              if (
+                viewerRef.current &&
+                tileProcesserRef.current &&
+                processCanvasRef.current &&
+                tileManager.current
+              ) {
+                if (!comparedPolygon.current) {
+                  comparedPolygon.current = new Primitive({
+                    geometryInstances: new GeometryInstance({
+                      /* geometry: new RectangleGeometry({
+                    rectangle: Rectangle.fromDegrees(-120.0, 20.0, -60.0, 40.0),
+                    vertexFormat: EllipsoidSurfaceAppearance.VERTEX_FORMAT,
+                  }), */
+                      id: "test-polygon",
+                      geometry: new PolygonGeometry({
+                        polygonHierarchy: new PolygonHierarchy(
+                          Cartesian3.fromDegreesArray([
+                            0.5, 0.5, 0.5, 85.0, 180.0, 0.5, 0.5, 0.5,
+                          ])
+                        ),
+                        arcType: ArcType.RHUMB,
+                      }),
+                    }),
+                    appearance: new EllipsoidSurfaceAppearance({
+                      //aboveGround: true,
+                      material: Material.fromType("Color", {
+                        color: new Color(1.0, 0.0, 0.0, 0.1),
+                      }),
+                    }),
+                  });
+                  viewerRef.current.scene.primitives.add(
+                    comparedPolygon.current
+                  );
+                } else {
+                  viewerRef.current.scene.primitives.remove(
+                    comparedPolygon.current
+                  );
+                  comparedPolygon.current = null;
+                }
+                viewerRef.current.scene.requestRender();
+              }
+            }
+          }}
+        >
+          Add/Clear Compared Polygon with Clipped Tile0/0/0
         </Button>
       </div>
       {/* canvas2D处理普通瓦片 */}
