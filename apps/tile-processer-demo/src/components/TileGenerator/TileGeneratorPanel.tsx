@@ -184,14 +184,12 @@ function TileGeneratorPanel(props: TileGeneratorPanelProps) {
       </div>
       <div
         style={{
-          display: "flex",
-          justifyContent: "left",
           width: "100%",
           marginBottom: 20,
         }}
       >
         <Button
-          style={{ marginRight: 10 }}
+          style={{ margin: 5 }}
           onClick={() => {
             if (
               viewerRef.current &&
@@ -214,7 +212,7 @@ function TileGeneratorPanel(props: TileGeneratorPanelProps) {
           Add Origin Tile
         </Button>
         <Button
-          style={{ marginRight: 5 }}
+          style={{ margin: 5 }}
           onClick={() => {
             if (
               viewerRef.current &&
@@ -236,6 +234,33 @@ function TileGeneratorPanel(props: TileGeneratorPanelProps) {
         >
           Add Reprojected Tile
         </Button>
+        <Button
+          style={{ margin: 5 }}
+          onClick={() => {
+            if (
+              viewerRef.current &&
+              tileProcesserRef.current &&
+              processCanvasRef.current &&
+              tileManager.current
+            ) {
+              tileManager.current.generateClippedReprojTile(
+                `tile-${x}/${y}/${l}-reproj-clipped`,
+                tileProcesserRef.current.provider,
+                x,
+                y,
+                l,
+                tileProcesserRef.current,
+                [
+                  0.0, 0.33, 0.66, 0.33, 0.66, 0.0, 1.0, 0.5, 0.66, 1.0, 0.66,
+                  0.66, 0.0, 0.66, 0.0, 0.33,
+                ]
+              );
+              updateTilesTable();
+            }
+          }}
+        >
+          Add Clipped Reprojected Tile
+        </Button>
       </div>
       <div
         style={{
@@ -245,8 +270,9 @@ function TileGeneratorPanel(props: TileGeneratorPanelProps) {
           marginBottom: 10,
         }}
       >
-        <h3 style={{ marginRight: 5 }}>Controller: </h3>
+        <h3 style={{ margin: 5 }}>Controller: </h3>
         <Button
+          style={{ margin: 5 }}
           onClick={() => {
             setShowTable(!showTable);
             viewerRef.current?.scene.requestRender(); // 通知Cesium重新渲染
@@ -298,6 +324,39 @@ function TileGeneratorPanel(props: TileGeneratorPanelProps) {
           }}
         >
           Add 1000 Reprojected Tiles
+        </Button>
+      </div>
+      <div style={{ marginBottom: 10 }}>
+        <Button
+          onClick={() => {
+            if (
+              viewerRef.current &&
+              tileProcesserRef.current &&
+              processCanvasRef.current &&
+              tileManager.current
+            ) {
+              let lt = 9;
+              for (let xt = 80; xt < 130; xt++) {
+                for (let yt = 190; yt < 210; yt++) {
+                  tileManager.current.generateClippedReprojTile(
+                    `tile-${xt}/${yt}/${lt}-reproj-clipped`,
+                    tileProcesserRef.current.provider,
+                    xt,
+                    yt,
+                    lt,
+                    tileProcesserRef.current,
+                    [
+                      0.0, 0.33, 0.66, 0.33, 0.66, 0.0, 1.0, 0.5, 0.66, 1.0,
+                      0.66, 0.66, 0.0, 0.66, 0.0, 0.33,
+                    ]
+                  );
+                }
+              }
+            }
+            updateTilesTable();
+          }}
+        >
+          Add 1000 Clipped Reprojected Tiles
         </Button>
       </div>
       <div style={{ marginBottom: 10 }}>

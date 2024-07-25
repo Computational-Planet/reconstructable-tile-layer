@@ -164,6 +164,40 @@ export class CustomTileManager {
         },
       });
   }
+  async generateClippedReprojTile(
+    id: string,
+    provider: ImageryProvider,
+    x: number,
+    y: number,
+    level: number,
+    processer: CesiumTileProcesser,
+    polygon: Array<number>
+  ) {
+    // console.log(id);
+    if (this.tilePrimitives.hasOwnProperty(id)) {
+      // console.log(this.tilePrimitives[id]);
+      return;
+    }
+    const tileItem = new CustomTilePrimitive(
+      id,
+      this.viewer,
+      provider,
+      x,
+      y,
+      level
+    );
+    this.tilePrimitives[id] = tileItem;
+    const imageURL = await processer.reprojectClippedTile(x, y, level, polygon);
+    if (tileItem.primitive)
+      tileItem.primitive.appearance.material = new Material({
+        fabric: {
+          type: "Image",
+          uniforms: {
+            image: imageURL,
+          },
+        },
+      });
+  }
   getById(id: string) {
     return this.tilePrimitives[id];
   }
