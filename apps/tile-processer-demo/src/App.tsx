@@ -11,13 +11,16 @@ import { Button, DrawerCard, LeftDrawer } from "qhw-ui-demo";
 import "./App.css";
 import CesiumTileProcesser from "tile-processer-webgl";
 import { TileGeneratorPanel } from "./components/TileGenerator";
+import CesiumRefContext from "./contexts/CesiumRefContext";
+import { CustomTileManager } from "./utils/customTileManager";
 
 function App() {
   const container = useRef<HTMLDivElement | null>(null);
   const viewerRef = useRef<Viewer | null>(null);
+  const tileManager = useRef<CustomTileManager | null>();
+  const tileProcesserRef = useRef<CesiumTileProcesser>();
   const [ready, setReady] = useState(false);
   const glcanvas = useRef<HTMLCanvasElement | null>(null);
-  const tileProcesserRef = useRef<CesiumTileProcesser>();
 
   useEffect(() => {
     if (container.current) {
@@ -79,7 +82,13 @@ function App() {
   }, []);
 
   return (
-    <>
+    <CesiumRefContext.Provider
+      value={{
+        viewerRef,
+        tileProcesserRef,
+        tileManager,
+      }}
+    >
       <div className={"control-bar"}></div>
       <div ref={container} className={"cesium-container"}></div>
       <canvas
@@ -96,8 +105,8 @@ function App() {
         <LeftDrawer>
           <DrawerCard className={"custom-card"} title="TILE GENERATOR">
             <TileGeneratorPanel
-              viewerRef={viewerRef}
-              tileProcesserRef={tileProcesserRef}
+            //viewerRef={viewerRef}
+            //tileProcesserRef={tileProcesserRef}
             />
           </DrawerCard>
           <DrawerCard className={"custom-card"} title="TILE REPROJECT FUNCTION">
@@ -105,7 +114,7 @@ function App() {
           </DrawerCard>
         </LeftDrawer>
       )}
-    </>
+    </CesiumRefContext.Provider>
   );
 }
 
