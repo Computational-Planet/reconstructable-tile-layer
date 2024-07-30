@@ -19,7 +19,8 @@
     #ca570a7d 90%,
     #ca570a7d
   ); */
-  background: linear-gradient(160deg, #e16a1b 70%, #e16a1b 70%);
+  /* background: linear-gradient(160deg, #e16a1b 70%, #e16a1b 70%); */
+  background-color: #e16a1b;
   /*  box-shadow: 2px 2px 2px black; */
   transition: all 0.1s ease-in-out;
   border: none;
@@ -32,21 +33,21 @@
 }
 
 .prime-button:hover {
-  /* background: linear-gradient(#ca570a, #ca570a); */
-  background: linear-gradient(
+  background-color: #ff771d;
+  /* background: linear-gradient(
     160deg,
     #ff771d,
     #ff771d 20%,
     #ca570a 50%,
     #ff771d 80%,
     #ff771d
-  );
+  ); */
   color: white;
 }
 
 .prime-button:active {
-  /* background: linear-gradient(#ff8615, #ff8615); */
-  background: linear-gradient(#ff771d, #ff771d);
+  background-color: #ff771d;
+  /* background: linear-gradient(#ff771d, #ff771d); */
   color: white;
   transform: scale(0.98);
 }
