@@ -49,7 +49,7 @@ export class CustomTilePrimitive {
       }),
     });
     this.primitive = viewer.scene.primitives.add(this.primitive);
-    viewer.scene.primitives.raiseToTop(this.primitive);
+    //viewer.scene.primitives.raiseToTop(this.primitive); // 貌似无效
   }
 
   get shown(): Boolean {
