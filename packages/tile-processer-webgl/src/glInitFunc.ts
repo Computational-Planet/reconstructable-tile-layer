@@ -370,7 +370,7 @@ function drawSceneClipped(
   // 处理裁剪多边形
   gl.uniform1iv(
     programInfo.uniformLocations.polygonVerticesCount,
-    new Int32Array([polygonVertices.length])
+    new Int32Array([polygonVertices.length / 2]) // 片段着色器里读取时就组合成vec2了，所以长度要除以2
   );
   gl.uniform2fv(
     programInfo.uniformLocations.polygonVertices,
