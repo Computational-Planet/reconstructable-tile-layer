@@ -8,7 +8,7 @@ import {
   RectangleGeometry,
   Viewer,
 } from "cesium";
-import CesiumTileProcesser from "tile-processer-webgl";
+import { CesiumTileProcesser } from "tile-processer-webgl";
 
 type TileXYL = { x: number; y: number; level: number };
 

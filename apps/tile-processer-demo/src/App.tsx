@@ -9,16 +9,18 @@ import {
 import { Button, DrawerCard, LeftDrawer } from "qhw-ui-demo";
 
 import "./App.css";
-import CesiumTileProcesser from "tile-processer-webgl";
+import { CesiumTileProcesser } from "tile-processer-webgl";
 import { TileGeneratorPanel } from "./components/TileGenerator";
 import CesiumRefContext from "./contexts/CesiumRefContext";
 import { CustomTileManager } from "./utils/customTileManager";
+import { QuadTreeTileProcesser } from "polygon-tile-quadtree";
 
 function App() {
   const container = useRef<HTMLDivElement | null>(null);
   const viewerRef = useRef<Viewer | null>(null);
   const tileManager = useRef<CustomTileManager | null>();
   const tileProcesserRef = useRef<CesiumTileProcesser>();
+  const quadTreeTileProcesserRef = useRef<QuadTreeTileProcesser>();
   const [ready, setReady] = useState(false);
   const glcanvas = useRef<HTMLCanvasElement | null>(null);
 
@@ -87,6 +89,7 @@ function App() {
         viewerRef,
         tileProcesserRef,
         tileManager,
+        quadTreeTileProcesserRef,
       }}
     >
       <div className={"control-bar"}></div>

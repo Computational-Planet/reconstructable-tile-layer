@@ -134,7 +134,7 @@ function TileGeneratorPanel(props: TileGeneratorPanelProps) {
         updateTilesTable={updateTilesTable}
         defaultClippedPolygon={defaultClippedPolygon}
       />
-      <OtherTestModule />
+      <OtherTestModule updateTilesTable={updateTilesTable} />
     </div>
   );
 }
