@@ -1,17 +1,6 @@
 import { useContext, useRef, useState } from "react";
 import CesiumRefContext from "../../contexts/CesiumRefContext";
 import { Button } from "qhw-ui-demo";
-import {
-  Primitive,
-  GeometryInstance,
-  PolygonGeometry,
-  PolygonHierarchy,
-  Cartesian3,
-  ArcType,
-  EllipsoidSurfaceAppearance,
-  Material,
-  Color,
-} from "cesium";
 
 interface AddTilesModuleProps {
   updateTilesTable: () => void; // 更新表格用的函数
@@ -103,30 +92,6 @@ export default function AddTilesModule(props: AddTilesModuleProps) {
                 processCanvasRef.current
               );
               updateTilesTable();
-              const polygon = new Primitive({
-                geometryInstances: new GeometryInstance({
-                  /* geometry: new RectangleGeometry({
-              rectangle: Rectangle.fromDegrees(-120.0, 20.0, -60.0, 40.0),
-              vertexFormat: EllipsoidSurfaceAppearance.VERTEX_FORMAT,
-            }), */
-                  id: "test-polygon",
-                  geometry: new PolygonGeometry({
-                    polygonHierarchy: new PolygonHierarchy(
-                      Cartesian3.fromDegreesArray([
-                        0.5, 0.5, 0.5, 85.0, 180.0, 0.5, 0.5, 0.5,
-                      ])
-                    ),
-                    arcType: ArcType.RHUMB,
-                  }),
-                }),
-                appearance: new EllipsoidSurfaceAppearance({
-                  //aboveGround: true,
-                  material: Material.fromType("Color", {
-                    color: new Color(1.0, 0.0, 0.0, 0.1),
-                  }),
-                }),
-              });
-              viewerRef.current.scene.primitives.add(polygon);
             }
           }}
         >

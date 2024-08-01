@@ -12,11 +12,7 @@ import {
   Material,
   Color,
 } from "cesium";
-import {
-  clipPolygonByQuadTreeNodes,
-  QuadTreeTileProcesser,
-} from "polygon-tile-quadtree";
-import { NodeInfo } from "polygon-tile-quadtree/dist/typings/QuadTreeTileNode";
+import { QuadTreeTileProcesser } from "polygon-tile-quadtree";
 
 interface OtherTestModuleProps {
   updateTilesTable: () => void; // 更新表格用的函数
