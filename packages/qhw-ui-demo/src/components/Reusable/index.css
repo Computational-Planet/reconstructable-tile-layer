@@ -53,6 +53,7 @@
 }
 
 .secondary-button {
+  display: inline-block;
   margin: 0;
   padding: 3px 20px;
   line-height: 100%;
@@ -64,7 +65,7 @@
   border-radius: 100px; /* 只要超过宽度就会变圆角。。。 */
   font-size: 16px;
   font-weight: 300;
-  color: #222222;
+  color: #888;
   cursor: pointer;
   user-select: none; /* 标准语法 */
 }
@@ -126,4 +127,33 @@
 
 .neat-table tfoot td {
   font-weight: bold;
+}
+
+/* ToolBarButton */
+.toolbar-button {
+  display: flex;
+  justify-content: center;
+  text-align: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 5px;
+  margin: 3px;
+  padding: 0;
+  background-color: #25252799;
+  cursor: pointer;
+  user-select: none; /* 标准语法 */
+  transition: all 0.1s ease-in-out;
+}
+.toolbar-button * {
+  color: #888;
+}
+.toolbar-button:hover * {
+  color: white;
+}
+.toolbar-button-active {
+  background-color: #49494c99;
+}
+.toolbar-button-active * {
+  color: white;
 }

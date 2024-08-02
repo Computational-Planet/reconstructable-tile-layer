@@ -56,6 +56,7 @@ function LeftDrawer(props: LeftDrawerProps) {
           boxSizing: "border-box",
           transform: `translate(${open ? "0" : "-30%"},0)`,
           opacity: `${open ? "1" : "0"}`,
+          pointerEvents: `${open ? "all" : "none"}`,
           transition: "all 0.2s ease-in-out",
           borderRadius: 5,
           overflow: "hidden",

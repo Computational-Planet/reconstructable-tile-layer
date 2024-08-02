@@ -63,7 +63,7 @@
   background: linear-gradient(#25252799, #25252799);
   border-radius: 5px;
   box-sizing: border-box;
-  pointer-events: all;
+  /* pointer-events: all; */
   overflow: hidden;
   overflow-y: scroll;
   scrollbar-width: none;
