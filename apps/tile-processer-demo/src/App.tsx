@@ -6,7 +6,7 @@ import {
   WebMapTileServiceImageryProvider,
   WebMercatorTilingScheme,
 } from "cesium";
-import { Button, DrawerCard, LeftDrawer } from "qhw-ui-demo";
+import { Button, DrawerCard, LeftDrawer, RightToolBar } from "qhw-ui-demo";
 
 import "./App.css";
 import { CesiumTileProcesser } from "tile-processer-webgl";
@@ -14,6 +14,7 @@ import { TileGeneratorPanel } from "./components/TileGenerator";
 import CesiumRefContext from "./contexts/CesiumRefContext";
 import { CustomTileManager } from "./utils/customTileManager";
 import { QuadTreeTileProcesser } from "polygon-tile-quadtree";
+import { RightToolBarContent } from "./components/RightToolBarContent";
 
 function App() {
   const container = useRef<HTMLDivElement | null>(null);
@@ -105,23 +106,31 @@ function App() {
       </canvas>
       {/* 在viewer初始化完毕后再加载相关组件，防止组件初始化失败 */}
       {ready && (
-        <LeftDrawer>
-          <DrawerCard className={"custom-card"} title="TILE GENERATOR">
-            <TileGeneratorPanel
-            //viewerRef={viewerRef}
-            //tileProcesserRef={tileProcesserRef}
-            />
-          </DrawerCard>
-          <DrawerCard className={"custom-card"} title="TILE REPROJECT FUNCTION">
-            <Button>hello</Button>
-          </DrawerCard>
-        </LeftDrawer>
+        <>
+          <LeftDrawer>
+            <DrawerCard className={"custom-card"} title="TILE GENERATOR">
+              <TileGeneratorPanel
+              //viewerRef={viewerRef}
+              //tileProcesserRef={tileProcesserRef}
+              />
+            </DrawerCard>
+            <DrawerCard
+              className={"custom-card"}
+              title="TILE REPROJECT FUNCTION"
+            >
+              <Button>hello</Button>
+            </DrawerCard>
+          </LeftDrawer>
+          <RightToolBar style={{ bottom: 70 }}>
+            <RightToolBarContent />
+          </RightToolBar>
+        </>
       )}
     </CesiumRefContext.Provider>
   );
 }
 
-const DefaultProvider = new WebMapTileServiceImageryProvider({
+export const DefaultProvider = new WebMapTileServiceImageryProvider({
   url: "https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/WMTS", //只填写URL也可以加载
   tileMatrixSetID: "1",
   layer: "World_Imagery", //图层名，用于在Cesium中记录该图层的名称
