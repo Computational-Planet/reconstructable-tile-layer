@@ -33,17 +33,17 @@ export default function StressTestModule(props: StressTestModuleProps) {
       /* 特殊的刷新（如旋转等）速率定为25帧 */
       updateTimer.current = setInterval(() => {
         if (isRotating.current && tileManager.current) {
-          let dif = 1;
+          //let dif = 1;
           for (let id in tileManager.current.tilePrimitives) {
             //通过转轴和角度，创建一个四元数
             const rotationQuaternion = Quaternion.fromAxisAngle(
               Cartesian3.fromDegrees(-60.0, 30.0), //绕原点到0，0的轴旋转（根据经纬度生成空间笛卡尔坐标，原理就是生成了一个原点到表面对应经纬度位置的向量）
-              CMath.toRadians(0.1 * dif++) //转30度
+              CMath.toRadians(0.1 /*  * dif++ */) //转30度
             );
             // 为每个瓦片赋予不同的速度
-            if (dif === 10) {
+            /* if (dif === 10) {
               dif = 1;
-            }
+            } */
             const rotationMartrix3 = Matrix3.fromQuaternion(rotationQuaternion);
             const rotationMartrix4 = Matrix4.fromRotation(rotationMartrix3);
             const primitive = tileManager.current.tilePrimitives[id].primitive;
