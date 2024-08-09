@@ -46,6 +46,12 @@ export class CustomTilePrimitive {
         material: Material.fromType("Color", {
           color: new Color(0.0, 0.0, 0.0, 0.0),
         }),
+        renderState: {
+          depthTest: {
+            // 不需要深度检测，互相完全覆盖
+            enabled: false,
+          },
+        },
       }),
     });
     this.primitive = viewer.scene.primitives.add(this.primitive);
