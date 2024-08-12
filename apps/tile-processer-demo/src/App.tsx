@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import {
   Color,
+  GeographicTilingScheme,
   ImageryLayer,
+  UrlTemplateImageryProvider,
   Viewer,
   WebMapTileServiceImageryProvider,
   WebMercatorTilingScheme,
@@ -10,11 +12,12 @@ import { Button, DrawerCard, LeftDrawer, RightToolBar } from "qhw-ui-demo";
 
 import "./App.css";
 import { CesiumTileProcesser } from "tile-processer-webgl";
-import { TileGeneratorPanel } from "./components/TileGenerator";
+import { TileClipper } from "./components/TileGenerator";
 import CesiumRefContext from "./contexts/CesiumRefContext";
 import { CustomTileManager } from "./utils/customTileManager";
 import { QuadTreeTileProcesser } from "polygon-tile-quadtree";
 import { RightToolBarContent } from "./components/RightToolBarContent";
+import GeoInfoBox from "./components/GeoInfoBox";
 
 function App() {
   const container = useRef<HTMLDivElement | null>(null);
@@ -108,22 +111,17 @@ function App() {
       {ready && (
         <>
           <LeftDrawer>
-            <DrawerCard className={"custom-card"} title="TILE GENERATOR">
-              <TileGeneratorPanel
-              //viewerRef={viewerRef}
-              //tileProcesserRef={tileProcesserRef}
-              />
+            <DrawerCard className={"custom-card"} title="TILE CLIPPER">
+              <TileClipper />
             </DrawerCard>
-            <DrawerCard
-              className={"custom-card"}
-              title="TILE REPROJECT FUNCTION"
-            >
+            <DrawerCard className={"custom-card"} title="DEEP TIME GEO">
               <Button>hello</Button>
             </DrawerCard>
           </LeftDrawer>
           <RightToolBar style={{ bottom: 70 }}>
             <RightToolBarContent />
           </RightToolBar>
+          <GeoInfoBox />
         </>
       )}
     </CesiumRefContext.Provider>
@@ -139,5 +137,9 @@ export const DefaultProvider = new WebMapTileServiceImageryProvider({
   maximumLevel: 18, //最大缩放层级。不影响图片加载，但是不约束它会导致Cesium频繁请求不存在的瓦片，产生很多报错
   tilingScheme: new WebMercatorTilingScheme({}),
 });
+
+/* export const DefaultProvider = new UrlTemplateImageryProvider({
+  url: "http://webrd02.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}",
+}); */
 
 export default App;
