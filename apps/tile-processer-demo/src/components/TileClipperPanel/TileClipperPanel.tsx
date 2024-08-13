@@ -12,14 +12,14 @@ const defaultClippedPolygon = [
   0.33,
 ];
 
-type TileClipperProps = {
+type TileClipperPanelProps = {
   style?: CSSProperties;
   className?: string;
   //viewerRef: RefObject<Viewer | null>;
   //tileProcesserRef: RefObject<CesiumTileProcesser | undefined>;
 };
 
-function TileClipper(props: TileClipperProps) {
+function TileClipperPanel(props: TileClipperPanelProps) {
   const { style: userStyle, className /* ,viewerRef, tileProcesserRef */ } =
     props;
   const context = useContext(CesiumRefContext);
@@ -139,4 +139,4 @@ function TileClipper(props: TileClipperProps) {
   );
 }
 
-export default TileClipper;
+export default TileClipperPanel;

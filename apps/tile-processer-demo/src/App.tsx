@@ -1,18 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 import {
   Color,
-  GeographicTilingScheme,
   ImageryLayer,
-  UrlTemplateImageryProvider,
   Viewer,
   WebMapTileServiceImageryProvider,
   WebMercatorTilingScheme,
 } from "cesium";
-import { Button, DrawerCard, LeftDrawer, RightToolBar } from "qhw-ui-demo";
+import { DrawerCard, LeftDrawer, RightToolBar } from "qhw-ui-demo";
 
 import "./App.css";
 import { CesiumTileProcesser } from "tile-processer-webgl";
-import { TileClipper } from "./components/TileClipperPanel";
+import { TileClipperPanel } from "./components/TileClipperPanel";
 import CesiumRefContext from "./contexts/CesiumRefContext";
 import { CustomTileManager } from "./utils/CustomTileManager";
 import { QuadTreeTileProcesser } from "polygon-tile-quadtree";
@@ -112,7 +110,7 @@ function App() {
         <>
           <LeftDrawer>
             <DrawerCard className={"custom-card"} title="TILE CLIPPER">
-              <TileClipper />
+              <TileClipperPanel />
             </DrawerCard>
             <DrawerCard
               className={"custom-card"}

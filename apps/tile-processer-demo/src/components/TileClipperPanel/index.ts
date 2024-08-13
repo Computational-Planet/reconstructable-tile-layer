@@ -1,3 +1,3 @@
-import TileClipper from "./TileClipper";
+import TileClipperPanel from "./TileClipperPanel";
 
-export { TileClipper };
+export { TileClipperPanel };
