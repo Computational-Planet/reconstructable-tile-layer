@@ -61,8 +61,6 @@ function GeoInfoBox(props: { style?: CSSProperties }): ReactNode {
           if (cheight > 10000) {
             setCameraHeight((cheight / 1000).toFixed(3) + "km");
           } else setCameraHeight(cheight.toFixed(3) + "m");
-
-          console.log("视图改变");
         });
       } catch (e) {
         console.log(e);
