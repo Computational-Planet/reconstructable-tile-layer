@@ -12,9 +12,9 @@ import { Button, DrawerCard, LeftDrawer, RightToolBar } from "qhw-ui-demo";
 
 import "./App.css";
 import { CesiumTileProcesser } from "tile-processer-webgl";
-import { TileClipper } from "./components/TileGenerator";
+import { TileClipper } from "./components/TileClipperPanel";
 import CesiumRefContext from "./contexts/CesiumRefContext";
-import { CustomTileManager } from "./utils/customTileManager";
+import { CustomTileManager } from "./utils/CustomTileManager";
 import { QuadTreeTileProcesser } from "polygon-tile-quadtree";
 import { RightToolBarContent } from "./components/RightToolBarContent";
 import GeoInfoBox from "./components/GeoInfoBox";
@@ -114,9 +114,10 @@ function App() {
             <DrawerCard className={"custom-card"} title="TILE CLIPPER">
               <TileClipper />
             </DrawerCard>
-            <DrawerCard className={"custom-card"} title="DEEP TIME GEO">
-              <Button>hello</Button>
-            </DrawerCard>
+            <DrawerCard
+              className={"custom-card"}
+              title="DEEP TIME GEO"
+            ></DrawerCard>
           </LeftDrawer>
           <RightToolBar style={{ bottom: 70 }}>
             <RightToolBarContent />

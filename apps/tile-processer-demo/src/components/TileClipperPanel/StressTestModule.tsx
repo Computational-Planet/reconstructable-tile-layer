@@ -8,7 +8,7 @@ import {
   Matrix4,
   Math as CMath,
 } from "cesium";
-import { CustomTileManager } from "../../utils/customTileManager";
+import { CustomTileManager } from "../../utils/CustomTileManager";
 
 interface StressTestModuleProps {
   updateTilesTable: () => void; // 更新表格用的函数

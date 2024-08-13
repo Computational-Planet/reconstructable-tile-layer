@@ -2,7 +2,7 @@
 import { Viewer } from "cesium";
 import React from "react";
 import { CesiumTileProcesser } from "tile-processer-webgl";
-import { CustomTileManager } from "../utils/customTileManager";
+import { CustomTileManager } from "../utils/CustomTileManager";
 import { QuadTreeTileProcesser } from "polygon-tile-quadtree";
 
 interface CesiumRefContextType {

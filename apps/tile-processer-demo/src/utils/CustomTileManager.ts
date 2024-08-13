@@ -41,6 +41,7 @@ export class CustomTilePrimitive {
           ),
         }),
       }),
+      asynchronous: false,
       appearance: new EllipsoidSurfaceAppearance({
         //aboveGround: true,
         material: Material.fromType("Color", {
