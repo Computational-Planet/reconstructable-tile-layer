@@ -41,7 +41,7 @@ export class CustomTilePrimitive {
           ),
         }),
       }),
-      asynchronous: false,
+      // asynchronous: false, // 关闭异步加载，确保每一帧中图元已显示完整
       appearance: new EllipsoidSurfaceAppearance({
         //aboveGround: true,
         material: Material.fromType("Color", {
