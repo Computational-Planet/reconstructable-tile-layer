@@ -186,4 +186,24 @@ export class QuadTreeTileNode {
       this._child = null;
     }
   }
+
+  get polygon() {
+    return this._polygon;
+  }
+
+  get child() {
+    return this._child;
+  }
+
+  get rectangle() {
+    return this._rectangle;
+  }
+
+  get tileXYZ() {
+    return this._tileXYL;
+  }
+
+  get status() {
+    return this._status;
+  }
 }
