@@ -25,8 +25,12 @@ export default function OtherTestModule(props: OtherTestModuleProps) {
     // 处理 context 为 undefined 的情况
     return null;
   }
-  const { viewerRef, tileProcesserRef, tileManager, quadTreeTileProcesserRef } =
-    context;
+  const {
+    viewerRef,
+    tileProcesserRef,
+    tileManagerRef,
+    quadTreeTileProcesserRef,
+  } = context;
 
   const [clipL, setClipL] = useState(6);
   const [doubleRoot, setDoubleRoot] = useState<boolean>(false);
@@ -87,7 +91,7 @@ export default function OtherTestModule(props: OtherTestModuleProps) {
               console.log(tileArray);
               for (let i = 0; i < tileArray.length; i++) {
                 if (tileArray[i].polygon !== null) {
-                  tileManager.current?.generateClippedReprojTile(
+                  tileManagerRef.current?.generateClippedReprojTile(
                     `Clip-QuadTreetile-${tileArray[i].tileXYL.x}/${tileArray[i].tileXYL.y}/${tileArray[i].tileXYL.l}`,
                     tileProcesserRef.current.provider,
                     tileArray[i].tileXYL.x,
@@ -97,7 +101,7 @@ export default function OtherTestModule(props: OtherTestModuleProps) {
                     tileArray[i].polygon!
                   );
                 } else {
-                  tileManager.current?.generateReprojTile(
+                  tileManagerRef.current?.generateReprojTile(
                     `Full-QuadTreetile-${tileArray[i].tileXYL.x}/${tileArray[i].tileXYL.y}/${tileArray[i].tileXYL.l}`,
                     tileProcesserRef.current.provider,
                     tileArray[i].tileXYL.x,
@@ -128,12 +132,12 @@ export default function OtherTestModule(props: OtherTestModuleProps) {
           if (
             viewerRef.current &&
             tileProcesserRef.current &&
-            tileManager.current
+            tileManagerRef.current
           ) {
             if (
               viewerRef.current &&
               tileProcesserRef.current &&
-              tileManager.current
+              tileManagerRef.current
             ) {
               if (!comparedPolygon.current) {
                 comparedPolygon.current = new Primitive({

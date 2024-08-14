@@ -14,7 +14,7 @@ export default function AddTilesModule(props: AddTilesModuleProps) {
     // 处理 context 为 undefined 的情况
     return null;
   }
-  const { viewerRef, tileProcesserRef, tileManager } = context;
+  const { viewerRef, tileProcesserRef, tileManagerRef } = context;
   const processCanvasRef = useRef<HTMLCanvasElement>(null);
   const [x, setX] = useState(0);
   const [y, setY] = useState(0);
@@ -81,9 +81,9 @@ export default function AddTilesModule(props: AddTilesModuleProps) {
               viewerRef.current &&
               tileProcesserRef.current &&
               processCanvasRef.current &&
-              tileManager.current
+              tileManagerRef.current
             ) {
-              tileManager.current.generateOriTile(
+              tileManagerRef.current.generateOriTile(
                 `tile-${x}/${y}/${l}-ori`,
                 tileProcesserRef.current.provider,
                 x,
@@ -104,9 +104,9 @@ export default function AddTilesModule(props: AddTilesModuleProps) {
               viewerRef.current &&
               tileProcesserRef.current &&
               processCanvasRef.current &&
-              tileManager.current
+              tileManagerRef.current
             ) {
-              tileManager.current.generateReprojTile(
+              tileManagerRef.current.generateReprojTile(
                 `tile-${x}/${y}/${l}-reproj`,
                 tileProcesserRef.current.provider,
                 x,
@@ -127,9 +127,9 @@ export default function AddTilesModule(props: AddTilesModuleProps) {
               viewerRef.current &&
               tileProcesserRef.current &&
               processCanvasRef.current &&
-              tileManager.current
+              tileManagerRef.current
             ) {
-              tileManager.current.generateClippedReprojTile(
+              tileManagerRef.current.generateClippedReprojTile(
                 `tile-${x}/${y}/${l}-reproj-clipped`,
                 tileProcesserRef.current.provider,
                 x,

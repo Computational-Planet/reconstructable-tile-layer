@@ -27,7 +27,7 @@ function TileClipperPanel(props: TileClipperPanelProps) {
     // 处理 context 为 undefined 的情况
     return null;
   }
-  const { viewerRef, tileManager } = context;
+  const { viewerRef, tileManagerRef } = context;
 
   //const tileManager = useRef<CustomTileManager | null>();
 
@@ -35,10 +35,10 @@ function TileClipperPanel(props: TileClipperPanelProps) {
   const [showTable, setShowTable] = useState<boolean>(true);
 
   function updateTilesTable() {
-    if (tileManager.current && tileManager.current.tilePrimitives) {
+    if (tileManagerRef.current && tileManagerRef.current.tilePrimitives) {
       const dataArray: Array<Array<any>> = [];
-      const oriData = tileManager.current.tilePrimitives;
-      for (let id in tileManager.current.tilePrimitives) {
+      const oriData = tileManagerRef.current.tilePrimitives;
+      for (let id in tileManagerRef.current.tilePrimitives) {
         const row: Array<any> = [];
         // id
         row.push(id);
@@ -75,7 +75,7 @@ function TileClipperPanel(props: TileClipperPanelProps) {
           <Button
             level="secondary"
             onClick={() => {
-              tileManager.current?.removeById(id);
+              tileManagerRef.current?.removeById(id);
               viewerRef.current?.scene.requestRender();
               updateTilesTable();
             }}
