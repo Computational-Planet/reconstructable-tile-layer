@@ -4,13 +4,17 @@ import React from "react";
 import { CesiumTileProcesser } from "tile-processer-webgl";
 import { CustomTileManager } from "../utils/CustomTileManager";
 import { QuadTreeTileProcesser } from "polygon-tile-quadtree";
+import { TilePrimitivesManager } from "../utils/TilePrimitivesManager";
 
 interface CesiumRefContextType {
   viewerRef: React.MutableRefObject<Viewer | null>;
   tileProcesserRef: React.MutableRefObject<CesiumTileProcesser | undefined>;
-  tileManager: React.MutableRefObject<CustomTileManager | null | undefined>;
+  tileManagerRef: React.MutableRefObject<CustomTileManager | null | undefined>;
   quadTreeTileProcesserRef: React.MutableRefObject<
     QuadTreeTileProcesser | undefined
+  >;
+  tilePrimitivesManagerRef: React.MutableRefObject<
+    TilePrimitivesManager | undefined
   >;
 }
 

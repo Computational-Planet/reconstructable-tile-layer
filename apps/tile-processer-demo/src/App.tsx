@@ -16,13 +16,16 @@ import { CustomTileManager } from "./utils/CustomTileManager";
 import { QuadTreeTileProcesser } from "polygon-tile-quadtree";
 import { RightToolBarContent } from "./components/RightToolBarContent";
 import GeoInfoBox from "./components/GeoInfoBox";
+import { TilePrimitivesManager } from "./utils/TilePrimitivesManager";
+import { DeepTimeGeoPanel } from "./components/DeepTimeGeoPanel";
 
 function App() {
   const container = useRef<HTMLDivElement | null>(null);
   const viewerRef = useRef<Viewer | null>(null);
-  const tileManager = useRef<CustomTileManager | null>();
+  const tileManagerRef = useRef<CustomTileManager | null>();
   const tileProcesserRef = useRef<CesiumTileProcesser>();
   const quadTreeTileProcesserRef = useRef<QuadTreeTileProcesser>();
+  const tilePrimitivesManagerRef = useRef<TilePrimitivesManager>();
   const [ready, setReady] = useState(false);
   const glcanvas = useRef<HTMLCanvasElement | null>(null);
 
@@ -90,8 +93,9 @@ function App() {
       value={{
         viewerRef,
         tileProcesserRef,
-        tileManager,
+        tileManagerRef,
         quadTreeTileProcesserRef,
+        tilePrimitivesManagerRef,
       }}
     >
       <div className={"control-bar"}></div>
@@ -112,10 +116,9 @@ function App() {
             <DrawerCard className={"custom-card"} title="TILE CLIPPER">
               <TileClipperPanel />
             </DrawerCard>
-            <DrawerCard
-              className={"custom-card"}
-              title="DEEP TIME GEO"
-            ></DrawerCard>
+            <DrawerCard className={"custom-card"} title="DEEP TIME GEO">
+              <DeepTimeGeoPanel />
+            </DrawerCard>
           </LeftDrawer>
           <RightToolBar style={{ bottom: 70 }}>
             <RightToolBarContent />
