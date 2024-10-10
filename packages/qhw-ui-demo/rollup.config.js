@@ -17,7 +17,7 @@ export default {
       sourcemap: true, // 生成bundle.js.map文件，方便调试
       //banner: "// banner", // 为打包好的文件添加注释，注释的位置在整个文件的首行
       preserveModules: true, // 保留模块结构，不要全打包到一个文件里面
-      preserveModulesRoot: "./src", // 指定根目录
+      preserveModulesRoot: "src", // 指定根目录
     },
     {
       //main，commonJS
@@ -25,7 +25,7 @@ export default {
       format: "cjs",
       sourcemap: true,
       preserveModules: true, // 保留模块结构
-      preserveModulesRoot: "./src", // 指定根目录
+      preserveModulesRoot: "src", // 指定根目录
     },
     {
       dir: "./dist/typings/",
@@ -34,7 +34,9 @@ export default {
     },
   ],
   plugins: [
-    ts(),
+    ts({
+      tsconfig: 'tsconfig.json', // 明确指定 tsconfig 文件路径
+    }),
     commonjs({
       include: /node_modules/,
     }),
