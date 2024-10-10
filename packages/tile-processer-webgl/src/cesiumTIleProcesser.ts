@@ -1,4 +1,4 @@
-import { ImageryProvider } from "cesium";
+import { ImageryProvider, ImageryTypes } from "cesium";
 import { clipFS, defaultFS, defaultVS } from "./shader/defaultShaders";
 import {
   drawScene,
@@ -8,6 +8,29 @@ import {
   initShaderProgram,
   initTextureCoordBuffer,
 } from "./glInitFunc";
+
+class CachedPromise<T> {
+  private cacheMap = new Map<string, Promise<T>>();
+
+  get(key: string, promiseFn?: () => Promise<T>): Promise<T> | undefined {
+    if (!this.cacheMap.has(key) && promiseFn) {
+      this.set(key, promiseFn());
+    }
+    return this.cacheMap.get(key);
+  }
+
+  set(key: string, promise: Promise<T>): void {
+    this.cacheMap.set(key, promise);
+  }
+
+  delete(key: string): void {
+    this.cacheMap.delete(key);
+  }
+
+  clear(): void {
+    this.cacheMap.clear();
+  }
+}
 
 /**
  * 获取指定瓦片，并使用WebGL进行重投影，随后输出处理后的影像的类。
@@ -29,6 +52,8 @@ export class CesiumTileProcesser {
   private _currentTileXYZ: { x: number; y: number; z: number } | undefined =
     undefined; // 当前处理的瓦片xyz
   private _currentResult: string | null = null;
+  private _imageCachePromise = new CachedPromise<ImageryTypes>();
+  private _imageBuffer: { [key: string]: ImageryTypes | undefined } = {}
 
   constructor(canvas: HTMLCanvasElement, options: CesiumTileProcesserOptions) {
     // 获取画布
@@ -182,6 +207,7 @@ export class CesiumTileProcesser {
       console.error("gl上下文未正确定义");
       return null;
     }
+
     // 根据瓦片具体位置初始化纹理坐标
     this._buffers.textureCoord = initTextureCoordBuffer(
       this._context,
@@ -193,25 +219,37 @@ export class CesiumTileProcesser {
     );
 
     // 加载瓦片
-    const image = await this.provider.requestImage(x, y, level);
-    if (!image) {
-      // 如果获取图像失败则返回
-      console.error("图像获取失败");
+    const tileKey = `${x}-${y}-${level}`;
+
+    try {
+      if (!this._imageBuffer[tileKey]) {
+        const image = await this._imageCachePromise.get(tileKey, () => this.provider.requestImage(x, y, level)!);
+        if (!image) {
+          console.error("图像获取失败");
+          return null;
+        }
+        this._imageBuffer[tileKey] = image;
+      }
+
+      //将瓦片转换成纹理
+      const texture = generateTexture(this._context, this._imageBuffer[tileKey]);
+
+      drawScene(
+        this._context,
+        this._vertexRowNum,
+        this._programInfo.defaultProgramInfo,
+        texture,
+        this._buffers
+      );
+
+      this._currentResult = this._canvas.toDataURL();
+      return this._currentResult;
+    } catch (error) {
+      console.error("获取或处理图像时发生错误:", error);
       return null;
+    } finally {
+      this._imageCachePromise.delete(tileKey);
     }
-    //将瓦片转换成纹理
-    const texture = generateTexture(this._context, image);
-
-    drawScene(
-      this._context,
-      this._vertexRowNum,
-      this._programInfo.defaultProgramInfo,
-      texture,
-      this._buffers
-    );
-
-    this._currentResult = this._canvas.toDataURL();
-    return this._currentResult;
   }
 
   // 产出经过裁剪的重投影瓦片（部分透明），需要输入顶点坐标，坐标是相对于纹理坐标定义的(0-1)
@@ -236,26 +274,40 @@ export class CesiumTileProcesser {
     );
 
     // 加载瓦片
-    const image = await this.provider.requestImage(x, y, level);
-    if (!image) {
-      // 如果获取图像失败则返回
-      console.error("图像获取失败");
+    const tileKey = `${x}-${y}-${level}`;
+    try {
+      if (!this._imageBuffer[tileKey]) {
+        const image = await this._imageCachePromise.get(tileKey, () => this.provider.requestImage(x, y, level)!);
+        if (!image) {
+          console.error("图像获取失败");
+          return null;
+        }
+        this._imageBuffer[tileKey] = image;
+      }
+
+
+
+      //将瓦片转换成纹理
+      const texture = generateTexture(this._context, this._imageBuffer[tileKey]);
+
+      drawSceneClipped(
+        this._context,
+        this._vertexRowNum,
+        this._programInfo.clipProgramInfo,
+        texture,
+        this._buffers,
+        polygonVertices
+      );
+
+      this._currentResult = this._canvas.toDataURL();
+      return this._currentResult;
+
+    } catch (error) {
+      console.error("获取或处理图像时发生错误:", error);
       return null;
+    } finally {
+      this._imageCachePromise.delete(tileKey);
     }
-    //将瓦片转换成纹理
-    const texture = generateTexture(this._context, image);
-
-    drawSceneClipped(
-      this._context,
-      this._vertexRowNum,
-      this._programInfo.clipProgramInfo,
-      texture,
-      this._buffers,
-      polygonVertices
-    );
-
-    this._currentResult = this._canvas.toDataURL();
-    return this._currentResult;
   }
 }
 
