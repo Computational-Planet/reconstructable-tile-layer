@@ -1,0 +1,84 @@
+import {
+  Cartesian3,
+  Math as CesiumMath,
+  Matrix3,
+  PolygonHierarchy,
+  Quaternion,
+} from "cesium";
+
+import { getQuaternionAtAge } from "./getQuaternionAtAge";
+
+import type { RotItem, RotSplineItem } from "./handleRot";
+
+export function rotateCartensianPoint(
+  originPosition: Cartesian3,
+  rotatePosition: Cartesian3,
+  angle: number,
+): Cartesian3 {
+  const rotate = CesiumMath.toRadians(angle);
+
+  const quat = Quaternion.fromAxisAngle(rotatePosition, rotate);
+  const rot_mat3 = Matrix3.fromQuaternion(quat);
+
+  return Matrix3.multiplyByVector(rot_mat3, originPosition, new Cartesian3());
+}
+
+function rotatePositionsWithQuaternion(
+  positions: Cartesian3[],
+  quaternion: Quaternion,
+): Cartesian3[] {
+  const rotationMatrix = Matrix3.fromQuaternion(quaternion);
+  const result = positions.map((position) =>
+    Matrix3.multiplyByVector(rotationMatrix, position, new Cartesian3()),
+  );
+
+  return result;
+}
+
+export async function rotatePoints(
+  points: Cartesian3[],
+  plateId: string,
+  rotData: Map<string, RotSplineItem>,
+  age: number,
+) {
+  const quat = getQuaternionAtAge(plateId, rotData, age);
+  if (!quat) {
+    return null;
+  }
+
+  return rotatePositionsWithQuaternion(points, quat);
+}
+
+export async function getRotateMatirxAtAge(
+  plateId: string,
+  rotData: Map<string, RotSplineItem>,
+  age: number,
+) {
+  const quat = getQuaternionAtAge(plateId, rotData, age);
+  if (!quat) {
+    return undefined;
+  }
+  const rotationMatrix = Matrix3.fromQuaternion(quat);
+  return rotationMatrix;
+}
+
+export function getPositionsAtAge(
+  positions: Cartesian3[],
+  intervals: RotItem[],
+  age: number,
+) {
+  const intervalIndex = intervals.findIndex(
+    (item, index) => item.age >= age && (intervals[index - 1]?.age ?? 0) <= age,
+  );
+  const rotation = intervals[intervalIndex]?.rotation ?? intervals[0].rotation;
+
+  const angle = rotation.angle;
+  const rotatePosition = Cartesian3.fromDegrees(
+    rotation.latitude,
+    rotation.longitude,
+  );
+  const newPositions = positions.map((cartesian3) =>
+    rotateCartensianPoint(cartesian3, rotatePosition, angle),
+  );
+  return new PolygonHierarchy(newPositions);
+}
