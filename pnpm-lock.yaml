@@ -23,6 +23,9 @@ importers:
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
+      plates-rotation-operator:
+        specifier: workspace:*
+        version: link:../../packages/plates-rotation-operator
       polygon-tile-quadtree:
         specifier: workspace:*
         version: link:../../packages/polygon-tile-quadtree
@@ -72,6 +75,40 @@ importers:
       vite-plugin-cesium:
         specifier: ^1.2.22
         version: 1.2.22(cesium@1.119.0)(rollup@4.18.1)(vite@5.3.3(@types/node@20.11.24)(terser@5.31.2))
+
+  packages/plates-rotation-operator:
+    dependencies:
+      cesium:
+        specifier: ^1.119.0
+        version: 1.119.0
+    devDependencies:
+      '@rollup/plugin-commonjs':
+        specifier: ^26.0.1
+        version: 26.0.1(rollup@4.18.1)
+      '@rollup/plugin-json':
+        specifier: ^6.1.0
+        version: 6.1.0(rollup@4.18.1)
+      '@rollup/plugin-node-resolve':
+        specifier: ^15.2.3
+        version: 15.2.3(rollup@4.18.1)
+      cross-env:
+        specifier: ^7.0.3
+        version: 7.0.3
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.0.1
+      rollup:
+        specifier: ^4.18.1
+        version: 4.18.1
+      rollup-plugin-typescript2:
+        specifier: ^0.36.0
+        version: 0.36.0(rollup@4.18.1)(typescript@5.5.3)
+      tslib:
+        specifier: ^2.6.3
+        version: 2.6.3
+      typescript:
+        specifier: ^5.5.3
+        version: 5.5.3
 
   packages/polygon-tile-quadtree:
     dependencies:
