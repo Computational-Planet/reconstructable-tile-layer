@@ -1,9 +1,13 @@
-import { ImageryProvider, Rectangle } from "cesium";
+import { ImageryProvider, Rectangle, Math as CesiumMath } from "cesium";
 import { NodeInfo, QuadTreeTileNode, TileXYL } from "./QuadTreeTileNode";
 import { CesiumTileProcesser } from "tile-processer-webgl";
 import { PI_10 } from "./constants";
 import { clipToLR } from "./utils/geometry";
 
+// 下一步修改想法：
+// 树内记录一个完整的多边形，可以有多个根节点（使用180°经线切分成n块（最多三块？），同时需要处理跨越极点的多边形）。
+// 根节点干脆直接设成0，0，0瓦片（4326还需要再看看怎么分配，如果刚好和180°经线一样顺便就切掉了）
+// 最后要记录多边形实际的包围盒，用于计算是否在视野范围内。
 export class QuadTreeTileProcesser {
   private _imageryProvider: ImageryProvider;
   private _tileProcesser: CesiumTileProcesser;
@@ -64,7 +68,8 @@ export class QuadTreeTileProcesser {
     }
 
     // 先将多边形处理为[0,1]
-    const west = this._rectangle.west;
+    // 这里也要做一次坐标变换!
+    /* const west = this._rectangle.west;
     const east = this._rectangle.east;
     const north = this._rectangle.north;
     const south = this._rectangle.south;
@@ -76,6 +81,33 @@ export class QuadTreeTileProcesser {
       clipPolygon.push(
         1.0 - (north - polygon[i + 1] * (PI_10 / 180.0)) / (north - south)
       );
+    }
+    clipPolygon[clipPolygon.length - 2] = clipPolygon[0];
+    clipPolygon[clipPolygon.length - 1] = clipPolygon[1]; */
+    const west = this._rectangle.west;
+    const east = this._rectangle.east;
+    const north = this._rectangle.north;
+    const south = this._rectangle.south;
+    const clipPolygon: Array<number> = [];
+    let sinLatitudeSouth = Math.sin(this._rectangle.south);
+    const southMercatorY =
+      0.5 * Math.log((1 + sinLatitudeSouth) / (1 - sinLatitudeSouth));
+    let sinLatitudeNorth = Math.sin(this._rectangle.north);
+    const northMercatorY =
+      0.5 * Math.log((1 + sinLatitudeNorth) / (1 - sinLatitudeNorth));
+    const oneOverMercatorHeight = 1.0 / (northMercatorY - southMercatorY);
+    //let outputIndex = 0;
+    for (let i = 0; i < polygon.length; i = i + 2) {
+      const fraction = 1.0 - (north - polygon[i + 1] * (PI_10 / 180.0)) / (north - south);
+      const latitude = CesiumMath.lerp(south, north, fraction);
+      let sinLatitude = Math.sin(latitude);
+      const mercatorY =
+        0.5 * Math.log((1.0 + sinLatitude) / (1.0 - sinLatitude));
+      const mercatorFraction =
+        (mercatorY - southMercatorY) * oneOverMercatorHeight;
+
+      clipPolygon.push(1.0 - (east - polygon[i] * (PI_10 / 180.0)) / (east - west));
+      clipPolygon.push(mercatorFraction);
     }
     clipPolygon[clipPolygon.length - 2] = clipPolygon[0];
     clipPolygon[clipPolygon.length - 1] = clipPolygon[1];
@@ -161,3 +193,5 @@ export class QuadTreeTileProcesser {
     return this._rootRXYL;
   }
 }
+
+export { NodeInfo }
