@@ -1,4 +1,4 @@
-import { ImageryProvider } from "cesium";
+import { ImageryProvider, ImageryTypes } from "cesium";
 import { CesiumTileProcesser } from "tile-processer-webgl";
 import { CustomTileManager } from "./CustomTileManager";
 import { QuadTreeTileProcesser } from "polygon-tile-quadtree";
@@ -111,16 +111,20 @@ export class TilePrimitivesManager {
     return res;
   }
 
-  loadAllPolygonOnLevelZeroTile(tileManager: CustomTileManager) {
+  async loadAllPolygonOnLevelZeroTile(tileManager: CustomTileManager) {
     this.paleoData.map((item) => {
-      if (item.time.end <= 0 && item.polygonTileQuadTree) {
+      if (
+        item.time.end <= 0 &&
+        //item.plateId === "514" &&
+        item.polygonTileQuadTree
+      ) {
         const infoArray: Array<NodeInfo> = [];
-        item.polygonTileQuadTree.root?.getTileInfoByLevel(4, infoArray);
+        item.polygonTileQuadTree.root?.getTileInfoByLevel(3, infoArray);
         if (item.polygonTileQuadTree.rootR) {
-          item.polygonTileQuadTree.rootR?.getTileInfoByLevel(4, infoArray);
+          item.polygonTileQuadTree.rootR?.getTileInfoByLevel(3, infoArray);
         }
         console.log(infoArray.length);
-        infoArray.forEach((data) => {
+        infoArray.forEach(async (data) => {
           if (data.polygon) {
             tileManager.generateClippedReprojTile(
               `${item.featureId}-${data.tileXYL.x}/${data.tileXYL.y}/${data.tileXYL.l}`,

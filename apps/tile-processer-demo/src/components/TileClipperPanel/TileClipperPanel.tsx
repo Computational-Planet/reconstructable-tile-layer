@@ -7,9 +7,9 @@ import AddTilesModule from "./AddTilesModule";
 import StressTestModule from "./StressTestModule";
 import OtherTestModule from "./OtherTestModule";
 
-const defaultClippedPolygon = [
-  0.0, 0.33, 0.5, 0.33, 0.5, 0.0, 1.0, 0.5, 0.5, 1.0, 0.5, 0.66, 0.0, 0.66, 0.0,
-  0.33,
+export const defaultClippedPolygon = [
+  0.01, 0.33, 0.5, 0.33, 0.5, 0.01, 0.99, 0.5, 0.5, 0.99, 0.5, 0.66, 0.01, 0.66,
+  0.01, 0.33,
 ];
 
 type TileClipperPanelProps = {
@@ -38,21 +38,22 @@ function TileClipperPanel(props: TileClipperPanelProps) {
     if (tileManagerRef.current && tileManagerRef.current.tilePrimitives) {
       const dataArray: Array<Array<any>> = [];
       const oriData = tileManagerRef.current.tilePrimitives;
-      for (let id in tileManagerRef.current.tilePrimitives) {
+
+      oriData.forEach((value, id) => {
         const row: Array<any> = [];
         // id
         row.push(id);
         // xyl
         row.push(
-          `${oriData[id].tileXYL.x}/${oriData[id].tileXYL.y}/${oriData[id].tileXYL.level}`
+          `${value.tileXYL.x}/${value.tileXYL.y}/${value.tileXYL.level}`
         );
         // 显影按钮
         row.push(
-          oriData[id].shown ? (
+          value.shown ? (
             <Button
               level="secondary"
               onClick={() => {
-                oriData[id].shown = false;
+                value.shown = false;
                 updateTilesTable();
               }}
             >
@@ -62,7 +63,7 @@ function TileClipperPanel(props: TileClipperPanelProps) {
             <Button
               level="secondary"
               onClick={() => {
-                oriData[id].shown = true;
+                value.shown = true;
                 updateTilesTable();
               }}
             >
@@ -85,7 +86,7 @@ function TileClipperPanel(props: TileClipperPanelProps) {
         );
         // 压入一整行
         dataArray.push(row);
-      }
+      });
       setTableData(dataArray);
     }
   }

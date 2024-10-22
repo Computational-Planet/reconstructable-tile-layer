@@ -3,6 +3,7 @@ import {
   EllipsoidSurfaceAppearance,
   GeometryInstance,
   ImageryProvider,
+  ImageryTypes,
   Material,
   Primitive,
   RectangleGeometry,
@@ -41,7 +42,7 @@ export class CustomTilePrimitive {
           ),
         }),
       }),
-      // asynchronous: false, // 关闭异步加载，确保每一帧中图元已显示完整
+      asynchronous: false, // 关闭异步加载，确保每一帧中图元已显示完整
       appearance: new EllipsoidSurfaceAppearance({
         //aboveGround: true,
         material: Material.fromType("Color", {
@@ -76,11 +77,12 @@ export class CustomTilePrimitive {
 }
 
 export class CustomTileManager {
-  tilePrimitives: { [key: string]: CustomTilePrimitive };
+  tilePrimitives: Map<string, CustomTilePrimitive>;
+  imageBuffer: { [key: string]: Promise<ImageryTypes> | undefined } = {};
   viewer: Viewer;
 
   constructor(viewer: Viewer) {
-    this.tilePrimitives = {};
+    this.tilePrimitives = new Map<string, CustomTilePrimitive>;
     this.viewer = viewer;
   }
 
@@ -105,7 +107,7 @@ export class CustomTileManager {
       y,
       level
     );
-    this.tilePrimitives[id] = tileItem;
+    this.tilePrimitives.set(id, tileItem);
     provider.requestImage(x, y, level)?.then((img) => {
       // 仅当图元尚存时才进行进一步操作
       if (tileItem.primitive) {
@@ -160,7 +162,8 @@ export class CustomTileManager {
       y,
       level
     );
-    this.tilePrimitives[id] = tileItem;
+    this.tilePrimitives.set(id, tileItem);
+
     const imageURL = await processer.reprojectTile(x, y, level);
     if (tileItem.primitive)
       tileItem.primitive.appearance.material = new Material({
@@ -194,7 +197,7 @@ export class CustomTileManager {
       y,
       level
     );
-    this.tilePrimitives[id] = tileItem;
+    this.tilePrimitives.set(id, tileItem);
     const imageURL = await processer.reprojectClippedTile(x, y, level, polygon);
     if (tileItem.primitive)
       tileItem.primitive.appearance.material = new Material({
@@ -207,19 +210,17 @@ export class CustomTileManager {
       });
   }
   getById(id: string) {
-    return this.tilePrimitives[id];
+    return this.tilePrimitives.get(id);
   }
   removeById(id: string) {
-    if (this.tilePrimitives[id]) {
-      // console.log(this.tilePrimitives[id]);
-      this.tilePrimitives[id].destroy(this.viewer);
-      delete this.tilePrimitives[id];
-    }
+    this.tilePrimitives.get(id)?.destroy(this.viewer);
+    this.tilePrimitives.delete(id);
+
   }
   removeAll() {
-    for (let id in this.tilePrimitives) {
-      this.tilePrimitives[id]?.destroy(this.viewer);
-      delete this.tilePrimitives[id];
-    }
+    this.tilePrimitives.forEach((value, id) => {
+      value.destroy(this.viewer);
+    })
+    this.tilePrimitives.clear();
   }
 }

@@ -5,6 +5,7 @@ import { CesiumTileProcesser } from "tile-processer-webgl";
 import { CustomTileManager } from "../utils/CustomTileManager";
 import { QuadTreeTileProcesser } from "polygon-tile-quadtree";
 import { TilePrimitivesManager } from "../utils/TilePrimitivesManager";
+import { SimpleGeoReconstructManager } from "../utils/SimpleGeoReconstructManager";
 
 interface CesiumRefContextType {
   viewerRef: React.MutableRefObject<Viewer | null>;
@@ -16,6 +17,10 @@ interface CesiumRefContextType {
   tilePrimitivesManagerRef: React.MutableRefObject<
     TilePrimitivesManager | undefined
   >;
+  simpleGeoReconstructManagerRef: React.MutableRefObject<
+    SimpleGeoReconstructManager | undefined
+  >;
+
 }
 
 const CesiumRefContext = React.createContext<CesiumRefContextType | undefined>(

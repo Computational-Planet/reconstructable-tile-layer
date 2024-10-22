@@ -13,6 +13,7 @@ import {
   Color,
 } from "cesium";
 import { QuadTreeTileProcesser } from "polygon-tile-quadtree";
+import { defaultClippedPolygon } from "./TileClipperPanel";
 
 interface OtherTestModuleProps {
   updateTilesTable: () => void; // 更新表格用的函数
@@ -149,9 +150,29 @@ export default function OtherTestModule(props: OtherTestModuleProps) {
                     id: "test-polygon",
                     geometry: new PolygonGeometry({
                       polygonHierarchy: new PolygonHierarchy(
-                        Cartesian3.fromDegreesArray([
-                          0.5, 0.5, 0.5, 85.0, 180.0, 0.5, 0.5, 0.5,
-                        ])
+                        Cartesian3.fromDegreesArray(
+                          defaultClippedPolygon.map((item, index) => {
+                            const rec =
+                              tileProcesserRef.current!.provider.tilingScheme.tileXYToNativeRectangle(
+                                0,
+                                0,
+                                0
+                              );
+                            if (index % 2 === 0) {
+                              // x坐标
+                              console.log(
+                                (rec.east - rec.west) * item + rec.west
+                              );
+                              return (rec.east - rec.west) * item + rec.west;
+                            } else {
+                              // y坐标
+                              console.log(
+                                (rec.north - rec.south) * item + rec.south
+                              );
+                              return (rec.north - rec.south) * item + rec.south;
+                            }
+                          })
+                        )
                       ),
                       arcType: ArcType.RHUMB,
                     }),
@@ -170,6 +191,7 @@ export default function OtherTestModule(props: OtherTestModuleProps) {
                 );
                 comparedPolygon.current = null;
               }
+
               viewerRef.current.scene.requestRender();
             }
           }

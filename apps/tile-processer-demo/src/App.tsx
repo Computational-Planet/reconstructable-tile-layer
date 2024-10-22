@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import {
   Color,
+  GeographicTilingScheme,
   ImageryLayer,
+  UrlTemplateImageryProvider,
   Viewer,
   WebMapTileServiceImageryProvider,
   WebMercatorTilingScheme,
@@ -18,6 +20,7 @@ import { RightToolBarContent } from "./components/RightToolBarContent";
 import GeoInfoBox from "./components/GeoInfoBox";
 import { TilePrimitivesManager } from "./utils/TilePrimitivesManager";
 import { DeepTimeGeoPanel } from "./components/DeepTimeGeoPanel";
+import { SimpleGeoReconstructManager } from "./utils/SimpleGeoReconstructManager";
 
 function App() {
   const container = useRef<HTMLDivElement | null>(null);
@@ -26,6 +29,7 @@ function App() {
   const tileProcesserRef = useRef<CesiumTileProcesser>();
   const quadTreeTileProcesserRef = useRef<QuadTreeTileProcesser>();
   const tilePrimitivesManagerRef = useRef<TilePrimitivesManager>();
+  const simpleGeoReconstructManagerRef = useRef<SimpleGeoReconstructManager>();
   const [ready, setReady] = useState(false);
   const glcanvas = useRef<HTMLCanvasElement | null>(null);
 
@@ -33,8 +37,8 @@ function App() {
     if (container.current) {
       viewerRef.current = new Viewer(container.current, {
         baseLayerPicker: false,
-        // baseLayer: false,
-        baseLayer: new ImageryLayer(DefaultProvider),
+        baseLayer: false,
+        //baseLayer: new ImageryLayer(DefaultProvider),
         animation: false,
         fullscreenButton: false,
         geocoder: false,
@@ -85,7 +89,7 @@ function App() {
       tileProcesserRef.current.reprojectTile(0, 0, 0);
     }
 
-    return () => {};
+    return () => { };
   }, []);
 
   return (
@@ -96,6 +100,7 @@ function App() {
         tileManagerRef,
         quadTreeTileProcesserRef,
         tilePrimitivesManagerRef,
+        simpleGeoReconstructManagerRef
       }}
     >
       <div className={"control-bar"}></div>
@@ -141,7 +146,14 @@ export const DefaultProvider = new WebMapTileServiceImageryProvider({
 });
 
 /* export const DefaultProvider = new UrlTemplateImageryProvider({
-  url: "http://webrd02.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}",
+  url: "https://alpha.deep-time.org/tms/Scotese2018/54326/{z}/{x}/{reverseY}.png",
 }); */
+
+/* export const DefaultProvider = new UrlTemplateImageryProvider({
+  url: "https://trek.nasa.gov/tiles/Mars/EQ/Mars_Viking_MDIM21_ClrMosaic_global_232m/1.0.0//default/default028mm/{z}/{y}/{x}.jpg", // Mars
+  tilingScheme: new GeographicTilingScheme(), //必须有，这个是切片方案，必须根据球体创建正确的切片方案
+}); */
+
+console.log(DefaultProvider.tilingScheme.tileXYToNativeRectangle(1, 0, 0));
 
 export default App;

@@ -34,8 +34,7 @@ export default function StressTestModule(props: StressTestModuleProps) {
       updateTimer.current = setInterval(() => {
         if (isRotating.current && tileManagerRef.current) {
           //let dif = 1;
-          for (let id in tileManagerRef.current.tilePrimitives) {
-            //通过转轴和角度，创建一个四元数
+          tileManagerRef.current.tilePrimitives.forEach((value, id) => {
             const rotationQuaternion = Quaternion.fromAxisAngle(
               Cartesian3.fromDegrees(-60.0, 30.0), //绕原点到0，0的轴旋转（根据经纬度生成空间笛卡尔坐标，原理就是生成了一个原点到表面对应经纬度位置的向量）
               CMath.toRadians(0.1 /*  * dif++ */) //转30度
@@ -47,14 +46,14 @@ export default function StressTestModule(props: StressTestModuleProps) {
             const rotationMartrix3 = Matrix3.fromQuaternion(rotationQuaternion);
             const rotationMartrix4 = Matrix4.fromRotation(rotationMartrix3);
             const primitive =
-              tileManagerRef.current.tilePrimitives[id].primitive;
+              value.primitive;
             if (primitive)
               primitive.modelMatrix = Matrix4.multiply(
                 primitive.modelMatrix,
                 rotationMartrix4,
                 new Matrix4()
               );
-          }
+          })
         }
         viewerRef.current?.scene.requestRender(); // 通知Cesium重新渲染结果
       }, 1000 / 60);
