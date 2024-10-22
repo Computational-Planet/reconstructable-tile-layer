@@ -3,6 +3,7 @@ import {
   Rectangle,
   Math as CesiumMath,
   ImageryTypes,
+  WebMercatorTilingScheme,
 } from "cesium";
 import { isPowerOf2 } from "./utils/math";
 import { Buffers, WebGLProgramInfo } from "./cesiumTIleProcesser";
@@ -97,46 +98,75 @@ export function initTextureCoordBuffer(
   const textureCoordBuffer = gl.createBuffer();
   // 将当前操作的buffer改为纹理坐标的buffer
   gl.bindBuffer(gl.ARRAY_BUFFER, textureCoordBuffer);
-  // 根据瓦片位置创建瓦片范围矩形
-  const rectangle = provider.tilingScheme.tileXYToRectangle(
-    x,
-    y,
-    level,
-    new Rectangle()
-  );
-  let sinLatitude = Math.sin(rectangle.south);
-  const southMercatorY = 0.5 * Math.log((1 + sinLatitude) / (1 - sinLatitude));
-  sinLatitude = Math.sin(rectangle.north);
-  const northMercatorY = 0.5 * Math.log((1 + sinLatitude) / (1 - sinLatitude));
-  const oneOverMercatorHeight = 1.0 / (northMercatorY - southMercatorY);
-  const south = rectangle.south;
-  const north = rectangle.north;
-  const webMercatorT = new Float32Array(2 * vertexRowNum * 2);
-  let outputIndex = 0;
-  for (
-    let webMercatorTIndex = 0;
-    webMercatorTIndex < vertexRowNum;
-    ++webMercatorTIndex
-  ) {
-    const fraction = webMercatorTIndex / (vertexRowNum - 1);
-    const latitude = CesiumMath.lerp(south, north, fraction);
-    sinLatitude = Math.sin(latitude);
-    const mercatorY = 0.5 * Math.log((1.0 + sinLatitude) / (1.0 - sinLatitude));
-    const mercatorFraction =
-      (mercatorY - southMercatorY) * oneOverMercatorHeight;
-    webMercatorT[outputIndex++] = 0.0;
-    webMercatorT[outputIndex++] = mercatorFraction;
-    webMercatorT[outputIndex++] = 1.0;
-    webMercatorT[outputIndex++] = mercatorFraction;
+
+  //仅在tilingScheme为WebMercator时才需要进行重投影（转化为等距投影）
+  if (provider.tilingScheme instanceof WebMercatorTilingScheme) {
+    // 若投影方式为Web墨卡托，则需要进行重投影。这里需要逐顶点计算纹理坐标（使最终结果经纬度等距）
+    // 根据瓦片位置创建瓦片范围矩形
+    const rectangle = provider.tilingScheme.tileXYToRectangle(
+      x,
+      y,
+      level,
+      new Rectangle()
+    );
+    let sinLatitudeSouth = Math.sin(rectangle.south);
+    const southMercatorY =
+      0.5 * Math.log((1 + sinLatitudeSouth) / (1 - sinLatitudeSouth));
+    let sinLatitudeNorth = Math.sin(rectangle.north);
+    const northMercatorY =
+      0.5 * Math.log((1 + sinLatitudeNorth) / (1 - sinLatitudeNorth));
+    const oneOverMercatorHeight = 1.0 / (northMercatorY - southMercatorY);
+    const south = rectangle.south;
+    const north = rectangle.north;
+    const webMercatorT = new Float32Array(2 * vertexRowNum * 2);
+    let outputIndex = 0;
+    for (
+      let webMercatorTIndex = 0;
+      webMercatorTIndex < vertexRowNum;
+      ++webMercatorTIndex
+    ) {
+      const fraction = webMercatorTIndex / (vertexRowNum - 1);
+      const latitude = CesiumMath.lerp(south, north, fraction);
+      let sinLatitude = Math.sin(latitude);
+      const mercatorY =
+        0.5 * Math.log((1.0 + sinLatitude) / (1.0 - sinLatitude));
+      const mercatorFraction =
+        (mercatorY - southMercatorY) * oneOverMercatorHeight;
+      webMercatorT[outputIndex++] = 0.0;
+      webMercatorT[outputIndex++] = mercatorFraction;
+      webMercatorT[outputIndex++] = 1.0;
+      webMercatorT[outputIndex++] = mercatorFraction;
+    }
+
+    //将其纹理坐标转化为 WebGL 浮点型类型的数组，并将其传到 gl 对象的 bufferData() 方法来填充对应的顶点缓冲器。
+    gl.bufferData(
+      gl.ARRAY_BUFFER,
+      new Float32Array(webMercatorT),
+      //new Float32Array(positions),
+      gl.STATIC_DRAW
+    );
+  } else {
+    // 若为4326，则直接以顶点坐标的相同方法设置纹理坐标
+
+    const positions = new Float32Array(2 * vertexRowNum * 2);
+    let index = 0;
+    for (let j = 0; j < vertexRowNum; ++j) {
+      const y = j / (vertexRowNum - 1);
+      positions[index++] = 0.0;
+      positions[index++] = y;
+      positions[index++] = 1.0;
+      positions[index++] = y;
+    }
+
+    //将其纹理坐标转化为 WebGL 浮点型类型的数组，并将其传到 gl 对象的 bufferData() 方法来填充对应的顶点缓冲器。
+    gl.bufferData(
+      gl.ARRAY_BUFFER,
+      new Float32Array(positions),
+      //new Float32Array(positions),
+      gl.STATIC_DRAW
+    );
   }
 
-  //将其纹理坐标转化为 WebGL 浮点型类型的数组，并将其传到 gl 对象的 bufferData() 方法来填充对应的顶点缓冲器。
-  gl.bufferData(
-    gl.ARRAY_BUFFER,
-    new Float32Array(webMercatorT),
-    //new Float32Array(positions),
-    gl.STATIC_DRAW
-  );
   return textureCoordBuffer;
 }
 
