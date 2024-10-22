@@ -30,7 +30,6 @@
   },
   "dependencies": {
     "cesium": "^1.119.0",
-    "gl-matrix": "^3.4.3",
-    "tile-processer-webgl": "workspace:*"
+    "gl-matrix": "^3.4.3"
   }
 }
