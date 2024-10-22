@@ -111,7 +111,7 @@ function DeepTimeGeoPanel(props: DeepTimeGeoPanelProps) {
       </div>
       <div style={{ marginBottom: 10 }}>
         <input type="range" min={0} max={600} value={age} style={{ width: "80%" }} onChange={(e) => { setAge(Number(e.target.value)) }}></input>
-        <input type="number" defaultValue={0} min={0} max={600} value={age} onChange={(e) => { setAge(Number(e.target.value)) }} />
+        <input type="number" min={0} max={600} value={age} onChange={(e) => { setAge(Number(e.target.value)) }} />
       </div>
     </div>
   );
