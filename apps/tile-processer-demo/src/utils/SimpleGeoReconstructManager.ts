@@ -52,6 +52,7 @@ export type PlateQuadTreeGroup = {
 }
 
 export interface SimpleGeoReconstructManagerConstructorOptions {
+  provider: ImageryProvider;
   processer: CesiumTileProcesser;
   files: {
     polygon: string; // 多边形的路径
@@ -60,6 +61,7 @@ export interface SimpleGeoReconstructManagerConstructorOptions {
 }
 
 export class SimpleGeoReconstructManager {
+  private _provider: ImageryProvider;
   processer: CesiumTileProcesser;
   rotationOperator: RotationOperator = new RotationOperator();
   private _files: {
@@ -73,6 +75,7 @@ export class SimpleGeoReconstructManager {
   private _ready = false;
 
   constructor(data: SimpleGeoReconstructManagerConstructorOptions) {
+    this._provider = data.provider;
     this.processer = data.processer;
     this._files = data.files;
   }
@@ -117,10 +120,8 @@ export class SimpleGeoReconstructManager {
       }
       this.plates.get(item.plateId)?.polygonQuadTrees.set(item.featureId, {
         info: item, quadTree: new QuadTreeTileProcesser(
-          this.processer.provider,
-          this.processer,
+          this._provider.tilingScheme,
           item.lonlats,
-          { x: 0, y: 0, l: 0 } // 暂时先全用0加载
         ), primitives: {}
       })
     });
@@ -140,7 +141,7 @@ export class SimpleGeoReconstructManager {
             geometryInstances: new GeometryInstance({
               id: tileId,
               geometry: new RectangleGeometry({
-                rectangle: this.processer.provider.tilingScheme.tileXYToRectangle(
+                rectangle: this._provider.tilingScheme.tileXYToRectangle(
                   tileInfo.tileXYL.x,
                   tileInfo.tileXYL.y,
                   tileInfo.tileXYL.l
@@ -162,7 +163,7 @@ export class SimpleGeoReconstructManager {
             }),
           });
           if (tileInfo.polygon) {
-            const imageURL = await this.processer.reprojectClippedTile(tileInfo.tileXYL.x, tileInfo.tileXYL.y, tileInfo.tileXYL.l, tileInfo.polygon);
+            const imageURL = await this.processer.reprojectClippedTile(tileInfo.tileXYL.x, tileInfo.tileXYL.y, tileInfo.tileXYL.l, tileInfo.polygon, this._provider);
             if (tilePrimitive) {
               tilePrimitive.appearance.material = new Material({
                 fabric: {
@@ -175,7 +176,7 @@ export class SimpleGeoReconstructManager {
             }
           }
           else {
-            const imageURL = await this.processer.reprojectTile(tileInfo.tileXYL.x, tileInfo.tileXYL.y, tileInfo.tileXYL.l);
+            const imageURL = await this.processer.reprojectTile(tileInfo.tileXYL.x, tileInfo.tileXYL.y, tileInfo.tileXYL.l, this._provider);
             if (tilePrimitive) {
               tilePrimitive.appearance.material = new Material({
                 fabric: {
@@ -192,6 +193,72 @@ export class SimpleGeoReconstructManager {
       })
     });
   }
+
+  async generateTilePrimitivesAtRoot(viewer: Viewer) {
+    this.plates.forEach((plateItem, id) => {
+      plateItem.polygonQuadTrees.forEach((polygonItem, id) => {
+        const tiles: NodeInfo[] = [];
+        polygonItem.quadTree.findTilesAtRoot(tiles);
+        console.log(tiles)
+        tiles.forEach(async (tileInfo) => {
+          const tileId = polygonItem.info.featureId + `-${tileInfo.tileXYL.x}/${tileInfo.tileXYL.y}/${tileInfo.tileXYL.l}`;
+          const tilePrimitive = new Primitive({
+            geometryInstances: new GeometryInstance({
+              id: tileId,
+              geometry: new RectangleGeometry({
+                rectangle: this._provider.tilingScheme.tileXYToRectangle(
+                  tileInfo.tileXYL.x,
+                  tileInfo.tileXYL.y,
+                  tileInfo.tileXYL.l
+                ),
+              }),
+            }),
+            asynchronous: false, // 关闭异步加载，确保每一帧中图元已显示完整
+            appearance: new EllipsoidSurfaceAppearance({
+              //aboveGround: true,
+              material: Material.fromType("Color", {
+                color: new Color(0.0, 0.0, 0.0, 0.0),
+              }),
+              renderState: {
+                depthTest: {
+                  // 不需要深度检测，互相完全覆盖
+                  enabled: false,
+                },
+              },
+            }),
+          });
+          if (tileInfo.polygon) {
+            const imageURL = await this.processer.reprojectClippedTile(tileInfo.tileXYL.x, tileInfo.tileXYL.y, tileInfo.tileXYL.l, tileInfo.polygon, this._provider);
+            if (tilePrimitive) {
+              tilePrimitive.appearance.material = new Material({
+                fabric: {
+                  type: "Image",
+                  uniforms: {
+                    image: imageURL,
+                  },
+                },
+              });
+            }
+          }
+          else {
+            const imageURL = await this.processer.reprojectTile(tileInfo.tileXYL.x, tileInfo.tileXYL.y, tileInfo.tileXYL.l, this._provider);
+            if (tilePrimitive) {
+              tilePrimitive.appearance.material = new Material({
+                fabric: {
+                  type: "Image",
+                  uniforms: {
+                    image: imageURL,
+                  },
+                },
+              });
+            }
+          }
+          polygonItem.primitives[tileId] = viewer.scene.primitives.add(tilePrimitive);
+        })
+      })
+    });
+  }
+
   async updateAge(age: number) {
     this.plates.forEach(async (plateItem, id) => {
       const modelMatrix = await this.rotationOperator.getRotateMatrix(plateItem.plateId, age);
@@ -206,9 +273,32 @@ export class SimpleGeoReconstructManager {
         })
       })
     });
-
   }
-
-
+  async updateProvider(viewer: Viewer, provider: ImageryProvider) {
+    this._provider = provider;
+    this.plates.forEach(async (plateItem, id) => {
+      plateItem.polygonQuadTrees.forEach((polygonItem, id) => {
+        polygonItem.quadTree.updateProvider(provider);
+      })
+    });
+    this.processer.clearBuffer();
+    this.plates.forEach(async (plateItem, id) => {
+      plateItem.polygonQuadTrees.forEach((polygonItem, id) => {
+        Object.values(polygonItem.primitives).forEach((tilePrimitive) => {
+          viewer.scene.primitives.remove(tilePrimitive);
+        })
+      })
+    });
+  }
+  clearAllTiles(viewer: Viewer) {
+    this.processer.clearBuffer();
+    this.plates.forEach(async (plateItem, id) => {
+      plateItem.polygonQuadTrees.forEach((polygonItem, id) => {
+        Object.values(polygonItem.primitives).forEach((tilePrimitive) => {
+          viewer.scene.primitives.remove(tilePrimitive);
+        })
+      })
+    });
+  }
 }
 
