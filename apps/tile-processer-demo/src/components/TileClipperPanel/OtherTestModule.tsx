@@ -14,6 +14,7 @@ import {
 } from "cesium";
 import { QuadTreeTileProcesser } from "polygon-tile-quadtree";
 import { defaultClippedPolygon } from "./TileClipperPanel";
+import { DefaultProvider } from "../../App";
 
 interface OtherTestModuleProps {
   updateTilesTable: () => void; // 更新表格用的函数
@@ -33,34 +34,32 @@ export default function OtherTestModule(props: OtherTestModuleProps) {
     quadTreeTileProcesserRef,
   } = context;
 
-  const [clipL, setClipL] = useState(6);
+  const [clipL, setClipL] = useState(3);
   const [doubleRoot, setDoubleRoot] = useState<boolean>(false);
   const comparedPolygon = useRef<Primitive | null>();
 
   useEffect(() => {
     if (tileProcesserRef.current) {
-      quadTreeTileProcesserRef.current = !doubleRoot
-        ? new QuadTreeTileProcesser(
-            tileProcesserRef.current.provider,
-            tileProcesserRef.current,
-            [
-              -72.0, 40.0, -80.0, 37.0, -88.0, 38.0, -88.0, 34.0, -75.0, 32.0,
-              -70.0, 32.0, -74.0, 33.0, -68.0, 36.0, -73.0, 38.0, -68.0, 40.0,
-              -72.0, 40.0,
-            ],
-            { x: 4, y: 6, l: 4 }
-          )
-        : new QuadTreeTileProcesser(
-            tileProcesserRef.current.provider,
-            tileProcesserRef.current,
-            [
-              -72.0, 40.0, -80.0, 37.0, -88.0, 38.0, -88.0, 34.0, -75.0, 32.0,
-              -70.0, 32.0, -74.0, 33.0, -68.0, 36.0, -73.0, 38.0, -68.0, 40.0,
-              -72.0, 40.0,
-            ],
-            { x: 8, y: 12, l: 5 },
-            { x: 9, y: 12, l: 5 }
-          );
+      quadTreeTileProcesserRef.current = new QuadTreeTileProcesser(
+        DefaultProvider.tilingScheme,
+        /* [
+          -72.0, 40.0, -80.0, 37.0, -88.0, 38.0, -88.0, 34.0, -75.0, 32.0,
+          -70.0, 32.0, -74.0, 33.0, -68.0, 36.0, -73.0, 38.0, -68.0, 40.0,
+          -72.0, 40.0,
+        ], */
+        /* [
+          -175, 80, -177, 80, -179, 80, 160, 80, -160, 70, 150, 70, 130, 75, 100, 80, 50, 75, 0, 75, -50, 80, -100, 75, -150, 80, -175, 80
+        ], */
+        [// 包含极点+穿越180
+          150, 80, 170, 80,// 穿越1
+          -170, 80, -170, 70,// 穿越2
+          170, 70, 170, 65,// 穿越3
+          -170, 65, -170, 60,// 穿越4
+          170, 60, 170, 55,// 穿越4
+          -160, 55,//收尾
+          -160, 80, -150, 80, -100, 80, -50, 80, 0, 80, 50, 80, 100, 80, 150, 80
+        ],
+      )
     }
   }, [doubleRoot]);
 
@@ -93,8 +92,8 @@ export default function OtherTestModule(props: OtherTestModuleProps) {
               for (let i = 0; i < tileArray.length; i++) {
                 if (tileArray[i].polygon !== null) {
                   tileManagerRef.current?.generateClippedReprojTile(
-                    `Clip-QuadTreetile-${tileArray[i].tileXYL.x}/${tileArray[i].tileXYL.y}/${tileArray[i].tileXYL.l}`,
-                    tileProcesserRef.current.provider,
+                    `${i}-Clip-QuadTreetile-${tileArray[i].tileXYL.x}/${tileArray[i].tileXYL.y}/${tileArray[i].tileXYL.l}`,
+                    DefaultProvider,
                     tileArray[i].tileXYL.x,
                     tileArray[i].tileXYL.y,
                     tileArray[i].tileXYL.l,
@@ -103,8 +102,8 @@ export default function OtherTestModule(props: OtherTestModuleProps) {
                   );
                 } else {
                   tileManagerRef.current?.generateReprojTile(
-                    `Full-QuadTreetile-${tileArray[i].tileXYL.x}/${tileArray[i].tileXYL.y}/${tileArray[i].tileXYL.l}`,
-                    tileProcesserRef.current.provider,
+                    `${i}-Full-QuadTreetile-${tileArray[i].tileXYL.x}/${tileArray[i].tileXYL.y}/${tileArray[i].tileXYL.l}`,
+                    DefaultProvider,
                     tileArray[i].tileXYL.x,
                     tileArray[i].tileXYL.y,
                     tileArray[i].tileXYL.l,
@@ -153,7 +152,7 @@ export default function OtherTestModule(props: OtherTestModuleProps) {
                         Cartesian3.fromDegreesArray(
                           defaultClippedPolygon.map((item, index) => {
                             const rec =
-                              tileProcesserRef.current!.provider.tilingScheme.tileXYToNativeRectangle(
+                              DefaultProvider.tilingScheme.tileXYToNativeRectangle(
                                 0,
                                 0,
                                 0

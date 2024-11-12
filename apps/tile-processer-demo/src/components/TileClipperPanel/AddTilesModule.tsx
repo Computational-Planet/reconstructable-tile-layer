@@ -1,6 +1,7 @@
 import { useContext, useRef, useState } from "react";
 import CesiumRefContext from "../../contexts/CesiumRefContext";
 import { Button } from "qhw-ui-demo";
+import { DefaultProvider } from "../../App";
 
 interface AddTilesModuleProps {
   updateTilesTable: () => void; // 更新表格用的函数
@@ -85,7 +86,7 @@ export default function AddTilesModule(props: AddTilesModuleProps) {
             ) {
               tileManagerRef.current.generateOriTile(
                 `tile-${x}/${y}/${l}-ori`,
-                tileProcesserRef.current.provider,
+                DefaultProvider,
                 x,
                 y,
                 l,
@@ -108,7 +109,7 @@ export default function AddTilesModule(props: AddTilesModuleProps) {
             ) {
               tileManagerRef.current.generateReprojTile(
                 `tile-${x}/${y}/${l}-reproj`,
-                tileProcesserRef.current.provider,
+                DefaultProvider,
                 x,
                 y,
                 l,
@@ -131,7 +132,7 @@ export default function AddTilesModule(props: AddTilesModuleProps) {
             ) {
               tileManagerRef.current.generateClippedReprojTile(
                 `tile-${x}/${y}/${l}-reproj-clipped`,
-                tileProcesserRef.current.provider,
+                DefaultProvider,
                 x,
                 y,
                 l,

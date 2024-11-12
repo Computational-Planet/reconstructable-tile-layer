@@ -9,6 +9,7 @@ import {
   Math as CMath,
 } from "cesium";
 import { CustomTileManager } from "../../utils/CustomTileManager";
+import { DefaultProvider } from "../../App";
 
 interface StressTestModuleProps {
   updateTilesTable: () => void; // 更新表格用的函数
@@ -83,7 +84,7 @@ export default function StressTestModule(props: StressTestModuleProps) {
                 for (let yt = 190; yt < 210; yt++) {
                   tileManagerRef.current.generateReprojTile(
                     `tile-${xt}/${yt}/${lt}-reproj`,
-                    tileProcesserRef.current.provider,
+                    DefaultProvider,
                     xt,
                     yt,
                     lt,
@@ -111,7 +112,7 @@ export default function StressTestModule(props: StressTestModuleProps) {
                 for (let yt = 190; yt < 210; yt++) {
                   tileManagerRef.current.generateClippedReprojTile(
                     `tile-${xt}/${yt}/${lt}-reproj-clipped`,
-                    tileProcesserRef.current.provider,
+                    DefaultProvider,
                     xt,
                     yt,
                     lt,

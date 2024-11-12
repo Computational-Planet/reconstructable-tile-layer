@@ -46,6 +46,7 @@ export interface PaleoData {
 }
 
 export interface TilePrimitivesManagerConstructorOptions {
+  provider: ImageryProvider;
   processer: CesiumTileProcesser;
   files: {
     polygon: string; // 多边形的路径
@@ -54,6 +55,7 @@ export interface TilePrimitivesManagerConstructorOptions {
 }
 
 export class TilePrimitivesManager {
+  provider: ImageryProvider;
   processer: CesiumTileProcesser;
   private _files: {
     polygon: string; // 多边形的路径
@@ -63,6 +65,7 @@ export class TilePrimitivesManager {
   private _ready = false;
 
   constructor(data: TilePrimitivesManagerConstructorOptions) {
+    this.provider = data.provider;
     this.processer = data.processer;
     this._files = data.files;
   }
@@ -71,10 +74,8 @@ export class TilePrimitivesManager {
     this.paleoData = await this.getPaleoDataFlatten(this.files.polygon);
     this.paleoData.map((item) => {
       item.polygonTileQuadTree = new QuadTreeTileProcesser(
-        this.processer.provider,
-        this.processer,
+        this.provider.tilingScheme,
         item.lonlats,
-        { x: 0, y: 0, l: 0 } // 暂时先全用0加载
       );
     });
     console.log(this.paleoData);
@@ -111,7 +112,7 @@ export class TilePrimitivesManager {
     return res;
   }
 
-  async loadAllPolygonOnLevelZeroTile(tileManager: CustomTileManager) {
+  async loadAllPolygonOnLevel3Tile(tileManager: CustomTileManager) {
     this.paleoData.map((item) => {
       if (
         item.time.end <= 0 &&
@@ -119,16 +120,14 @@ export class TilePrimitivesManager {
         item.polygonTileQuadTree
       ) {
         const infoArray: Array<NodeInfo> = [];
-        item.polygonTileQuadTree.root?.getTileInfoByLevel(3, infoArray);
-        if (item.polygonTileQuadTree.rootR) {
-          item.polygonTileQuadTree.rootR?.getTileInfoByLevel(3, infoArray);
-        }
+        item.polygonTileQuadTree.findTilesByLevel(3, infoArray);
+
         console.log(infoArray.length);
         infoArray.forEach(async (data) => {
           if (data.polygon) {
             tileManager.generateClippedReprojTile(
               `${item.featureId}-${data.tileXYL.x}/${data.tileXYL.y}/${data.tileXYL.l}`,
-              item.polygonTileQuadTree!.imageryProvider,
+              this.provider,
               data.tileXYL.x,
               data.tileXYL.y,
               data.tileXYL.l,
@@ -138,7 +137,7 @@ export class TilePrimitivesManager {
           } else {
             tileManager.generateReprojTile(
               `${item.featureId}-${data.tileXYL.x}/${data.tileXYL.y}/${data.tileXYL.l}`,
-              item.polygonTileQuadTree!.imageryProvider,
+              this.provider,
               data.tileXYL.x,
               data.tileXYL.y,
               data.tileXYL.l,
