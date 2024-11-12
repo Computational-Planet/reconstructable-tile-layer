@@ -332,3 +332,31 @@ export function checkClipMode(polygon: Array<number>) {
     return TileClipMode.NONE_DISPLAY; //如果出入一致，说明没包裹成形状，全空
   } else return TileClipMode.FULL_DISPLAY; // 如果不一致，说明进行了一个完整的轮回，全满。
 }
+
+export interface Point { x: number, y: number }
+
+//计算与竖线的交点
+export function calIntersectionWithX(p1: Point, p2: Point, xi: number) {
+  // 解算方程
+  // 注：不可能发生k不存在的情况，因为两边的x严格没有交集
+  let k = (p2.y - p1.y) / (p2.x - p1.x);
+  let b = p2.y - k * p2.x;
+  // 计算交点处yi
+  let yi = k * xi + b;
+  return { x: xi, y: yi };
+}
+//计算与横线的交点
+export function calIntersectionWithY(p1: Point, p2: Point, yi: number) {
+  // 解算方程
+  let k, xi, b;
+  if (p2.x - p1.x === 0) {
+    //需要考虑k不存在情况
+    xi = p2.x;
+  } else {
+    k = (p2.y - p1.y) / (p2.x - p1.x);
+    b = p2.y - k * p2.x;
+    // 计算交点处yi
+    xi = (yi - b) / k;
+  }
+  return { x: xi, y: yi }
+}
