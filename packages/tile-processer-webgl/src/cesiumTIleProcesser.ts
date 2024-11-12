@@ -46,9 +46,6 @@ export class CesiumTileProcesser {
   };
   private _buffers: Buffers;
   private _vertexRowNum: number = 64;
-  provider: ImageryProvider & {
-    [key: string]: any;
-  }; // 瓦片影像提供器，由Cesium支持
   private _currentTileXYZ: { x: number; y: number; z: number } | undefined =
     undefined; // 当前处理的瓦片xyz
   private _currentResult: string | null = null;
@@ -61,8 +58,6 @@ export class CesiumTileProcesser {
     // 设置宽高
     this._canvas.width = options.width ?? 256;
     this._canvas.height = options.height ?? 256;
-
-    this.provider = options.provider;
 
     //获取webgl上下文(需要允许透明)
     this._context = this._canvas.getContext("webgl", { alpha: true });
@@ -202,7 +197,7 @@ export class CesiumTileProcesser {
   }
 
   // 产出重投影的结果
-  async reprojectTile(x: number, y: number, level: number) {
+  async reprojectTile(x: number, y: number, level: number, provider: ImageryProvider) {
     if (this._context == null) {
       console.error("gl上下文未正确定义");
       return null;
@@ -212,7 +207,7 @@ export class CesiumTileProcesser {
     this._buffers.textureCoord = initTextureCoordBuffer(
       this._context,
       this._vertexRowNum,
-      this.provider,
+      provider,
       x,
       y,
       level
@@ -223,7 +218,7 @@ export class CesiumTileProcesser {
 
     try {
       if (!this._imageBuffer[tileKey]) {
-        const image = await this._imageCachePromise.get(tileKey, () => this.provider.requestImage(x, y, level)!);
+        const image = await this._imageCachePromise.get(tileKey, () => provider.requestImage(x, y, level)!);
         if (!image) {
           console.error("图像获取失败");
           return null;
@@ -257,7 +252,8 @@ export class CesiumTileProcesser {
     x: number,
     y: number,
     level: number,
-    polygonVertices: Array<number>
+    polygonVertices: Array<number>,
+    provider: ImageryProvider
   ) {
     if (this._context == null) {
       console.error("gl上下文未正确定义");
@@ -267,7 +263,7 @@ export class CesiumTileProcesser {
     this._buffers.textureCoord = initTextureCoordBuffer(
       this._context,
       this._vertexRowNum,
-      this.provider,
+      provider,
       x,
       y,
       level
@@ -277,7 +273,7 @@ export class CesiumTileProcesser {
     const tileKey = `${x}-${y}-${level}`;
     try {
       if (!this._imageBuffer[tileKey]) {
-        const image = await this._imageCachePromise.get(tileKey, () => this.provider.requestImage(x, y, level)!);
+        const image = await this._imageCachePromise.get(tileKey, () => provider.requestImage(x, y, level)!);
         if (!image) {
           console.error("图像获取失败");
           return null;
@@ -309,13 +305,15 @@ export class CesiumTileProcesser {
       this._imageCachePromise.delete(tileKey);
     }
   }
+
+  clearBuffer() {
+    this._imageBuffer = {};
+    this._imageCachePromise.clear();
+  }
 }
 
 // 输出类的选项
 export type CesiumTileProcesserOptions = {
-  provider: ImageryProvider & {
-    [key: string]: any; // 索引签名，允许任意数量的属性
-  };
   width?: number; // 瓦片宽度
   height?: number; // 瓦片高度
   vsSource?: string; // 顶点着色器
