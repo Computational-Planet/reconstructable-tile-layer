@@ -164,7 +164,7 @@ export class CustomTileManager {
     );
     this.tilePrimitives.set(id, tileItem);
 
-    const imageURL = await processer.reprojectTile(x, y, level);
+    const imageURL = await processer.reprojectTile(x, y, level, provider);
     if (tileItem.primitive)
       tileItem.primitive.appearance.material = new Material({
         fabric: {
@@ -198,7 +198,7 @@ export class CustomTileManager {
       level
     );
     this.tilePrimitives.set(id, tileItem);
-    const imageURL = await processer.reprojectClippedTile(x, y, level, polygon);
+    const imageURL = await processer.reprojectClippedTile(x, y, level, polygon, provider);
     if (tileItem.primitive)
       tileItem.primitive.appearance.material = new Material({
         fabric: {

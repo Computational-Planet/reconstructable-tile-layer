@@ -83,10 +83,8 @@ function App() {
 
   useEffect(() => {
     if (glcanvas.current) {
-      tileProcesserRef.current = new CesiumTileProcesser(glcanvas.current, {
-        provider: DefaultProvider,
-      });
-      tileProcesserRef.current.reprojectTile(0, 0, 0);
+      tileProcesserRef.current = new CesiumTileProcesser(glcanvas.current, {});
+      tileProcesserRef.current.reprojectTile(0, 0, 0, DefaultProvider);
     }
 
     return () => { };
@@ -135,7 +133,7 @@ function App() {
   );
 }
 
-export const DefaultProvider = new WebMapTileServiceImageryProvider({
+/* export const DefaultProvider = new WebMapTileServiceImageryProvider({
   url: "https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/WMTS", //只填写URL也可以加载
   tileMatrixSetID: "1",
   layer: "World_Imagery", //图层名，用于在Cesium中记录该图层的名称
@@ -143,17 +141,23 @@ export const DefaultProvider = new WebMapTileServiceImageryProvider({
   format: "image/jpeg", //瓦片格式，可从xml获取
   maximumLevel: 18, //最大缩放层级。不影响图片加载，但是不约束它会导致Cesium频繁请求不存在的瓦片，产生很多报错
   tilingScheme: new WebMercatorTilingScheme({}),
+}); */
+
+export const DefaultProvider = new UrlTemplateImageryProvider({
+  url: "https://trek.nasa.gov/tiles/Mars/EQ/Mars_Viking_MDIM21_ClrMosaic_global_232m/1.0.0//default/default028mm/{z}/{y}/{x}.jpg", // Mars
+  tilingScheme: new GeographicTilingScheme(), //必须有，这个是切片方案，必须根据球体创建正确的切片方案
 });
 
 /* export const DefaultProvider = new UrlTemplateImageryProvider({
   url: "https://alpha.deep-time.org/tms/Scotese2018/54326/{z}/{x}/{reverseY}.png",
 }); */
 
-/* export const DefaultProvider = new UrlTemplateImageryProvider({
-  url: "https://trek.nasa.gov/tiles/Mars/EQ/Mars_Viking_MDIM21_ClrMosaic_global_232m/1.0.0//default/default028mm/{z}/{y}/{x}.jpg", // Mars
-  tilingScheme: new GeographicTilingScheme(), //必须有，这个是切片方案，必须根据球体创建正确的切片方案
-}); */
 
+console.log("tileXYToNativeRectangle-0/0/0&1/0/0")
+console.log(DefaultProvider.tilingScheme.tileXYToNativeRectangle(0, 0, 0));
 console.log(DefaultProvider.tilingScheme.tileXYToNativeRectangle(1, 0, 0));
+console.log("tileXYToRectangle-0/0/0&1/0/0")
+console.log(DefaultProvider.tilingScheme.tileXYToRectangle(0, 0, 0));
+console.log(DefaultProvider.tilingScheme.tileXYToRectangle(1, 0, 0));
 
 export default App;
