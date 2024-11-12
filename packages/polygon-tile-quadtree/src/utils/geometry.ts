@@ -7,31 +7,31 @@ import { DEFAULT_ACCURATE } from "src/constants";
 import { TileClipMode } from "src/QuadTreeTileNode";
 
 // 在计算完成后需要遍历所有的子多边形，将他们的坐标恢复到[0, 1]的状态。
-export function clipPolygonByQuadTreeNodes(polygon: Array<number>) {
+export function clipPolygonByQuadTreeNodes(polygon: Array<number>, ratio: number) {
   // 切分出左右多边形，由x=0.5进行切割
   const { polygonL, polygonR } = clipToLR(polygon, 0.5);
   // console.log({ polygonL, polygonR });
   // 初始化四角多边形
-  // 由polygonL切分，由y=0.5
-  const { polygonB: polygonLB, polygonT: polygonLT } = clipToBT(polygonL, 0.5);
+  // 由polygonL切分，由y=ratio(根据切片方案)
+  const { polygonB: polygonLB, polygonT: polygonLT } = clipToBT(polygonL, ratio);
   // 将由polygonR生成
-  const { polygonB: polygonRB, polygonT: polygonRT } = clipToBT(polygonR, 0.5);
+  const { polygonB: polygonRB, polygonT: polygonRT } = clipToBT(polygonR, ratio);
   // 接下来需要分别校准四个多边形的坐标，使之回到[0,1]
   for (let i = 0; i < polygonLB.length; i = i + 2) {
     polygonLB[i] = polygonLB[i] * 2;
-    polygonLB[i + 1] = polygonLB[i + 1] * 2;
+    polygonLB[i + 1] = polygonLB[i + 1] * 1 / ratio;
   }
   for (let i = 0; i < polygonLT.length; i = i + 2) {
     polygonLT[i] = polygonLT[i] * 2;
-    polygonLT[i + 1] = (polygonLT[i + 1] - 0.5) * 2;
+    polygonLT[i + 1] = (polygonLT[i + 1] - ratio) * 1 / (1 - ratio);
   }
   for (let i = 0; i < polygonRB.length; i = i + 2) {
     polygonRB[i] = (polygonRB[i] - 0.5) * 2;
-    polygonRB[i + 1] = polygonRB[i + 1] * 2;
+    polygonRB[i + 1] = polygonRB[i + 1] * 1 / ratio;
   }
   for (let i = 0; i < polygonRT.length; i = i + 2) {
     polygonRT[i] = (polygonRT[i] - 0.5) * 2;
-    polygonRT[i + 1] = (polygonRT[i + 1] - 0.5) * 2;
+    polygonRT[i + 1] = (polygonRT[i + 1] - ratio) * 1 / (1 - ratio);
   }
   // 返回四个多边形(有可能是空的，但是不影响之前的运算，在建树时判断吧)
   return { polygonLB, polygonLT, polygonRB, polygonRT };

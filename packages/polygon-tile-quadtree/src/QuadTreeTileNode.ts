@@ -1,4 +1,4 @@
-import { Rectangle } from "cesium";
+import { Rectangle, TilingScheme } from "cesium";
 import { checkClipMode, clipPolygonByQuadTreeNodes } from "./utils/geometry";
 
 export enum TileClipMode {
@@ -27,18 +27,20 @@ export interface NodeInfo {
 
 export class QuadTreeTileNode {
   private _rectangle: Rectangle;
+  private _tilingScheme: TilingScheme;
   private _tileXYL: TileXYL;
   private _polygon: Array<number> | null = null;
   private _status: TileClipMode;
   private _child: NodeChild | null = null;
 
   // 设置两种构造函数。如果不提供多边形则说明完全显示，不需要裁剪
-  constructor(x: number, y: number, l: number, rec: Rectangle);
+  constructor(x: number, y: number, l: number, rec: Rectangle, tilingScheme: TilingScheme);
   constructor(
     x: number,
     y: number,
     l: number,
     rec: Rectangle,
+    tilingScheme: TilingScheme,
     polygon: Array<number>
   );
   constructor(
@@ -46,10 +48,12 @@ export class QuadTreeTileNode {
     y: number,
     l: number,
     rec: Rectangle,
+    tilingScheme: TilingScheme,
     polygon?: Array<number>
   ) {
     this._tileXYL = { x: x, y: y, l: l };
     this._rectangle = rec;
+    this._tilingScheme = tilingScheme;
     if (!polygon) {
       this._status = TileClipMode.FULL_DISPLAY;
     } else {
@@ -90,35 +94,42 @@ export class QuadTreeTileNode {
           2 * x0,
           2 * y0 + 1,
           l0 + 1,
-          new Rectangle(west0, south0, centerWE, centerNS)
+          new Rectangle(west0, south0, centerWE, centerNS),
+          this._tilingScheme
         ),
         lt: new QuadTreeTileNode(
           2 * x0,
           2 * y0,
           l0 + 1,
-          new Rectangle(west0, centerNS, centerWE, north0)
+          new Rectangle(west0, centerNS, centerWE, north0),
+          this._tilingScheme
         ),
         rb: new QuadTreeTileNode(
           2 * x0 + 1,
           2 * y0 + 1,
           l0 + 1,
-          new Rectangle(centerWE, south0, east0, centerNS)
+          new Rectangle(centerWE, south0, east0, centerNS),
+          this._tilingScheme
         ),
         rt: new QuadTreeTileNode(
           2 * x0 + 1,
           2 * y0,
           l0 + 1,
-          new Rectangle(centerWE, centerNS, east0, north0)
+          new Rectangle(centerWE, centerNS, east0, north0),
+          this._tilingScheme
         ),
       };
       return;
     }
 
     // 在接下来的情况下，瓦片状态一定为待裁剪，且此时多边形一定存在。
-
+    // 需要计算切分时y的值：由于3857中上下的瓦片纬度跨度不一样，所以需要具体计算。
+    const recLB = this._tilingScheme.tileXYToRectangle(2 * x0, 2 * y0 + 1, l0 + 1);
+    const recLT = this._tilingScheme.tileXYToRectangle(2 * x0, 2 * y0, l0 + 1);
+    const ratio = (recLB.north - recLB.south) / (recLT.north - recLB.south);
     // 获得裁剪出的子节点多边形
     const { polygonLB, polygonLT, polygonRB, polygonRT } =
-      clipPolygonByQuadTreeNodes(this._polygon!);
+      clipPolygonByQuadTreeNodes(this._polygon!, ratio);
 
     // 创建子节点
     this._child = {
@@ -127,6 +138,7 @@ export class QuadTreeTileNode {
         2 * y0 + 1,
         l0 + 1,
         new Rectangle(west0, south0, centerWE, centerNS),
+        this._tilingScheme,
         polygonLB
       ),
       lt: new QuadTreeTileNode(
@@ -134,6 +146,7 @@ export class QuadTreeTileNode {
         2 * y0,
         l0 + 1,
         new Rectangle(west0, centerNS, centerWE, north0),
+        this._tilingScheme,
         polygonLT
       ),
       rb: new QuadTreeTileNode(
@@ -141,6 +154,7 @@ export class QuadTreeTileNode {
         2 * y0 + 1,
         l0 + 1,
         new Rectangle(centerWE, south0, east0, centerNS),
+        this._tilingScheme,
         polygonRB
       ),
       rt: new QuadTreeTileNode(
@@ -148,6 +162,7 @@ export class QuadTreeTileNode {
         2 * y0,
         l0 + 1,
         new Rectangle(centerWE, centerNS, east0, north0),
+        this._tilingScheme,
         polygonRT
       ),
     };
