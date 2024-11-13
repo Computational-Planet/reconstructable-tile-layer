@@ -18,6 +18,7 @@ export default {
       //banner: "// banner", // 为打包好的文件添加注释，注释的位置在整个文件的首行
       preserveModules: true, // 保留模块结构，不要全打包到一个文件里面
       preserveModulesRoot: "src", // 指定根目录
+      exports: 'named', // 确认都不是默认输出
     },
     {
       //main，commonJS
@@ -26,11 +27,13 @@ export default {
       sourcemap: true,
       preserveModules: true, // 保留模块结构
       preserveModulesRoot: "src", // 指定根目录
+      exports: 'named', // 确认都不是默认输出
     },
     {
       dir: "./dist/typings/",
       entryFileNames: "[name].d.ts",
       format: "esm",
+      exports: 'named', // 确认都不是默认输出
     },
   ],
   plugins: [

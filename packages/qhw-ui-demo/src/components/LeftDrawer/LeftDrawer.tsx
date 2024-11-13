@@ -10,7 +10,7 @@ type LeftDrawerProps = {
   children: React.ReactNode;
 };
 
-function LeftDrawer(props: LeftDrawerProps) {
+export const LeftDrawer = (props: LeftDrawerProps) => {
   const { style: userStyle, className, children } = props;
   const [open, setOpen] = useState(false);
 
@@ -71,4 +71,3 @@ function LeftDrawer(props: LeftDrawerProps) {
   );
 }
 
-export default LeftDrawer;

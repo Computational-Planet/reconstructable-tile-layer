@@ -1,4 +1,3 @@
-import LeftDrawer from "./LeftDrawer";
-import DrawerCard from "./DrawerCard";
+export * from "./LeftDrawer";
+export * from "./DrawerCard";
 
-export { LeftDrawer, DrawerCard };

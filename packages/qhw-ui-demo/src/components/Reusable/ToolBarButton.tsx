@@ -9,7 +9,7 @@ type ToolBarButtonProps = {
   icon?: React.ReactNode; // 一个ReactNode类型的icon
 };
 
-function ToolBarButton(props: ToolBarButtonProps) {
+export const ToolBarButton = (props: ToolBarButtonProps) => {
   const { style: userStyle, className, onActive, onClose, icon } = props;
 
   const [active, setActive] = useState<boolean>(false);
@@ -45,4 +45,3 @@ function ToolBarButton(props: ToolBarButtonProps) {
   );
 }
 
-export default ToolBarButton;

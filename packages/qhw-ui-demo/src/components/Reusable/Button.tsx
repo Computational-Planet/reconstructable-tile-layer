@@ -9,7 +9,7 @@ type ButtonProps = {
   children?: React.ReactNode;
 };
 
-function Button(props: ButtonProps) {
+export const Button = (props: ButtonProps) => {
   const {
     level = "prime",
     style: userStyle,
@@ -33,4 +33,3 @@ function Button(props: ButtonProps) {
   );
 }
 
-export default Button;

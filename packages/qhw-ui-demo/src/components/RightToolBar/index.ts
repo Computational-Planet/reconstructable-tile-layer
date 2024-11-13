@@ -1,3 +1,2 @@
-import RightToolBar from "./RightToolBar";
+export * from "./RightToolBar";
 
-export { RightToolBar };

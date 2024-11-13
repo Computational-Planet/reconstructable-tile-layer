@@ -1,5 +1,4 @@
-import Button from "./Button";
-import NeatTable from "./Table";
-import ToolBarButton from "./ToolBarButton";
+export * from "./Button";
+export * from "./Table";
+export * from "./ToolBarButton";
 
-export { Button, NeatTable, ToolBarButton };

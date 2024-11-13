@@ -10,7 +10,7 @@ type NeatTableProps = {
   children?: React.ReactNode;
 };
 
-function NeatTable(props: NeatTableProps) {
+export const NeatTable = (props: NeatTableProps) => {
   const {
     style: userStyle,
     className,
@@ -52,4 +52,3 @@ function NeatTable(props: NeatTableProps) {
   );
 }
 
-export default NeatTable;

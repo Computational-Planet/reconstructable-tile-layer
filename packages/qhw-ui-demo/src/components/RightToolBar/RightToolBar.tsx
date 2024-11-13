@@ -12,7 +12,7 @@ type RightToolBarProps = {
   children?: React.ReactNode;
 };
 
-function RightToolBar(props: RightToolBarProps) {
+export const RightToolBar = (props: RightToolBarProps) => {
   const { style: userStyle, className, children } = props;
 
   const [expand, setExpand] = useState<boolean>(false);
@@ -45,4 +45,3 @@ function RightToolBar(props: RightToolBarProps) {
   );
 }
 
-export default RightToolBar;

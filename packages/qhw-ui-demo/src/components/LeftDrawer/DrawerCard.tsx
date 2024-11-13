@@ -10,7 +10,7 @@ type DrawerCardProps = {
   children?: React.ReactNode;
 };
 
-function DrawerCard(props: DrawerCardProps) {
+export const DrawerCard = (props: DrawerCardProps) => {
   const { style: userStyle, className, title = undefined, children } = props;
   const [expand, setExpand] = useState(false);
 
@@ -59,4 +59,3 @@ function DrawerCard(props: DrawerCardProps) {
   );
 }
 
-export default DrawerCard;
