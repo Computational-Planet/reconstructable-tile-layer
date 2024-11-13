@@ -1,4 +1,4 @@
-import { Math as CesiumMath, WebMercatorTilingScheme, TilingScheme, ImageryProvider, Rectangle } from "cesium";
+import { WebMercatorTilingScheme, TilingScheme, ImageryProvider, Rectangle } from "cesium";
 import { NodeInfo, QuadTreeTileNode, TileClipMode, TileXYL } from "./QuadTreeTileNode";
 import { ANGLE_ACCURATE, DEFAULT_ACCURATE, PI_10 } from "./constants";
 import { calIntersectionWithX, clipToLR, Point } from "./utils/geometry";
@@ -265,7 +265,18 @@ export class QuadTreeTileProcesser {
 
     if (tilingScheme instanceof WebMercatorTilingScheme) {
       for (let i = 0; i < polygons.length; i++) {
-        const reprojPolygon: Array<number> = [];
+        this._rootNum++;
+        this._rootXYLs.push({ x: 0, y: 0, l: 0 })
+        this._roots.push(
+          new QuadTreeTileNode(
+            0,
+            0,
+            0,
+            this._tilingScheme.tileXYToRectangle(0, 0, 0), // 这里需要克隆，因为这个Rectangle之后可能会变化的
+            this._tilingScheme,
+            polygons[i]
+          ));
+        /* const reprojPolygon: Array<number> = [];
         let sinLatitudeSouth = Math.sin(south);
         const southMercatorY =
           0.5 * Math.log((1 + sinLatitudeSouth) / (1 - sinLatitudeSouth));
@@ -292,8 +303,9 @@ export class QuadTreeTileProcesser {
             0,
             0,
             this._tilingScheme.tileXYToRectangle(0, 0, 0), // 这里需要克隆，因为这个Rectangle之后可能会变化的
+            this._tilingScheme,
             reprojPolygon
-          ));
+          )); */
       }
     }
     else {
@@ -318,12 +330,14 @@ export class QuadTreeTileProcesser {
               0,
               0,
               this._tilingScheme.tileXYToRectangle(0, 0, 0), // 这里需要克隆，因为这个Rectangle之后可能会变化的
+              this._tilingScheme,
               polygonL
             ), new QuadTreeTileNode(
               1,
               0,
               0,
               this._tilingScheme.tileXYToRectangle(1, 0, 0), // 这里需要克隆，因为这个Rectangle之后可能会变化的
+              this._tilingScheme,
               polygonR
             )]);
         }
@@ -337,6 +351,7 @@ export class QuadTreeTileProcesser {
               0,
               0,
               this._tilingScheme.tileXYToRectangle(0, 0, 0), // 这里需要克隆，因为这个Rectangle之后可能会变化的
+              this._tilingScheme,
               polygons[i]
             ));
         }
@@ -353,6 +368,7 @@ export class QuadTreeTileProcesser {
               0,
               0,
               this._tilingScheme.tileXYToRectangle(1, 0, 0), // 这里需要克隆，因为这个Rectangle之后可能会变化的
+              this._tilingScheme,
               polygons[i]
             ));
         }
@@ -376,7 +392,7 @@ export class QuadTreeTileProcesser {
   findTilesAtRoot(result: Array<NodeInfo>) {
     for (let i = 0; i < this.rootNum; i++) {
       const subResult: NodeInfo[] = [];
-      const level = this._realRootLevel[i] > 2 ? this._realRootLevel[i] : 2;
+      const level = this._realRootLevel[i] > 3 ? this._realRootLevel[i] : 3;
       this._roots[i].getTileInfoByLevel(level, subResult);
       result.push(...subResult);
       console.log("level" + this._realRootLevel[i])
