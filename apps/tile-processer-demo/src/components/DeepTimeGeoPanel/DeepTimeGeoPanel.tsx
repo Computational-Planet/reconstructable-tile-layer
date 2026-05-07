@@ -65,17 +65,34 @@ function DeepTimeGeoPanel(props: DeepTimeGeoPanelProps) {
     context;
 
   useEffect(() => {
+    let disposed = false;
+    let unbindSceneModeSync: (() => void) | undefined;
+
     if (tileProcesserRef.current) {
-      simpleGeoReconstructManagerRef.current = new SimpleGeoReconstructManager({
+      const manager = new SimpleGeoReconstructManager({
         provider: MapProvider["arcgis-nature"],
         processer: tileProcesserRef.current,
         files: { polygon: "/geo/Matthews++/PresentDay_StaticPlatePolygons_Matthews++.json", rots: ["/geo/Matthews++/Global_EB_250-0Ma_GK07_Matthews++.rot", "/geo/Matthews++/Global_EB_410-250Ma_GK07_Matthews++.rot"] },
       });
-      simpleGeoReconstructManagerRef.current.init();
+      simpleGeoReconstructManagerRef.current = manager;
+
+      manager.init().then(() => {
+        if (disposed) {
+          return;
+        }
+        if (viewerRef.current) {
+          unbindSceneModeSync = manager.bindSceneModeSync(viewerRef.current);
+        }
+      });
     }
     return () => {
-      if (viewerRef.current)
+      disposed = true;
+      unbindSceneModeSync?.();
+      if (viewerRef.current) {
         simpleGeoReconstructManagerRef.current?.clearAllTiles(viewerRef.current);
+      }
+      simpleGeoReconstructManagerRef.current?.unbindSceneModeSync();
+      simpleGeoReconstructManagerRef.current = undefined;
     }
   }, [])
 

@@ -6,6 +6,7 @@ import {
   Matrix4,
   Primitive,
   RectangleGeometry,
+  SceneMode,
   Viewer,
 } from "cesium";
 import { RotationOperator } from "plates-rotation-operator";
@@ -14,6 +15,7 @@ import { CesiumTileProcesser } from "tile-processer-webgl";
 
 const TILE_TASK_CONCURRENCY = 8;
 const PRIMITIVE_BATCH_SIZE = 32;
+const IDENTITY_MODEL_MATRIX = Matrix4.clone(Matrix4.IDENTITY);
 
 async function runWithConcurrency<T, R>(
   items: T[],
@@ -87,7 +89,9 @@ export interface PaleoData {
 }
 
 type TilePrimitiveRecord = {
-  primitive: Primitive;
+  tileId: string;
+  imageURL: string;
+  primitive: Primitive | null;
   tileXYL: NodeInfo["tileXYL"];
   polygon: Array<number> | null;
 };
@@ -106,6 +110,14 @@ type TileTask = {
 
 type PreparedTileTask = TileTask & {
   primitive: Primitive;
+  imageURL: string;
+};
+
+type PrimitiveTransformMode = "dynamic3D" | "bakedInstance";
+
+type PlateMatrixEntry = {
+  plateItem: PlateQuadTreeGroup;
+  modelMatrix: Matrix4;
 };
 
 export type PlateQuadTreeGroup = {
@@ -142,7 +154,12 @@ export class SimpleGeoReconstructManager {
   private _rotationMatrixCache = new Map<string, Matrix4>();
   private _generationToken = 0;
   private _ageUpdateToken = 0;
+  private _primitiveRebuildToken = 0;
   private _pendingTileTokens = new Map<string, number>();
+  private _currentAge = 0;
+  private _transformMode: PrimitiveTransformMode = "dynamic3D";
+  private _boundViewer: Viewer | null = null;
+  private _sceneModeCleanup: (() => void) | null = null;
 
   constructor(data: SimpleGeoReconstructManagerConstructorOptions) {
     this._provider = data.provider;
@@ -225,23 +242,118 @@ export class SimpleGeoReconstructManager {
       return;
     }
 
+    this._currentAge = age;
     const updateToken = ++this._ageUpdateToken;
-    const plateMatrices = await Promise.all(
-      Array.from(this.plates.values()).map(async (plateItem) => ({
-        plateItem,
-        modelMatrix: await this.getCachedModelMatrix(plateItem.plateId, age),
-      }))
-    );
+    const plateMatrices = await this.getPlateMatrixEntries(age);
     if (updateToken !== this._ageUpdateToken) {
       return;
     }
 
+    if (this._transformMode === "bakedInstance") {
+      if (this._boundViewer) {
+        await this.rebuildLoadedPrimitives(this._boundViewer, plateMatrices, {
+          removeBeforeBuild: false,
+        });
+      }
+      return;
+    }
+
+    this.applyDynamicPrimitiveMatrices(plateMatrices, age);
+  }
+
+  bindSceneModeSync(viewer: Viewer) {
+    this.unbindSceneModeSync();
+    this._boundViewer = viewer;
+
+    const removeMorphStart = viewer.scene.morphStart.addEventListener(
+      (_transitioner: unknown, _previousMode: SceneMode, targetMode: SceneMode) => {
+        if (targetMode !== SceneMode.SCENE3D) {
+          void this.setPrimitiveTransformMode(viewer, "bakedInstance", {
+            removeBeforeBuild: true,
+          });
+        }
+      }
+    );
+    const removeMorphComplete = viewer.scene.morphComplete.addEventListener(
+      (_transitioner: unknown, _previousMode: SceneMode, targetMode: SceneMode) => {
+        void this.setPrimitiveTransformMode(
+          viewer,
+          targetMode === SceneMode.SCENE3D ? "dynamic3D" : "bakedInstance",
+          {
+            removeBeforeBuild: false,
+          }
+        );
+      }
+    );
+
+    this._sceneModeCleanup = () => {
+      removeMorphStart();
+      removeMorphComplete();
+      if (this._boundViewer === viewer) {
+        this._boundViewer = null;
+      }
+    };
+
+    void this.syncPrimitiveTransformMode(viewer);
+    return this._sceneModeCleanup;
+  }
+
+  unbindSceneModeSync() {
+    this._sceneModeCleanup?.();
+    this._sceneModeCleanup = null;
+  }
+
+  async syncPrimitiveTransformMode(viewer: Viewer) {
+    return this.setPrimitiveTransformMode(
+      viewer,
+      viewer.scene.mode === SceneMode.SCENE3D ? "dynamic3D" : "bakedInstance",
+      {
+        removeBeforeBuild: viewer.scene.mode !== SceneMode.SCENE3D,
+      }
+    );
+  }
+
+  async setPrimitiveTransformMode(
+    viewer: Viewer,
+    mode: PrimitiveTransformMode,
+    options: { removeBeforeBuild?: boolean } = {}
+  ) {
+    this._boundViewer = viewer;
+    if (this._transformMode === mode) {
+      return;
+    }
+
+    this._transformMode = mode;
+    this._generationToken++;
+    this._pendingTileTokens.clear();
+
+    const rebuildToken = ++this._primitiveRebuildToken;
+    const age = this._currentAge;
+    const removeBeforeBuild = options.removeBeforeBuild ?? true;
+    if (removeBeforeBuild) {
+      this.removePrimitiveInstances(viewer);
+    }
+
+    const plateMatrices = await this.getPlateMatrixEntries(age);
+    await this.rebuildLoadedPrimitives(viewer, plateMatrices, {
+      age,
+      mode,
+      rebuildToken,
+      removeBeforeBuild: false,
+    });
+  }
+
+  private applyDynamicPrimitiveMatrices(
+    plateMatrices: PlateMatrixEntry[],
+    age: number
+  ) {
     plateMatrices.forEach(({ plateItem, modelMatrix }) => {
       plateItem.polygonQuadTrees.forEach((polygonItem) => {
-        const visible =
-          age <= polygonItem.info.time.begine &&
-          age >= polygonItem.info.time.end;
+        const visible = this.isVisibleAtAge(polygonItem.info, age);
         Object.values(polygonItem.primitives).forEach((tileRecord) => {
+          if (!tileRecord.primitive) {
+            return;
+          }
           tileRecord.primitive.modelMatrix = modelMatrix;
           tileRecord.primitive.show = visible;
         });
@@ -254,6 +366,7 @@ export class SimpleGeoReconstructManager {
       return;
     }
 
+    this._boundViewer = viewer;
     const sameTilingScheme = this.isSameTilingSchemeType(
       this._provider,
       provider
@@ -279,7 +392,9 @@ export class SimpleGeoReconstructManager {
   }
 
   clearAllTiles(viewer: Viewer) {
+    this._boundViewer = viewer;
     this._generationToken++;
+    this._primitiveRebuildToken++;
     this._pendingTileTokens.clear();
     this.processer.clearBuffer();
     this.removeAllPrimitives(viewer);
@@ -316,6 +431,7 @@ export class SimpleGeoReconstructManager {
       return;
     }
 
+    this._boundViewer = viewer;
     const generationToken = ++this._generationToken;
     tasks.forEach((task) => {
       this._pendingTileTokens.set(task.tileId, generationToken);
@@ -361,7 +477,18 @@ export class SimpleGeoReconstructManager {
 
     return {
       ...task,
-      primitive: this.createTilePrimitive(task.tileId, task.tileInfo, imageURL),
+      imageURL,
+      primitive: this.createTilePrimitive(
+        task.tileId,
+        task.tileInfo,
+        imageURL,
+        await this.getCachedModelMatrix(
+          task.polygonItem.info.plateId,
+          this._currentAge
+        ),
+        this.isVisibleAtAge(task.polygonItem.info, this._currentAge),
+        this._transformMode
+      ),
     };
   }
 
@@ -382,6 +509,8 @@ export class SimpleGeoReconstructManager {
 
       const primitive = viewer.scene.primitives.add(preparedTile.primitive);
       preparedTile.polygonItem.primitives[preparedTile.tileId] = {
+        tileId: preparedTile.tileId,
+        imageURL: preparedTile.imageURL,
         primitive,
         tileXYL: preparedTile.tileInfo.tileXYL,
         polygon: preparedTile.tileInfo.polygon,
@@ -413,7 +542,10 @@ export class SimpleGeoReconstructManager {
       if (!imageURL || updateToken !== this._generationToken) {
         return;
       }
-      record.primitive.appearance.material = this.createImageMaterial(imageURL);
+      record.imageURL = imageURL;
+      if (record.primitive) {
+        record.primitive.appearance.material = this.createImageMaterial(imageURL);
+      }
     });
     if (updateToken === this._generationToken) {
       viewer.scene.requestRender();
@@ -473,12 +605,17 @@ export class SimpleGeoReconstructManager {
 
   private createTilePrimitive(
     tileId: string,
-    tileInfo: NodeInfo,
-    imageURL: string
+    tileInfo: Pick<NodeInfo, "tileXYL">,
+    imageURL: string,
+    modelMatrix = IDENTITY_MODEL_MATRIX,
+    visible = true,
+    transformMode = this._transformMode
   ) {
-    return new Primitive({
+    const primitive = new Primitive({
       geometryInstances: new GeometryInstance({
         id: tileId,
+        modelMatrix:
+          transformMode === "bakedInstance" ? modelMatrix : IDENTITY_MODEL_MATRIX,
         geometry: new RectangleGeometry({
           rectangle: this._provider.tilingScheme.tileXYToRectangle(
             tileInfo.tileXYL.x,
@@ -487,6 +624,8 @@ export class SimpleGeoReconstructManager {
           ),
         }),
       }),
+      modelMatrix:
+        transformMode === "dynamic3D" ? modelMatrix : IDENTITY_MODEL_MATRIX,
       asynchronous: false, // 关闭异步加载，确保每一帧中图元已显示完整
       appearance: new EllipsoidSurfaceAppearance({
         material: this.createImageMaterial(imageURL),
@@ -498,6 +637,8 @@ export class SimpleGeoReconstructManager {
         },
       }),
     });
+    primitive.show = visible;
+    return primitive;
   }
 
   private createImageMaterial(imageURL: string) {
@@ -529,6 +670,104 @@ export class SimpleGeoReconstructManager {
     return matrix4;
   }
 
+  private async getPlateMatrixEntries(age: number) {
+    return Promise.all(
+      Array.from(this.plates.values()).map(async (plateItem) => ({
+        plateItem,
+        modelMatrix: await this.getCachedModelMatrix(plateItem.plateId, age),
+      }))
+    );
+  }
+
+  private async rebuildLoadedPrimitives(
+    viewer: Viewer,
+    plateMatrices: PlateMatrixEntry[],
+    options: {
+      age?: number;
+      mode?: PrimitiveTransformMode;
+      rebuildToken?: number;
+      removeBeforeBuild: boolean;
+    }
+  ) {
+    const rebuildToken = options.rebuildToken ?? ++this._primitiveRebuildToken;
+    const mode = options.mode ?? this._transformMode;
+    const age = options.age ?? this._currentAge;
+    const matrixByPlate = new Map(
+      plateMatrices.map(({ plateItem, modelMatrix }) => [
+        plateItem.plateId,
+        modelMatrix,
+      ])
+    );
+
+    // 进入 2D/CV 前先移除旧 Primitive，避免 MORPHING 帧检查到非 identity modelMatrix。
+    if (options.removeBeforeBuild) {
+      this.removePrimitiveInstances(viewer);
+    }
+
+    if (
+      rebuildToken !== this._primitiveRebuildToken ||
+      mode !== this._transformMode ||
+      age !== this._currentAge
+    ) {
+      return;
+    }
+
+    if (!options.removeBeforeBuild) {
+      this.removePrimitiveInstances(viewer);
+    }
+
+    let addedCount = 0;
+    for (const plateItem of this.plates.values()) {
+      const modelMatrix =
+        matrixByPlate.get(plateItem.plateId) ?? IDENTITY_MODEL_MATRIX;
+      for (const polygonItem of plateItem.polygonQuadTrees.values()) {
+        const visible = this.isVisibleAtAge(polygonItem.info, age);
+        for (const tileRecord of Object.values(polygonItem.primitives)) {
+          if (
+            rebuildToken !== this._primitiveRebuildToken ||
+            mode !== this._transformMode ||
+            age !== this._currentAge
+          ) {
+            return;
+          }
+
+          const primitive = this.createTilePrimitive(
+            tileRecord.tileId,
+            tileRecord,
+            tileRecord.imageURL,
+            modelMatrix,
+            visible,
+            mode
+          );
+          tileRecord.primitive = viewer.scene.primitives.add(primitive);
+
+          addedCount++;
+          if (addedCount % PRIMITIVE_BATCH_SIZE === 0) {
+            viewer.scene.requestRender();
+            await waitForNextFrame();
+          }
+        }
+      }
+    }
+
+    if (addedCount > 0) {
+      viewer.scene.requestRender();
+    }
+  }
+
+  private removePrimitiveInstances(viewer: Viewer) {
+    this.getAllTilePrimitiveRecords().forEach((tileRecord) => {
+      if (tileRecord.primitive) {
+        viewer.scene.primitives.remove(tileRecord.primitive);
+        tileRecord.primitive = null;
+      }
+    });
+  }
+
+  private isVisibleAtAge(info: PaleoData, age: number) {
+    return age <= info.time.begine && age >= info.time.end;
+  }
+
   private getAllTilePrimitiveRecords() {
     const records: TilePrimitiveRecord[] = [];
     this.plates.forEach((plateItem) => {
@@ -543,7 +782,10 @@ export class SimpleGeoReconstructManager {
     this.plates.forEach((plateItem) => {
       plateItem.polygonQuadTrees.forEach((polygonItem) => {
         Object.values(polygonItem.primitives).forEach((tileRecord) => {
-          viewer.scene.primitives.remove(tileRecord.primitive);
+          if (tileRecord.primitive) {
+            viewer.scene.primitives.remove(tileRecord.primitive);
+            tileRecord.primitive = null;
+          }
         });
         polygonItem.primitives = {};
       });
