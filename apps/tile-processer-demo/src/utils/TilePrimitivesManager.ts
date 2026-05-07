@@ -1,4 +1,4 @@
-import { ImageryProvider, ImageryTypes } from "cesium";
+import { ImageryProvider } from "cesium";
 import { CesiumTileProcesser } from "tile-processer-webgl";
 import { CustomTileManager } from "./CustomTileManager";
 import { QuadTreeTileProcesser } from "polygon-tile-quadtree";

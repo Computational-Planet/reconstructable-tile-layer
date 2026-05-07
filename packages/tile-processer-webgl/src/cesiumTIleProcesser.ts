@@ -12,15 +12,19 @@ import {
 class CachedPromise<T> {
   private cacheMap = new Map<string, Promise<T>>();
 
-  get(key: string, promiseFn?: () => Promise<T>): Promise<T> | undefined {
-    if (!this.cacheMap.has(key) && promiseFn) {
-      this.set(key, promiseFn());
-    }
-    return this.cacheMap.get(key);
+  has(key: string): boolean {
+    return this.cacheMap.has(key);
   }
 
-  set(key: string, promise: Promise<T>): void {
-    this.cacheMap.set(key, promise);
+  getOrCreate(key: string, promiseFn: () => Promise<T>): Promise<T> {
+    if (!this.cacheMap.has(key)) {
+      const promise = promiseFn().catch((error) => {
+        this.cacheMap.delete(key);
+        throw error;
+      });
+      this.cacheMap.set(key, promise);
+    }
+    return this.cacheMap.get(key)!;
   }
 
   delete(key: string): void {
@@ -32,53 +36,91 @@ class CachedPromise<T> {
   }
 }
 
-/**
- * 获取指定瓦片，并使用WebGL进行重投影，随后输出处理后的影像的类。
- */
-export class CesiumTileProcesser {
+class LRUCache<T> {
+  private cache = new Map<string, T>();
+
+  constructor(private maxSize: number) {}
+
+  get(key: string) {
+    const value = this.cache.get(key);
+    if (value !== undefined) {
+      this.cache.delete(key);
+      this.cache.set(key, value);
+    }
+    return value;
+  }
+
+  set(key: string, value: T) {
+    if (this.maxSize <= 0) {
+      return;
+    }
+    if (this.cache.has(key)) {
+      this.cache.delete(key);
+    }
+    while (this.cache.size >= this.maxSize) {
+      const oldestKey = this.cache.keys().next().value;
+      if (!oldestKey) {
+        break;
+      }
+      this.cache.delete(oldestKey);
+    }
+    this.cache.set(key, value);
+  }
+
+  clear() {
+    this.cache.clear();
+  }
+
+  get size() {
+    return this.cache.size;
+  }
+}
+
+type TileXYZ = { x: number; y: number; z: number };
+
+type RenderJob = {
+  x: number;
+  y: number;
+  level: number;
+  provider: ImageryProvider;
+  image: ImageryTypes;
+  polygonVertices?: Array<number>;
+  resolve: (value: string | null) => void;
+  reject: (reason?: unknown) => void;
+};
+
+class SingleCanvasTileRenderer {
+  busy = false;
   private _canvas: HTMLCanvasElement;
   private _context: WebGLRenderingContext | null;
-  //vsSource?: string; // 顶点着色器
-  //fsSource?: string; // 片段着色器
   private _programInfo: {
     defaultProgramInfo: WebGLProgramInfo;
     clipProgramInfo: WebGLProgramInfo;
   };
   private _buffers: Buffers;
-  private _vertexRowNum: number = 64;
-  private _currentTileXYZ: { x: number; y: number; z: number } | undefined =
-    undefined; // 当前处理的瓦片xyz
+  private _vertexRowNum: number;
+  private _currentTileXYZ: TileXYZ | undefined = undefined;
   private _currentResult: string | null = null;
-  private _imageCachePromise = new CachedPromise<ImageryTypes>();
-  private _imageBuffer: { [key: string]: ImageryTypes | undefined } = {}
+  private _destroyed = false;
 
   constructor(canvas: HTMLCanvasElement, options: CesiumTileProcesserOptions) {
-    // 获取画布
     this._canvas = canvas;
-    // 设置宽高
     this._canvas.width = options.width ?? 256;
     this._canvas.height = options.height ?? 256;
 
-    //获取webgl上下文(需要允许透明)
     this._context = this._canvas.getContext("webgl", { alpha: true });
-    // 确认WebGL支持性
     if (!this._context) {
       throw new Error(
-        "无法初始化WebGl，你的浏览器、操作系统或硬件可能不支持WebGL"
+        "无法初始化WebGL，你的浏览器、操作系统或硬件可能不支持WebGL"
       );
     }
-    // 设置清除颜色为透明
     this._context.clearColor(0.0, 0.0, 0.0, 0.0);
-    // 使用清除颜色清空颜色缓冲区
     this._context.clear(this._context.COLOR_BUFFER_BIT);
 
-    // 初始化shader
-    const vsSource = options.vsSource ?? defaultVS; // 引入顶点着色器，若未定义则使用默认值。
-    const fsSource = options.fsSource ?? defaultFS; // 引入片段着色器，若未定义则使用默认值。
-    // 初始化裁剪FS
-    const fsSourceClip = options.fsSource ?? clipFS; // 引入多边形裁剪片段着色器，若未定义则使用默认值。
+    const vsSource = options.vsSource ?? defaultVS;
+    const fsSource = options.fsSource ?? defaultFS;
+    const fsSourceClip = options.fsSource ?? clipFS;
 
-    // 初始化着色器程序
     const defaultShaderProgram = initShaderProgram(
       this._context,
       vsSource,
@@ -92,85 +134,73 @@ export class CesiumTileProcesser {
     if (!defaultShaderProgram || !clipShaderProgram) {
       throw new Error("初始化着色器程序失败");
     }
-    // 注意，uniform和attribute等变量的声明是在着色器程序那边定义的。在上一步加载、编译、初始化着色器的过程中，这些变量的声明其实已经完成了。虽然还没有实际的值，但是我们已经可以获取指针。这里获取的其实就是指向这些变量的指针。
-    //初始化程序信息
+
     this._programInfo = {
-      // 默认着色器信息，只负责重投影，不裁剪
       defaultProgramInfo: {
-        program: defaultShaderProgram, // 着色器程序
+        program: defaultShaderProgram,
         attribLocations: {
-          //attribLocations存放属性
           vertexPosition: this._context.getAttribLocation(
             defaultShaderProgram,
-            "aVertexPosition" // 这个变量的定义是在glsl的代码中，我们在这里只是获取了其指针
+            "aVertexPosition"
           ),
-          //vertexColor: this.context.getAttribLocation(shaderProgram, "aVertexColor"),
           textureCoord: this._context.getAttribLocation(
             defaultShaderProgram,
             "aTextureCoord"
           ),
         },
         uniformLocations: {
-          //uniformLocations存放Uniform
           projectionMatrix: this._context.getUniformLocation(
             defaultShaderProgram,
-            "uProjectionMatrix" // 这个变量的定义是在glsl的代码中，我们在这里只是获取了其指针
+            "uProjectionMatrix"
           ),
           modelViewMatrix: this._context.getUniformLocation(
             defaultShaderProgram,
-            "uModelViewMatrix" // 这个变量的定义是在glsl的代码中，我们在这里只是获取了其指针
+            "uModelViewMatrix"
           ),
           uSampler: this._context.getUniformLocation(
             defaultShaderProgram,
             "uSampler"
-          ), //纹理的采样器，也是Uniform
+          ),
         },
       },
-      // 裁剪着色器信息，负责重投影和裁剪，需要额外传入多边形坐标和顶点数目
       clipProgramInfo: {
-        program: clipShaderProgram, // 着色器程序
+        program: clipShaderProgram,
         attribLocations: {
-          //attribLocations存放属性
           vertexPosition: this._context.getAttribLocation(
             clipShaderProgram,
-            "aVertexPosition" // 这个变量的定义是在glsl的代码中，我们在这里只是获取了其指针
+            "aVertexPosition"
           ),
-          //vertexColor: this.context.getAttribLocation(shaderProgram, "aVertexColor"),
           textureCoord: this._context.getAttribLocation(
             clipShaderProgram,
             "aTextureCoord"
           ),
         },
         uniformLocations: {
-          //uniformLocations存放Uniform
           projectionMatrix: this._context.getUniformLocation(
             clipShaderProgram,
-            "uProjectionMatrix" // 这个变量的定义是在glsl的代码中，我们在这里只是获取了其指针
+            "uProjectionMatrix"
           ),
           modelViewMatrix: this._context.getUniformLocation(
             clipShaderProgram,
-            "uModelViewMatrix" // 这个变量的定义是在glsl的代码中，我们在这里只是获取了其指针
+            "uModelViewMatrix"
           ),
           uSampler: this._context.getUniformLocation(
             clipShaderProgram,
             "uSampler"
-          ), //纹理的采样器，也是Uniform
+          ),
           polygonVerticesCount: this._context.getUniformLocation(
             clipShaderProgram,
             "polygonVerticesCount"
-          ), // 多边形的顶点个数（需要小于1000个）
+          ),
           polygonVertices: this._context.getUniformLocation(
             clipShaderProgram,
             "polygonVertices"
-          ), // 多边形的顶点数组（需要首尾相同）
+          ),
         },
       },
     };
 
-    // 初始化顶点缓冲区（纹理缓冲区之后需要在绘制时实时处理）
-    // 初始化顶点行数（默认每幅图使用64*2个顶点）
     this._vertexRowNum = options.vertexRowNum ?? 64;
-    //初始化buffers
     this._buffers = {
       position: initPositionBuffer(this._context, this._vertexRowNum),
       textureCoord: null,
@@ -180,71 +210,384 @@ export class CesiumTileProcesser {
   get width() {
     return this._canvas.width;
   }
+
   get height() {
     return this._canvas.height;
   }
+
   get canvas() {
     return this._canvas;
   }
+
   get vertexRowNum() {
     return this._vertexRowNum;
   }
+
   get currentTileXYZ() {
     return this._currentTileXYZ;
   }
+
   get currentResult() {
     return this._currentResult;
   }
 
-  // 产出重投影的结果
-  async reprojectTile(x: number, y: number, level: number, provider: ImageryProvider) {
-    if (this._context == null) {
-      console.error("gl上下文未正确定义");
+  render(job: Omit<RenderJob, "resolve" | "reject">) {
+    if (this._destroyed || !this._context) {
       return null;
     }
 
-    // 根据瓦片具体位置初始化纹理坐标
-    this._buffers.textureCoord = initTextureCoordBuffer(
-      this._context,
+    const { x, y, level, provider, image, polygonVertices } = job;
+    const gl = this._context;
+    this._currentTileXYZ = { x, y, z: level };
+
+    // 每个 renderer 独占一个 canvas；临时 buffer/texture 在本次绘制后释放。
+    const textureCoordBuffer = initTextureCoordBuffer(
+      gl,
       this._vertexRowNum,
       provider,
       x,
       y,
       level
     );
-
-    // 加载瓦片
-    const tileKey = `${x}-${y}-${level}`;
+    this._buffers.textureCoord = textureCoordBuffer;
+    const texture = generateTexture(gl, image);
 
     try {
-      if (!this._imageBuffer[tileKey]) {
-        const image = await this._imageCachePromise.get(tileKey, () => provider.requestImage(x, y, level)!);
-        if (!image) {
-          console.error("图像获取失败");
-          return null;
-        }
-        this._imageBuffer[tileKey] = image;
+      if (polygonVertices) {
+        drawSceneClipped(
+          gl,
+          this._vertexRowNum,
+          this._programInfo.clipProgramInfo,
+          texture,
+          this._buffers,
+          polygonVertices
+        );
+      } else {
+        drawScene(
+          gl,
+          this._vertexRowNum,
+          this._programInfo.defaultProgramInfo,
+          texture,
+          this._buffers
+        );
       }
-
-      //将瓦片转换成纹理
-      const texture = generateTexture(this._context, this._imageBuffer[tileKey]);
-
-      drawScene(
-        this._context,
-        this._vertexRowNum,
-        this._programInfo.defaultProgramInfo,
-        texture,
-        this._buffers
-      );
 
       this._currentResult = this._canvas.toDataURL();
       return this._currentResult;
-    } catch (error) {
-      console.error("获取或处理图像时发生错误:", error);
-      return null;
     } finally {
-      this._imageCachePromise.delete(tileKey);
+      gl.deleteTexture(texture);
+      gl.deleteBuffer(textureCoordBuffer);
+      if (this._buffers.textureCoord === textureCoordBuffer) {
+        this._buffers.textureCoord = null;
+      }
     }
+  }
+
+  destroy() {
+    if (this._destroyed) {
+      return;
+    }
+    this._destroyed = true;
+
+    if (this._context) {
+      this._context.deleteBuffer(this._buffers.position);
+      if (this._buffers.textureCoord) {
+        this._context.deleteBuffer(this._buffers.textureCoord);
+      }
+      this._context.deleteProgram(this._programInfo.defaultProgramInfo.program);
+      this._context.deleteProgram(this._programInfo.clipProgramInfo.program);
+      this._context.getExtension("WEBGL_lose_context")?.loseContext();
+      this._context = null;
+    }
+
+    this._buffers = { position: null, textureCoord: null };
+    this._canvas.width = 0;
+    this._canvas.height = 0;
+  }
+}
+
+/**
+ * 获取指定瓦片，并使用WebGL进行重投影，随后输出处理后的影像的类。
+ *
+ * 支持两种构造方式：
+ * - new CesiumTileProcesser(options)：内部自动创建不可见 canvas 池。
+ * - new CesiumTileProcesser(canvas, options)：兼容旧调用，仅使用传入 canvas。
+ */
+export class CesiumTileProcesser {
+  private static _providerIds = new WeakMap<ImageryProvider, number>();
+  private static _nextProviderId = 0;
+  private _renderers: SingleCanvasTileRenderer[] = [];
+  private _jobQueue: RenderJob[] = [];
+  private _imageCachePromise = new CachedPromise<ImageryTypes>();
+  private _imageBuffer: LRUCache<ImageryTypes>;
+  private _resultBuffer: LRUCache<string>;
+  private _resultPromises = new Map<string, Promise<string | null>>();
+  private _currentTileXYZ: TileXYZ | undefined = undefined;
+  private _currentResult: string | null = null;
+  private _cacheToken = 0;
+  private _destroyed = false;
+  private _stats = {
+    totalRequests: 0,
+    imageCacheHits: 0,
+    imageCacheMisses: 0,
+    imagePromiseHits: 0,
+    resultCacheHits: 0,
+    resultCacheMisses: 0,
+    resultPromiseHits: 0,
+  };
+
+  constructor(options?: CesiumTileProcesserOptions);
+  constructor(canvas: HTMLCanvasElement, options?: CesiumTileProcesserOptions);
+  constructor(
+    canvasOrOptions?: HTMLCanvasElement | CesiumTileProcesserOptions,
+    options: CesiumTileProcesserOptions = {}
+  ) {
+    const externalCanvas = isCanvasElement(canvasOrOptions)
+      ? canvasOrOptions
+      : undefined;
+    const resolvedOptions = externalCanvas
+      ? options
+      : (canvasOrOptions as CesiumTileProcesserOptions | undefined) ?? {};
+    const poolSize = externalCanvas
+      ? 1
+      : normalizePoolSize(
+          resolvedOptions.poolSize ?? getDefaultInternalPoolSize()
+        );
+
+    this._imageBuffer = new LRUCache<ImageryTypes>(
+      resolvedOptions.maxImageCacheSize ?? 256
+    );
+    this._resultBuffer = new LRUCache<string>(
+      resolvedOptions.maxResultCacheSize ?? 512
+    );
+
+    for (let i = 0; i < poolSize; i++) {
+      const canvas =
+        i === 0 && externalCanvas
+          ? externalCanvas
+          : createInternalCanvas(resolvedOptions);
+      this._renderers.push(new SingleCanvasTileRenderer(canvas, resolvedOptions));
+    }
+  }
+
+  get width() {
+    return this._renderers[0]?.width ?? 0;
+  }
+
+  get height() {
+    return this._renderers[0]?.height ?? 0;
+  }
+
+  get canvas() {
+    return this._renderers[0]?.canvas;
+  }
+
+  get vertexRowNum() {
+    return this._renderers[0]?.vertexRowNum ?? 0;
+  }
+
+  get currentTileXYZ() {
+    return this._currentTileXYZ;
+  }
+
+  get currentResult() {
+    return this._currentResult;
+  }
+
+  private static getProviderKey(provider: ImageryProvider) {
+    if (!CesiumTileProcesser._providerIds.has(provider)) {
+      CesiumTileProcesser._providerIds.set(
+        provider,
+        CesiumTileProcesser._nextProviderId++
+      );
+    }
+    return `provider-${CesiumTileProcesser._providerIds.get(provider)}`;
+  }
+
+  private getRawTileKey(
+    provider: ImageryProvider,
+    x: number,
+    y: number,
+    level: number
+  ) {
+    return `${CesiumTileProcesser.getProviderKey(provider)}:${x}/${y}/${level}`;
+  }
+
+  private getResultKey(
+    provider: ImageryProvider,
+    x: number,
+    y: number,
+    level: number,
+    clipKey = "full"
+  ) {
+    return `${this.getRawTileKey(provider, x, y, level)}:${clipKey}`;
+  }
+
+  private getPolygonHash(polygonVertices: Array<number>) {
+    let hash = 2166136261;
+    for (let i = 0; i < polygonVertices.length; i++) {
+      const value = polygonVertices[i].toFixed(6);
+      for (let j = 0; j < value.length; j++) {
+        hash ^= value.charCodeAt(j);
+        hash = Math.imul(hash, 16777619);
+      }
+    }
+    return `${polygonVertices.length}-${(hash >>> 0).toString(36)}`;
+  }
+
+  private async getImage(
+    x: number,
+    y: number,
+    level: number,
+    provider: ImageryProvider,
+    cacheToken: number
+  ) {
+    const tileKey = this.getRawTileKey(provider, x, y, level);
+    const bufferedImage = this._imageBuffer.get(tileKey);
+    if (bufferedImage) {
+      this._stats.imageCacheHits++;
+      return bufferedImage;
+    }
+
+    if (this._imageCachePromise.has(tileKey)) {
+      this._stats.imagePromiseHits++;
+    } else {
+      this._stats.imageCacheMisses++;
+    }
+
+    const image = await this._imageCachePromise.getOrCreate(
+      tileKey,
+      async () => {
+        const requestedImage = await provider.requestImage(x, y, level);
+        if (!requestedImage) {
+          throw new Error("图像获取失败");
+        }
+        return requestedImage;
+      }
+    );
+
+    if (cacheToken === this._cacheToken) {
+      this._imageBuffer.set(tileKey, image);
+    }
+    this._imageCachePromise.delete(tileKey);
+    return image;
+  }
+
+  private enqueueRender(job: Omit<RenderJob, "resolve" | "reject">) {
+    if (this._destroyed) {
+      return Promise.resolve(null);
+    }
+
+    return new Promise<string | null>((resolve, reject) => {
+      this._jobQueue.push({ ...job, resolve, reject });
+      this.processJobQueue();
+    });
+  }
+
+  private processJobQueue() {
+    if (this._destroyed) {
+      this.resolveQueuedJobsAsNull();
+      return;
+    }
+
+    while (this._jobQueue.length > 0) {
+      const renderer = this._renderers.find((item) => !item.busy);
+      if (!renderer) {
+        return;
+      }
+
+      const job = this._jobQueue.shift();
+      if (!job) {
+        return;
+      }
+
+      renderer.busy = true;
+      Promise.resolve()
+        .then(() => renderer.render(job))
+        .then((result) => {
+          this._currentTileXYZ = {
+            x: job.x,
+            y: job.y,
+            z: job.level,
+          };
+          this._currentResult = result;
+          job.resolve(result);
+        })
+        .catch(job.reject)
+        .finally(() => {
+          renderer.busy = false;
+          this.processJobQueue();
+        });
+    }
+  }
+
+  private reprojectInternal(
+    x: number,
+    y: number,
+    level: number,
+    provider: ImageryProvider,
+    polygonVertices?: Array<number>
+  ) {
+    if (this._destroyed) {
+      return Promise.resolve(null);
+    }
+
+    this._stats.totalRequests++;
+    const clipKey = polygonVertices
+      ? `clip-${this.getPolygonHash(polygonVertices)}`
+      : "full";
+    const resultKey = this.getResultKey(provider, x, y, level, clipKey);
+    const bufferedResult = this._resultBuffer.get(resultKey);
+    if (bufferedResult) {
+      this._stats.resultCacheHits++;
+      return Promise.resolve(bufferedResult);
+    }
+
+    const pendingResult = this._resultPromises.get(resultKey);
+    if (pendingResult) {
+      this._stats.resultPromiseHits++;
+      return pendingResult;
+    }
+
+    this._stats.resultCacheMisses++;
+    const cacheToken = this._cacheToken;
+    const resultPromise = this.getImage(x, y, level, provider, cacheToken)
+      .then((image) =>
+        this.enqueueRender({
+          x,
+          y,
+          level,
+          provider,
+          image,
+          polygonVertices,
+        })
+      )
+      .then((result) => {
+        if (result && cacheToken === this._cacheToken) {
+          this._resultBuffer.set(resultKey, result);
+        }
+        return result;
+      })
+      .catch((error) => {
+        console.error("获取或处理图像时发生错误:", error);
+        return null;
+      })
+      .finally(() => {
+        this._resultPromises.delete(resultKey);
+      });
+
+    this._resultPromises.set(resultKey, resultPromise);
+    return resultPromise;
+  }
+
+  // 产出重投影的结果
+  async reprojectTile(
+    x: number,
+    y: number,
+    level: number,
+    provider: ImageryProvider
+  ) {
+    return this.reprojectInternal(x, y, level, provider);
   }
 
   // 产出经过裁剪的重投影瓦片（部分透明），需要输入顶点坐标，坐标是相对于纹理坐标定义的(0-1)
@@ -255,61 +598,79 @@ export class CesiumTileProcesser {
     polygonVertices: Array<number>,
     provider: ImageryProvider
   ) {
-    if (this._context == null) {
-      console.error("gl上下文未正确定义");
-      return null;
-    }
-    // 根据瓦片具体位置初始化纹理坐标
-    this._buffers.textureCoord = initTextureCoordBuffer(
-      this._context,
-      this._vertexRowNum,
-      provider,
-      x,
-      y,
-      level
-    );
-
-    // 加载瓦片
-    const tileKey = `${x}-${y}-${level}`;
-    try {
-      if (!this._imageBuffer[tileKey]) {
-        const image = await this._imageCachePromise.get(tileKey, () => provider.requestImage(x, y, level)!);
-        if (!image) {
-          console.error("图像获取失败");
-          return null;
-        }
-        this._imageBuffer[tileKey] = image;
-      }
-
-
-
-      //将瓦片转换成纹理
-      const texture = generateTexture(this._context, this._imageBuffer[tileKey]);
-
-      drawSceneClipped(
-        this._context,
-        this._vertexRowNum,
-        this._programInfo.clipProgramInfo,
-        texture,
-        this._buffers,
-        polygonVertices
-      );
-
-      this._currentResult = this._canvas.toDataURL();
-      return this._currentResult;
-
-    } catch (error) {
-      console.error("获取或处理图像时发生错误:", error);
-      return null;
-    } finally {
-      this._imageCachePromise.delete(tileKey);
-    }
+    return this.reprojectInternal(x, y, level, provider, polygonVertices);
   }
 
   clearBuffer() {
-    this._imageBuffer = {};
+    this._cacheToken++;
+    this._imageBuffer.clear();
+    this._resultBuffer.clear();
     this._imageCachePromise.clear();
+    this._resultPromises.clear();
+    this.resolveQueuedJobsAsNull();
   }
+
+  getPoolStats() {
+    return {
+      poolSize: this._renderers.length,
+      busyRendererCount: this._renderers.filter((renderer) => renderer.busy)
+        .length,
+      queuedJobCount: this._jobQueue.length,
+      imageBufferSize: this._imageBuffer.size,
+      resultBufferSize: this._resultBuffer.size,
+      pendingResultPromiseCount: this._resultPromises.size,
+      ...this._stats,
+    };
+  }
+
+  destroy() {
+    if (this._destroyed) {
+      return;
+    }
+
+    this._destroyed = true;
+    this.clearBuffer();
+    this._renderers.forEach((renderer) => renderer.destroy());
+    this._renderers = [];
+  }
+
+  private resolveQueuedJobsAsNull() {
+    const queuedJobs = this._jobQueue;
+    this._jobQueue = [];
+    queuedJobs.forEach((job) => job.resolve(null));
+  }
+}
+
+function isCanvasElement(value: unknown): value is HTMLCanvasElement {
+  return (
+    typeof HTMLCanvasElement !== "undefined" &&
+    value instanceof HTMLCanvasElement
+  );
+}
+
+function createInternalCanvas(options: CesiumTileProcesserOptions) {
+  if (typeof document === "undefined") {
+    throw new Error("无法创建内部Canvas：当前环境不存在document对象");
+  }
+
+  const canvas = document.createElement("canvas");
+  canvas.width = options.width ?? 256;
+  canvas.height = options.height ?? 256;
+  return canvas;
+}
+
+function getDefaultInternalPoolSize() {
+  if (typeof navigator !== "undefined" && navigator.hardwareConcurrency) {
+    return Math.min(
+      4,
+      Math.max(1, Math.floor(navigator.hardwareConcurrency / 2))
+    );
+  }
+  return 3;
+}
+
+function normalizePoolSize(poolSize: number) {
+  return Math.min(8, Math.max(1, Math.floor(poolSize)));
 }
 
 // 输出类的选项
@@ -318,36 +679,24 @@ export type CesiumTileProcesserOptions = {
   height?: number; // 瓦片高度
   vsSource?: string; // 顶点着色器
   fsSource?: string; // 片段着色器
-  vertexRowNum?: number; //顶点行数
-
-  // tileX: number;
-  // tileY: number;
-  // tileZ: number;
+  vertexRowNum?: number; // 顶点行数
+  poolSize?: number; // 内部不可见 canvas 的数量
+  maxImageCacheSize?: number; // 原始影像缓存上限
+  maxResultCacheSize?: number; // 重投影结果缓存上限
 };
 
-//TS中需要定义该变量的类型（没有预定义）
+// TS中需要定义该变量的类型（没有预定义）
 export type WebGLProgramInfo = {
-  // 着色器程序(shaderProgram)
   program: WebGLProgram;
-  // 所有传入着色器的属性(attribute)
   attribLocations: {
-    [key: string]: number; // 顶点着色器传入属性的位置值
-    /* vertexPosition: number;
-    vertexColor: number;
-    textureCoord: number; */
+    [key: string]: number;
   };
-  // 所有传入着色器的统一状态(uniform state)
   uniformLocations: {
-    [key: string]: WebGLUniformLocation | null; // 统一状态的位置
-    /* projectionMatrix: WebGLUniformLocation | null;
-    modelViewMatrix: WebGLUniformLocation | null;
-    uSampler: WebGLUniformLocation | null; */
+    [key: string]: WebGLUniformLocation | null;
   };
 };
 
 // 缓冲区的类型
 export type Buffers = {
-  [key: string]: WebGLBuffer | null; // 缓冲区
-  /*   position: WebGLBuffer | null; // 顶点位置缓冲区
-  textureCoord: WebGLBuffer | null; // 纹理坐标缓冲区 */
+  [key: string]: WebGLBuffer | null;
 };

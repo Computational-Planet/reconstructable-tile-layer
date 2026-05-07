@@ -218,7 +218,7 @@ export class CustomTileManager {
 
   }
   removeAll() {
-    this.tilePrimitives.forEach((value, id) => {
+    this.tilePrimitives.forEach((value) => {
       value.destroy(this.viewer);
     })
     this.tilePrimitives.clear();

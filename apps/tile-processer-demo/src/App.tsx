@@ -2,11 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import {
   Color,
   GeographicTilingScheme,
-  ImageryLayer,
   UrlTemplateImageryProvider,
   Viewer,
-  WebMapTileServiceImageryProvider,
-  WebMercatorTilingScheme,
 } from "cesium";
 import { DrawerCard, LeftDrawer, RightToolBar } from "qhw-ui-demo";
 
@@ -31,7 +28,6 @@ function App() {
   const tilePrimitivesManagerRef = useRef<TilePrimitivesManager>();
   const simpleGeoReconstructManagerRef = useRef<SimpleGeoReconstructManager>();
   const [ready, setReady] = useState(false);
-  const glcanvas = useRef<HTMLCanvasElement | null>(null);
 
   useEffect(() => {
     if (container.current) {
@@ -82,12 +78,13 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (glcanvas.current) {
-      tileProcesserRef.current = new CesiumTileProcesser(glcanvas.current, {});
-      tileProcesserRef.current.reprojectTile(0, 0, 0, DefaultProvider);
-    }
+    tileProcesserRef.current = new CesiumTileProcesser({ poolSize: 10 });
+    tileProcesserRef.current.reprojectTile(0, 0, 0, DefaultProvider);
 
-    return () => { };
+    return () => {
+      tileProcesserRef.current?.destroy();
+      tileProcesserRef.current = undefined;
+    };
   }, []);
 
   return (
@@ -98,20 +95,11 @@ function App() {
         tileManagerRef,
         quadTreeTileProcesserRef,
         tilePrimitivesManagerRef,
-        simpleGeoReconstructManagerRef
+        simpleGeoReconstructManagerRef,
       }}
     >
       <div className={"control-bar"}></div>
       <div ref={container} className={"cesium-container"}></div>
-      <canvas
-        id="glcanvas"
-        width="256"
-        height="256"
-        ref={glcanvas}
-        style={{ position: "fixed", right: 0, top: 0 }}
-      >
-        你的浏览器似乎不支持或者禁用了 HTML5 <code>&lt;canvas&gt;</code> 元素。
-      </canvas>
       {/* 在viewer初始化完毕后再加载相关组件，防止组件初始化失败 */}
       {ready && (
         <>
@@ -152,11 +140,10 @@ export const DefaultProvider = new UrlTemplateImageryProvider({
   url: "https://alpha.deep-time.org/tms/Scotese2018/54326/{z}/{x}/{reverseY}.png",
 }); */
 
-
-console.log("tileXYToNativeRectangle-0/0/0&1/0/0")
+console.log("tileXYToNativeRectangle-0/0/0&1/0/0");
 console.log(DefaultProvider.tilingScheme.tileXYToNativeRectangle(0, 0, 0));
 console.log(DefaultProvider.tilingScheme.tileXYToNativeRectangle(1, 0, 0));
-console.log("tileXYToRectangle-0/0/0&1/0/0")
+console.log("tileXYToRectangle-0/0/0&1/0/0");
 console.log(DefaultProvider.tilingScheme.tileXYToRectangle(0, 0, 0));
 console.log(DefaultProvider.tilingScheme.tileXYToRectangle(1, 0, 0));
 
