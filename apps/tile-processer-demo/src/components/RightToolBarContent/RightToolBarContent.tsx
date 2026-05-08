@@ -1,6 +1,7 @@
 import clsx from "clsx";
 import { CSSProperties } from "react";
 import TileGridLayerButton from "./TileGridLayerButton";
+import SceneModeToggleButton from "./SceneModeToggleButton";
 
 type RightToolBarContentProps = {
   style?: CSSProperties;
@@ -17,6 +18,7 @@ function RightToolBarContent(props: RightToolBarContentProps) {
       className={clsx(className)}
     >
       <TileGridLayerButton />
+      <SceneModeToggleButton />
     </div>
   );
 }
