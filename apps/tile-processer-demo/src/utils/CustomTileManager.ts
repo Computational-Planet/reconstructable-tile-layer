@@ -9,7 +9,7 @@ import {
   RectangleGeometry,
   Viewer,
 } from "cesium";
-import { CesiumTileProcesser } from "tile-processer-webgl";
+import { CesiumTileProcesser, type TileImageAsset } from "tile-processer-webgl";
 
 type TileXYL = { x: number; y: number; level: number };
 
@@ -17,6 +17,7 @@ export class CustomTilePrimitive {
   readonly id: string;
   tileXYL: TileXYL;
   primitive: Primitive | null;
+  imageAsset: TileImageAsset | null = null;
   constructor(
     id: string,
     viewer: Viewer,
@@ -70,8 +71,24 @@ export class CustomTilePrimitive {
     if (this.primitive) this.primitive.show = val;
   }
 
+  setImageAsset(asset: TileImageAsset, processer?: CesiumTileProcesser) {
+    if (!this.primitive) {
+      asset.release();
+      return;
+    }
+
+    const previousAsset = this.imageAsset;
+    this.imageAsset = asset;
+    const applyStart = now();
+    this.primitive.appearance.material = createImageMaterial(asset.source);
+    processer?.recordMaterialApplyMs(now() - applyStart);
+    previousAsset?.release();
+  }
+
   destroy(viewer: Viewer) {
     viewer.scene.primitives.remove(this.primitive);
+    this.imageAsset?.release();
+    this.imageAsset = null;
     this.primitive = null;
   }
 }
@@ -95,7 +112,7 @@ export class CustomTileManager {
     canvas: HTMLCanvasElement
   ) {
     // console.log(id);
-    if (this.tilePrimitives.hasOwnProperty(id)) {
+    if (this.tilePrimitives.has(id)) {
       // console.log(this.tilePrimitives[id]);
       return;
     }
@@ -150,7 +167,7 @@ export class CustomTileManager {
     processer: CesiumTileProcesser
   ) {
     // console.log(id);
-    if (this.tilePrimitives.hasOwnProperty(id)) {
+    if (this.tilePrimitives.has(id)) {
       // console.log(this.tilePrimitives[id]);
       return;
     }
@@ -164,16 +181,10 @@ export class CustomTileManager {
     );
     this.tilePrimitives.set(id, tileItem);
 
-    const imageURL = await processer.reprojectTile(x, y, level, provider);
-    if (tileItem.primitive)
-      tileItem.primitive.appearance.material = new Material({
-        fabric: {
-          type: "Image",
-          uniforms: {
-            image: imageURL,
-          },
-        },
-      });
+    const imageAsset = await processer.reprojectTileImage(x, y, level, provider);
+    if (imageAsset) {
+      tileItem.setImageAsset(imageAsset, processer);
+    }
   }
   async generateClippedReprojTile(
     id: string,
@@ -185,7 +196,7 @@ export class CustomTileManager {
     polygon: Array<number>
   ) {
     // console.log(id);
-    if (this.tilePrimitives.hasOwnProperty(id)) {
+    if (this.tilePrimitives.has(id)) {
       // console.log(this.tilePrimitives[id]);
       return;
     }
@@ -198,16 +209,16 @@ export class CustomTileManager {
       level
     );
     this.tilePrimitives.set(id, tileItem);
-    const imageURL = await processer.reprojectClippedTile(x, y, level, polygon, provider);
-    if (tileItem.primitive)
-      tileItem.primitive.appearance.material = new Material({
-        fabric: {
-          type: "Image",
-          uniforms: {
-            image: imageURL,
-          },
-        },
-      });
+    const imageAsset = await processer.reprojectClippedTileImage(
+      x,
+      y,
+      level,
+      polygon,
+      provider
+    );
+    if (imageAsset) {
+      tileItem.setImageAsset(imageAsset, processer);
+    }
   }
   getById(id: string) {
     return this.tilePrimitives.get(id);
@@ -223,4 +234,22 @@ export class CustomTileManager {
     })
     this.tilePrimitives.clear();
   }
+}
+
+function createImageMaterial(image: string | HTMLCanvasElement) {
+  return new Material({
+    fabric: {
+      type: "Image",
+      uniforms: {
+        image,
+      },
+    },
+  });
+}
+
+function now() {
+  if (typeof performance !== "undefined" && performance.now) {
+    return performance.now();
+  }
+  return Date.now();
 }

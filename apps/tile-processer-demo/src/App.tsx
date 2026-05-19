@@ -8,7 +8,10 @@ import {
 import { DrawerCard, LeftDrawer, RightToolBar } from "qhw-ui-demo";
 
 import "./App.css";
-import { CesiumTileProcesser } from "tile-processer-webgl";
+import {
+  CesiumTileProcesser,
+  type TileImageOutputType,
+} from "tile-processer-webgl";
 import { TileClipperPanel } from "./components/TileClipperPanel";
 import CesiumRefContext from "./contexts/CesiumRefContext";
 import { CustomTileManager } from "./utils/CustomTileManager";
@@ -18,6 +21,17 @@ import GeoInfoBox from "./components/GeoInfoBox";
 import { TilePrimitivesManager } from "./utils/TilePrimitivesManager";
 import { DeepTimeGeoPanel } from "./components/DeepTimeGeoPanel";
 import { SimpleGeoReconstructManager } from "./utils/SimpleGeoReconstructManager";
+
+const DEMO_TILE_OUTPUT_TYPE: TileImageOutputType = "canvas";
+
+declare global {
+  interface Window {
+    __tileStats?: () => ReturnType<CesiumTileProcesser["getPoolStats"]>;
+    __geoTileStats?: () => ReturnType<
+      SimpleGeoReconstructManager["getGeoTileStats"]
+    >;
+  }
+}
 
 function App() {
   const container = useRef<HTMLDivElement | null>(null);
@@ -78,10 +92,23 @@ function App() {
   }, []);
 
   useEffect(() => {
-    tileProcesserRef.current = new CesiumTileProcesser({ poolSize: 10 });
-    tileProcesserRef.current.reprojectTile(0, 0, 0, DefaultProvider);
+    const processer = new CesiumTileProcesser({
+      slotCount: 4,
+      outputType: DEMO_TILE_OUTPUT_TYPE,
+    });
+    tileProcesserRef.current = processer;
+
+    const getTileStats = () => processer.getPoolStats();
+    window.__tileStats = getTileStats;
+
+    void processer
+      .reprojectTileImage(0, 0, 0, DefaultProvider)
+      .then((asset) => asset?.release());
 
     return () => {
+      if (window.__tileStats === getTileStats) {
+        delete window.__tileStats;
+      }
       tileProcesserRef.current?.destroy();
       tileProcesserRef.current = undefined;
     };

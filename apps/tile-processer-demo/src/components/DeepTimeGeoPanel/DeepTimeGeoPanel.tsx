@@ -67,6 +67,7 @@ function DeepTimeGeoPanel(props: DeepTimeGeoPanelProps) {
   useEffect(() => {
     let disposed = false;
     let unbindSceneModeSync: (() => void) | undefined;
+    let getGeoTileStats: (() => ReturnType<SimpleGeoReconstructManager["getGeoTileStats"]>) | undefined;
 
     if (tileProcesserRef.current) {
       const manager = new SimpleGeoReconstructManager({
@@ -75,6 +76,8 @@ function DeepTimeGeoPanel(props: DeepTimeGeoPanelProps) {
         files: { polygon: "/geo/Matthews++/PresentDay_StaticPlatePolygons_Matthews++.json", rots: ["/geo/Matthews++/Global_EB_250-0Ma_GK07_Matthews++.rot", "/geo/Matthews++/Global_EB_410-250Ma_GK07_Matthews++.rot"] },
       });
       simpleGeoReconstructManagerRef.current = manager;
+      getGeoTileStats = () => manager.getGeoTileStats();
+      window.__geoTileStats = getGeoTileStats;
 
       manager.init().then(() => {
         if (disposed) {
@@ -90,6 +93,9 @@ function DeepTimeGeoPanel(props: DeepTimeGeoPanelProps) {
       unbindSceneModeSync?.();
       if (viewerRef.current) {
         simpleGeoReconstructManagerRef.current?.clearAllTiles(viewerRef.current);
+      }
+      if (window.__geoTileStats === getGeoTileStats) {
+        delete window.__geoTileStats;
       }
       simpleGeoReconstructManagerRef.current?.unbindSceneModeSync();
       simpleGeoReconstructManagerRef.current = undefined;

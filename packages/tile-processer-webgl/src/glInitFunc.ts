@@ -96,9 +96,52 @@ export function initTextureCoordBuffer(
 ) {
   // 为纹理坐标创建buffer
   const textureCoordBuffer = gl.createBuffer();
-  // 将当前操作的buffer改为纹理坐标的buffer
-  gl.bindBuffer(gl.ARRAY_BUFFER, textureCoordBuffer);
+  updateTextureCoordBuffer(gl, textureCoordBuffer, vertexRowNum, provider, x, y, level);
 
+  return textureCoordBuffer;
+}
+
+export function updateTextureCoordBuffer(
+  gl: WebGLRenderingContext,
+  textureCoordBuffer: WebGLBuffer | null,
+  vertexRowNum: number,
+  provider: ImageryProvider,
+  x: number,
+  y: number,
+  level: number
+) {
+  if (!textureCoordBuffer) {
+    return;
+  }
+
+  gl.bindBuffer(gl.ARRAY_BUFFER, textureCoordBuffer);
+  gl.bufferData(
+    gl.ARRAY_BUFFER,
+    getTextureCoordData(vertexRowNum, provider, x, y, level),
+    gl.STATIC_DRAW
+  );
+}
+
+export function getIdentityTextureCoordData(vertexRowNum: number) {
+  const positions = new Float32Array(2 * vertexRowNum * 2);
+  let index = 0;
+  for (let j = 0; j < vertexRowNum; ++j) {
+    const y = j / (vertexRowNum - 1);
+    positions[index++] = 0.0;
+    positions[index++] = y;
+    positions[index++] = 1.0;
+    positions[index++] = y;
+  }
+  return positions;
+}
+
+function getTextureCoordData(
+  vertexRowNum: number,
+  provider: ImageryProvider,
+  x: number,
+  y: number,
+  level: number
+) {
   //仅在tilingScheme为WebMercator时才需要进行重投影（转化为等距投影）
   if (provider.tilingScheme instanceof WebMercatorTilingScheme) {
     // 若投影方式为Web墨卡托，则需要进行重投影。这里需要逐顶点计算纹理坐标（使最终结果经纬度等距）
@@ -138,36 +181,11 @@ export function initTextureCoordBuffer(
       webMercatorT[outputIndex++] = mercatorFraction;
     }
 
-    //将其纹理坐标转化为 WebGL 浮点型类型的数组，并将其传到 gl 对象的 bufferData() 方法来填充对应的顶点缓冲器。
-    gl.bufferData(
-      gl.ARRAY_BUFFER,
-      new Float32Array(webMercatorT),
-      //new Float32Array(positions),
-      gl.STATIC_DRAW
-    );
-  } else {
-    // 若为4326，则直接以顶点坐标的相同方法设置纹理坐标
-
-    const positions = new Float32Array(2 * vertexRowNum * 2);
-    let index = 0;
-    for (let j = 0; j < vertexRowNum; ++j) {
-      const y = j / (vertexRowNum - 1);
-      positions[index++] = 0.0;
-      positions[index++] = y;
-      positions[index++] = 1.0;
-      positions[index++] = y;
-    }
-
-    //将其纹理坐标转化为 WebGL 浮点型类型的数组，并将其传到 gl 对象的 bufferData() 方法来填充对应的顶点缓冲器。
-    gl.bufferData(
-      gl.ARRAY_BUFFER,
-      new Float32Array(positions),
-      //new Float32Array(positions),
-      gl.STATIC_DRAW
-    );
+    return webMercatorT;
   }
 
-  return textureCoordBuffer;
+  // 若为4326，则直接以顶点坐标的相同方法设置纹理坐标
+  return getIdentityTextureCoordData(vertexRowNum);
 }
 
 export function generateTexture(
@@ -176,6 +194,16 @@ export function generateTexture(
 ) {
   // 创建瓦片纹理
   const texture = gl.createTexture();
+  uploadImageToTexture(gl, texture, image, true);
+  return texture;
+}
+
+export function uploadImageToTexture(
+  gl: WebGLRenderingContext,
+  texture: WebGLTexture | null,
+  image: ImageryTypes,
+  allowMipMap = false
+) {
   gl.bindTexture(gl.TEXTURE_2D, texture);
   gl.texImage2D(
     gl.TEXTURE_2D,
@@ -189,7 +217,7 @@ export function generateTexture(
   // WebGL1对2的幂尺寸的图像和非2的幂尺寸的图像有不同的要求。
   // 对于2的幂尺寸的图像，可以利用Mipmap（多级渐进纹理）提高渲染效率；
   // 而对于非2的幂尺寸的图像，则需要关闭Mipmap并使用CLAMP_TO_EDGE来避免纹理坐标越界的问题。
-  if (isPowerOf2(image.width) && isPowerOf2(image.height)) {
+  if (allowMipMap && isPowerOf2(image.width) && isPowerOf2(image.height)) {
     gl.generateMipmap(gl.TEXTURE_2D); // 如果长宽是二的幂则生成多级渐进纹理（Mipmap）
   } else {
     // 不是二的幂，则不能使用MipMap，这就需要手动设置纹理坐标重复（Texture Coordinate Wrapping）避免纹理坐标越界的问题
@@ -212,6 +240,32 @@ export function generateTexture(
       gl.LINEAR
     );
   }
+
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+}
+
+export function createEmptyTexture(
+  gl: WebGLRenderingContext,
+  width: number,
+  height: number
+) {
+  const texture = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, texture);
+  gl.texImage2D(
+    gl.TEXTURE_2D,
+    0,
+    gl.RGBA,
+    width,
+    height,
+    0,
+    gl.RGBA,
+    gl.UNSIGNED_BYTE,
+    null
+  );
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
   return texture;
 }
 
@@ -345,7 +399,8 @@ function drawSceneClipped(
   programInfo: WebGLProgramInfo,
   texture: WebGLTexture | null,
   buffers: Buffers,
-  polygonVertices: Array<number>
+  polygonVertices: Array<number>,
+  options: { clear?: boolean } = {}
 ) {
   //如果canvas类型不是HTMLCanvasElement则报错并返回
   if (!("clientWidth" in gl.canvas)) {
@@ -358,9 +413,10 @@ function drawSceneClipped(
   gl.enable(gl.DEPTH_TEST); // 开启深度检测
   gl.depthFunc(gl.LEQUAL); // 深度检测方法为近的东西遮盖远的东西
 
-  // 清除画布，这里清除了颜色的缓冲和深度的缓冲
-
-  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  // 多 polygon 合并绘制时只在第一轮清屏，后续轮次叠加到同一 FBO。
+  if (options.clear ?? true) {
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  }
 
   //不进行变换，显示原本的状态
   const projectionMatrix = mat4.create(); //创建一个4x4空矩阵，用于存储透视投影的结果
