@@ -81,7 +81,7 @@ function App() {
       scene.sun.show = false;
       scene.skyBox.show = false;
       //scene.backgroundColor = Color.fromCssColorString("#9EDCFFFF");
-      scene.globe.baseColor = Color.fromCssColorString("#C4C4C4FF");
+      scene.globe.baseColor = Color.fromCssColorString("#292929FF");
       setReady(true);
     }
 
