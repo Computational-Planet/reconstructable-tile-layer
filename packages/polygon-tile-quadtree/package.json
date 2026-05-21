@@ -30,6 +30,7 @@
   },
   "dependencies": {
     "cesium": "^1.119.0",
-    "gl-matrix": "^3.4.3"
+    "gl-matrix": "^3.4.3",
+    "polygon-clipping": "0.15.7"
   }
 }

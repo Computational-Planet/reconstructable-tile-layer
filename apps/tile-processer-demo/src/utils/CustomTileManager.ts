@@ -9,6 +9,7 @@ import {
   RectangleGeometry,
   Viewer,
 } from "cesium";
+import type { TileClipArea } from "polygon-tile-quadtree";
 import { CesiumTileProcesser, type TileImageAsset } from "tile-processer-webgl";
 
 type TileXYL = { x: number; y: number; level: number };
@@ -214,6 +215,39 @@ export class CustomTileManager {
       y,
       level,
       polygon,
+      provider
+    );
+    if (imageAsset) {
+      tileItem.setImageAsset(imageAsset, processer);
+    }
+  }
+
+  async generateClippedAreaReprojTile(
+    id: string,
+    provider: ImageryProvider,
+    x: number,
+    y: number,
+    level: number,
+    processer: CesiumTileProcesser,
+    clipArea: TileClipArea
+  ) {
+    if (this.tilePrimitives.has(id)) {
+      return;
+    }
+    const tileItem = new CustomTilePrimitive(
+      id,
+      this.viewer,
+      provider,
+      x,
+      y,
+      level
+    );
+    this.tilePrimitives.set(id, tileItem);
+    const imageAsset = await processer.reprojectMultiClippedTileAreaImage(
+      x,
+      y,
+      level,
+      [clipArea],
       provider
     );
     if (imageAsset) {

@@ -13,6 +13,15 @@ export interface TileXYL {
   l: number;
 }
 
+export interface ClipPolygon {
+  exterior: Array<number>;
+  interiors?: Array<Array<number>>;
+}
+
+export interface TileClipArea {
+  polygons: ClipPolygon[];
+}
+
 export interface NodeChild {
   lb: QuadTreeTileNode;
   lt: QuadTreeTileNode;
@@ -23,6 +32,7 @@ export interface NodeChild {
 export interface NodeInfo {
   tileXYL: TileXYL;
   polygon: Array<number> | null;
+  clipArea?: TileClipArea | null;
 }
 
 export class QuadTreeTileNode {

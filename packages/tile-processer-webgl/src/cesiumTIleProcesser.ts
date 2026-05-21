@@ -1,9 +1,11 @@
 import { ImageryProvider, ImageryTypes } from "cesium";
-import { clipFS, defaultFS, defaultVS } from "./shader/defaultShaders";
+import earcut from "earcut";
+import { clipFS, defaultFS, defaultVS, maskFS, maskVS } from "./shader/defaultShaders";
 import {
   createEmptyTexture,
   drawScene,
   drawSceneClipped,
+  drawSceneMasked,
   generateTexture,
   getIdentityTextureCoordData,
   initPositionBuffer,
@@ -15,6 +17,8 @@ import {
 
 const EXPORT_CONCURRENCY = 4;
 const POOL_STATS_SCHEMA_VERSION = 2;
+const GEOMETRY_DEBUG_LOG_LIMIT = 40;
+let geometryDebugLogCount = 0;
 
 class CachedPromise<T> {
   private cacheMap = new Map<string, Promise<T>>();
@@ -106,6 +110,15 @@ export type TileImageAsset = {
   release: () => void;
 };
 
+export type ClipPolygon = {
+  exterior: Array<number>;
+  interiors?: Array<Array<number>>;
+};
+
+export type TileClipArea = {
+  polygons: ClipPolygon[];
+};
+
 class RetainedTileImageAsset implements TileImageAsset {
   private _referenceCount = 0;
   private _released = false;
@@ -187,6 +200,7 @@ type RenderJob = {
   outputType: TileImageOutputType;
   queuedAt: number;
   polygonVerticesList?: Array<Array<number>>;
+  clipMaskVertices?: Float32Array;
   resolve: (value: RenderResult | null) => void;
   reject: (reason?: unknown) => void;
 };
@@ -201,6 +215,12 @@ type ExportJob = {
 type RenderWorker = {
   busy: boolean;
   render(job: Omit<RenderJob, "resolve" | "reject">): Promise<RenderResult | null>;
+};
+
+type TileProgramInfo = {
+  defaultProgramInfo: WebGLProgramInfo;
+  clipProgramInfo: WebGLProgramInfo;
+  maskProgramInfo: WebGLProgramInfo;
 };
 
 type RendererPoolStats = {
@@ -220,14 +240,20 @@ type RendererPool = {
   getStats(): RendererPoolStats;
 };
 
+type ClipMaskDebugStats = {
+  polygonCount: number;
+  interiorRingCount: number;
+  skippedPolygonCount: number;
+  triangleCount: number;
+  maxTriangleDeviation: number;
+  highDeviationPolygonCount: number;
+};
+
 class LegacyCanvasTileRenderer implements RenderWorker {
   busy = false;
   private _canvas: HTMLCanvasElement;
   private _context: WebGLRenderingContext | null;
-  private _programInfo: {
-    defaultProgramInfo: WebGLProgramInfo;
-    clipProgramInfo: WebGLProgramInfo;
-  };
+  private _programInfo: TileProgramInfo;
   private _buffers: Buffers;
   private _vertexRowNum: number;
   private _currentTileXYZ: TileXYZ | undefined = undefined;
@@ -244,7 +270,10 @@ class LegacyCanvasTileRenderer implements RenderWorker {
       this._contextLostCount++;
     });
 
-    this._context = this._canvas.getContext("webgl", { alpha: true });
+    this._context = this._canvas.getContext("webgl", {
+      alpha: true,
+      stencil: true,
+    });
     if (!this._context) {
       throw new Error(
         "无法初始化WebGL，你的浏览器、操作系统或硬件可能不支持WebGL"
@@ -294,7 +323,8 @@ class LegacyCanvasTileRenderer implements RenderWorker {
       return null;
     }
 
-    const { x, y, level, provider, image, polygonVerticesList } = job;
+    const { x, y, level, provider, image, polygonVerticesList, clipMaskVertices } =
+      job;
     const gl = this._context;
     this._currentTileXYZ = { x, y, z: level };
 
@@ -314,7 +344,17 @@ class LegacyCanvasTileRenderer implements RenderWorker {
 
     try {
       const drawStart = now();
-      if (polygonVerticesList?.length) {
+      if (clipMaskVertices?.length) {
+        drawSceneMasked(
+          gl,
+          this._vertexRowNum,
+          this._programInfo.defaultProgramInfo,
+          this._programInfo.maskProgramInfo,
+          texture,
+          this._buffers,
+          clipMaskVertices
+        );
+      } else if (polygonVerticesList?.length) {
         polygonVerticesList.forEach((polygonVertices, index) => {
           drawSceneClipped(
             gl,
@@ -375,6 +415,7 @@ class LegacyCanvasTileRenderer implements RenderWorker {
       }
       this._context.deleteProgram(this._programInfo.defaultProgramInfo.program);
       this._context.deleteProgram(this._programInfo.clipProgramInfo.program);
+      this._context.deleteProgram(this._programInfo.maskProgramInfo.program);
       this._context.getExtension("WEBGL_lose_context")?.loseContext();
       this._context = null;
     }
@@ -442,7 +483,7 @@ class SingleContextRenderSlot implements RenderWorker {
   inputTexture: WebGLTexture | null;
   outputTexture: WebGLTexture | null;
   framebuffer: WebGLFramebuffer | null;
-  depthBuffer: WebGLRenderbuffer | null;
+  depthStencilBuffer: WebGLRenderbuffer | null;
   textureCoordBuffer: WebGLBuffer | null;
 
   constructor(
@@ -453,7 +494,7 @@ class SingleContextRenderSlot implements RenderWorker {
     this.inputTexture = createEmptyTexture(gl, renderer.width, renderer.height);
     this.outputTexture = createEmptyTexture(gl, renderer.width, renderer.height);
     this.framebuffer = gl.createFramebuffer();
-    this.depthBuffer = gl.createRenderbuffer();
+    this.depthStencilBuffer = gl.createRenderbuffer();
     this.textureCoordBuffer = gl.createBuffer();
 
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
@@ -464,18 +505,18 @@ class SingleContextRenderSlot implements RenderWorker {
       this.outputTexture,
       0
     );
-    gl.bindRenderbuffer(gl.RENDERBUFFER, this.depthBuffer);
+    gl.bindRenderbuffer(gl.RENDERBUFFER, this.depthStencilBuffer);
     gl.renderbufferStorage(
       gl.RENDERBUFFER,
-      gl.DEPTH_COMPONENT16,
+      gl.DEPTH_STENCIL,
       renderer.width,
       renderer.height
     );
     gl.framebufferRenderbuffer(
       gl.FRAMEBUFFER,
-      gl.DEPTH_ATTACHMENT,
+      gl.DEPTH_STENCIL_ATTACHMENT,
       gl.RENDERBUFFER,
-      this.depthBuffer
+      this.depthStencilBuffer
     );
 
     const status = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
@@ -493,12 +534,12 @@ class SingleContextRenderSlot implements RenderWorker {
     gl.deleteTexture(this.inputTexture);
     gl.deleteTexture(this.outputTexture);
     gl.deleteFramebuffer(this.framebuffer);
-    gl.deleteRenderbuffer(this.depthBuffer);
+    gl.deleteRenderbuffer(this.depthStencilBuffer);
     gl.deleteBuffer(this.textureCoordBuffer);
     this.inputTexture = null;
     this.outputTexture = null;
     this.framebuffer = null;
-    this.depthBuffer = null;
+    this.depthStencilBuffer = null;
     this.textureCoordBuffer = null;
   }
 }
@@ -507,10 +548,7 @@ class SingleContextTileRenderer implements RendererPool {
   workers: SingleContextRenderSlot[] = [];
   private _canvas: HTMLCanvasElement;
   private _context: WebGLRenderingContext;
-  private _programInfo: {
-    defaultProgramInfo: WebGLProgramInfo;
-    clipProgramInfo: WebGLProgramInfo;
-  };
+  private _programInfo: TileProgramInfo;
   private _buffers: Buffers;
   private _displayBuffers: Buffers;
   private _vertexRowNum: number;
@@ -526,7 +564,10 @@ class SingleContextTileRenderer implements RendererPool {
       this._contextLostCount++;
     });
 
-    const context = this._canvas.getContext("webgl", { alpha: true });
+    const context = this._canvas.getContext("webgl", {
+      alpha: true,
+      stencil: true,
+    });
     if (!context) {
       throw new Error(
         "无法初始化WebGL，你的浏览器、操作系统或硬件可能不支持WebGL"
@@ -586,7 +627,8 @@ class SingleContextTileRenderer implements RendererPool {
       return null;
     }
 
-    const { x, y, level, provider, image, polygonVerticesList } = job;
+    const { x, y, level, provider, image, polygonVerticesList, clipMaskVertices } =
+      job;
     const gl = this._context;
 
     const slotStart = now();
@@ -607,7 +649,17 @@ class SingleContextTileRenderer implements RendererPool {
     gl.bindFramebuffer(gl.FRAMEBUFFER, slot.framebuffer);
     gl.viewport(0, 0, this.width, this.height);
     this._buffers.textureCoord = slot.textureCoordBuffer;
-    if (polygonVerticesList?.length) {
+    if (clipMaskVertices?.length) {
+      drawSceneMasked(
+        gl,
+        this._vertexRowNum,
+        this._programInfo.defaultProgramInfo,
+        this._programInfo.maskProgramInfo,
+        slot.inputTexture,
+        this._buffers,
+        clipMaskVertices
+      );
+    } else if (polygonVerticesList?.length) {
       polygonVerticesList.forEach((polygonVertices, index) => {
         drawSceneClipped(
           gl,
@@ -674,6 +726,7 @@ class SingleContextTileRenderer implements RendererPool {
     this._context.deleteBuffer(this._displayBuffers.textureCoord);
     this._context.deleteProgram(this._programInfo.defaultProgramInfo.program);
     this._context.deleteProgram(this._programInfo.clipProgramInfo.program);
+    this._context.deleteProgram(this._programInfo.maskProgramInfo.program);
     this._context.getExtension("WEBGL_lose_context")?.loseContext();
     this._buffers = { position: null, textureCoord: null };
     this._displayBuffers = { position: null, textureCoord: null };
@@ -849,6 +902,34 @@ export class CesiumTileProcesser {
     return `${polygonVerticesList.length}-${(hash >>> 0).toString(36)}`;
   }
 
+  private getTileClipAreaHash(clipArea: TileClipArea) {
+    const polygonHashes = clipArea.polygons.map((polygon) => {
+      const ringHashes = [
+        `e:${this.getPolygonHash(polygon.exterior)}`,
+        ...(polygon.interiors ?? []).map(
+          (ring) => `i:${this.getPolygonHash(ring)}`
+        ),
+      ];
+      return ringHashes.join("|");
+    });
+    return polygonHashes.join(";");
+  }
+
+  private getTileClipAreaListHash(clipAreas: TileClipArea[]) {
+    let hash = 2166136261;
+    const areaHashes = clipAreas
+      .map((clipArea) => this.getTileClipAreaHash(clipArea))
+      .sort();
+
+    areaHashes.forEach((areaHash) => {
+      for (let i = 0; i < areaHash.length; i++) {
+        hash ^= areaHash.charCodeAt(i);
+        hash = Math.imul(hash, 16777619);
+      }
+    });
+    return `${clipAreas.length}-${(hash >>> 0).toString(36)}`;
+  }
+
   private async getImage(
     x: number,
     y: number,
@@ -1003,16 +1084,20 @@ export class CesiumTileProcesser {
     level: number,
     provider: ImageryProvider,
     outputType: TileImageOutputType,
-    polygonVerticesList?: Array<Array<number>>
+    polygonVerticesList?: Array<Array<number>>,
+    clipMaskVertices?: Float32Array,
+    clipKeyOverride?: string
   ) {
     if (this._destroyed) {
       return Promise.resolve(null);
     }
 
     this._stats.totalRequests++;
-    const clipKey = polygonVerticesList?.length
-      ? `clip-${this.getPolygonListHash(polygonVerticesList)}`
-      : "full";
+    const clipKey =
+      clipKeyOverride ??
+      (polygonVerticesList?.length
+        ? `clip-${this.getPolygonListHash(polygonVerticesList)}`
+        : "full");
     const resultKey = this.getResultKey(
       provider,
       x,
@@ -1046,6 +1131,7 @@ export class CesiumTileProcesser {
           outputType,
           queuedAt: now(),
           polygonVerticesList,
+          clipMaskVertices,
         })
       )
       .then((result) => {
@@ -1109,13 +1195,13 @@ export class CesiumTileProcesser {
     polygonVertices: Array<number>,
     provider: ImageryProvider
   ) {
-    const asset = await this.reprojectInternal(
+    const asset = await this.reprojectMultiClippedTileAreaImage(
       x,
       y,
       level,
+      [createTileClipAreaFromFlatPolygon(polygonVertices)],
       provider,
-      "dataUrl",
-      [polygonVertices]
+      "dataUrl"
     );
     if (!asset) {
       return null;
@@ -1145,13 +1231,13 @@ export class CesiumTileProcesser {
     provider: ImageryProvider,
     outputType: TileImageOutputType = this._outputType
   ): Promise<TileImageAsset | null> {
-    return this.reprojectInternal(
+    return this.reprojectMultiClippedTileAreaImage(
       x,
       y,
       level,
+      [createTileClipAreaFromFlatPolygon(polygonVertices)],
       provider,
-      outputType,
-      [polygonVertices]
+      outputType
     );
   }
 
@@ -1163,13 +1249,45 @@ export class CesiumTileProcesser {
     provider: ImageryProvider,
     outputType: TileImageOutputType = this._outputType
   ): Promise<TileImageAsset | null> {
+    return this.reprojectMultiClippedTileAreaImage(
+      x,
+      y,
+      level,
+      polygonVerticesList.map(createTileClipAreaFromFlatPolygon),
+      provider,
+      outputType
+    );
+  }
+
+  async reprojectMultiClippedTileAreaImage(
+    x: number,
+    y: number,
+    level: number,
+    clipAreas: TileClipArea[],
+    provider: ImageryProvider,
+    outputType: TileImageOutputType = this._outputType
+  ): Promise<TileImageAsset | null> {
+    if (clipAreas.length === 0) {
+      return this.reprojectTileImage(x, y, level, provider, outputType);
+    }
+
+    const clipKey = `area-${this.getTileClipAreaListHash(clipAreas)}`;
+    const debugStats = createClipMaskDebugStats();
+    const clipMaskVertices = createClipMaskVertices(clipAreas, debugStats);
+    logClipMaskDebug({ x, y, z: level }, clipAreas, clipMaskVertices, debugStats);
+    if (clipMaskVertices.length === 0) {
+      return null;
+    }
+
     return this.reprojectInternal(
       x,
       y,
       level,
       provider,
       outputType,
-      polygonVerticesList
+      undefined,
+      clipMaskVertices,
+      clipKey
     );
   }
 
@@ -1256,7 +1374,8 @@ function createProgramInfo(
 
   const defaultShaderProgram = initShaderProgram(gl, vsSource, fsSource);
   const clipShaderProgram = initShaderProgram(gl, vsSource, fsSourceClip);
-  if (!defaultShaderProgram || !clipShaderProgram) {
+  const maskShaderProgram = initShaderProgram(gl, maskVS, maskFS);
+  if (!defaultShaderProgram || !clipShaderProgram || !maskShaderProgram) {
     throw new Error("初始化着色器程序失败");
   }
 
@@ -1308,6 +1427,25 @@ function createProgramInfo(
         polygonVertices: gl.getUniformLocation(
           clipShaderProgram,
           "polygonVertices"
+        ),
+      },
+    },
+    maskProgramInfo: {
+      program: maskShaderProgram,
+      attribLocations: {
+        vertexPosition: gl.getAttribLocation(
+          maskShaderProgram,
+          "aVertexPosition"
+        ),
+      },
+      uniformLocations: {
+        projectionMatrix: gl.getUniformLocation(
+          maskShaderProgram,
+          "uProjectionMatrix"
+        ),
+        modelViewMatrix: gl.getUniformLocation(
+          maskShaderProgram,
+          "uModelViewMatrix"
         ),
       },
     },
@@ -1381,6 +1519,284 @@ function createCanvasAssetFromSnapshot(snapshotCanvas: HTMLCanvasElement) {
     snapshotCanvas.width,
     snapshotCanvas.height,
     "canvas"
+  );
+}
+
+function createTileClipAreaFromFlatPolygon(polygonVertices: Array<number>): TileClipArea {
+  return {
+    polygons: [
+      {
+        exterior: closeMaskRing(polygonVertices),
+      },
+    ],
+  };
+}
+
+function createClipMaskDebugStats(): ClipMaskDebugStats | undefined {
+  if (!isDeepTimeGeoDebugEnabled()) {
+    return undefined;
+  }
+
+  return {
+    polygonCount: 0,
+    interiorRingCount: 0,
+    skippedPolygonCount: 0,
+    triangleCount: 0,
+    maxTriangleDeviation: 0,
+    highDeviationPolygonCount: 0,
+  };
+}
+
+function createClipMaskVertices(
+  clipAreas: TileClipArea[],
+  debugStats?: ClipMaskDebugStats
+) {
+  const maskVertices: number[] = [];
+  clipAreas.forEach((clipArea) => {
+    clipArea.polygons.forEach((polygon) => {
+      appendPolygonMaskVertices(polygon, maskVertices, debugStats);
+    });
+  });
+  return new Float32Array(maskVertices);
+}
+
+function appendPolygonMaskVertices(
+  polygon: ClipPolygon,
+  maskVertices: number[],
+  debugStats?: ClipMaskDebugStats
+) {
+  if (debugStats) {
+    debugStats.polygonCount++;
+    debugStats.interiorRingCount += polygon.interiors?.length ?? 0;
+  }
+
+  const exterior = orientEarcutRing(prepareEarcutRing(polygon.exterior), "exterior");
+  if (!exterior) {
+    debugStats && debugStats.skippedPolygonCount++;
+    return;
+  }
+
+  const flatVertices = [...exterior];
+  const holeIndices: number[] = [];
+  polygon.interiors?.forEach((interior) => {
+    const ring = orientEarcutRing(prepareEarcutRing(interior), "interior");
+    if (!ring) {
+      return;
+    }
+    holeIndices.push(flatVertices.length / 2);
+    flatVertices.push(...ring);
+  });
+
+  const indices = earcut(flatVertices, holeIndices, 2);
+  if (debugStats) {
+    const deviation = getEarcutAreaDeviation(flatVertices, holeIndices, indices);
+    debugStats.triangleCount += indices.length / 3;
+    debugStats.maxTriangleDeviation = Math.max(
+      debugStats.maxTriangleDeviation,
+      deviation
+    );
+    if (deviation > 0.01) {
+      debugStats.highDeviationPolygonCount++;
+    }
+  }
+
+  indices.forEach((vertexIndex) => {
+    const index = vertexIndex * 2;
+    maskVertices.push(flatVertices[index], flatVertices[index + 1]);
+  });
+}
+
+function logClipMaskDebug(
+  tile: TileXYZ,
+  clipAreas: TileClipArea[],
+  maskVertices: Float32Array,
+  debugStats?: ClipMaskDebugStats
+) {
+  if (!debugStats || geometryDebugLogCount >= GEOMETRY_DEBUG_LOG_LIMIT) {
+    return;
+  }
+
+  const shouldLog =
+    maskVertices.length === 0 ||
+    debugStats.maxTriangleDeviation > 0.01 ||
+    geometryDebugLogCount < 5;
+  if (!shouldLog) {
+    return;
+  }
+
+  geometryDebugLogCount++;
+  console.debug("[DeepTimeGeo] GPU mask tile", {
+    tile,
+    clipAreaCount: clipAreas.length,
+    polygonCount: debugStats.polygonCount,
+    interiorRingCount: debugStats.interiorRingCount,
+    skippedPolygonCount: debugStats.skippedPolygonCount,
+    triangleCount: debugStats.triangleCount,
+    maskVertexCount: maskVertices.length / 2,
+    maxTriangleDeviation: debugStats.maxTriangleDeviation,
+    highDeviationPolygonCount: debugStats.highDeviationPolygonCount,
+  });
+}
+
+function prepareEarcutRing(ring: Array<number>) {
+  const openRing: number[] = [];
+  for (let i = 0; i + 1 < ring.length; i += 2) {
+    const x = ring[i];
+    const y = ring[i + 1];
+    if (!Number.isFinite(x) || !Number.isFinite(y)) {
+      return null;
+    }
+
+    const previousX = openRing[openRing.length - 2];
+    const previousY = openRing[openRing.length - 1];
+    if (
+      previousX !== undefined &&
+      Math.abs(previousX - x) < 1e-9 &&
+      Math.abs(previousY - y) < 1e-9
+    ) {
+      continue;
+    }
+
+    openRing.push(x, y);
+  }
+
+  if (openRing.length >= 4) {
+    const firstX = openRing[0];
+    const firstY = openRing[1];
+    const lastX = openRing[openRing.length - 2];
+    const lastY = openRing[openRing.length - 1];
+    if (Math.abs(firstX - lastX) < 1e-9 && Math.abs(firstY - lastY) < 1e-9) {
+      openRing.splice(openRing.length - 2, 2);
+    }
+  }
+
+  if (openRing.length < 6 || Math.abs(openRingArea(openRing)) < 1e-12) {
+    return null;
+  }
+
+  return openRing;
+}
+
+function orientEarcutRing(
+  ring: number[] | null,
+  ringRole: "exterior" | "interior"
+) {
+  if (!ring) {
+    return null;
+  }
+
+  const area = openRingArea(ring);
+  const shouldReverse =
+    ringRole === "exterior" ? area > 0 : area < 0;
+  return shouldReverse ? reverseFlatRing(ring) : ring;
+}
+
+function reverseFlatRing(ring: Array<number>) {
+  const reversed: number[] = [];
+  for (let i = ring.length - 2; i >= 0; i -= 2) {
+    reversed.push(ring[i], ring[i + 1]);
+  }
+  return reversed;
+}
+
+function closeMaskRing(ring: Array<number>) {
+  if (ring.length < 4) {
+    return ring;
+  }
+
+  const closed = [...ring];
+  const firstX = closed[0];
+  const firstY = closed[1];
+  const lastX = closed[closed.length - 2];
+  const lastY = closed[closed.length - 1];
+  if (Math.abs(firstX - lastX) > 1e-9 || Math.abs(firstY - lastY) > 1e-9) {
+    closed.push(firstX, firstY);
+  }
+  return closed;
+}
+
+function openRingArea(ring: Array<number>) {
+  let area = 0;
+  const pointCount = Math.floor(ring.length / 2);
+  for (let i = 0; i < pointCount; i++) {
+    const next = (i + 1) % pointCount;
+    area +=
+      ring[i * 2] * ring[next * 2 + 1] -
+      ring[next * 2] * ring[i * 2 + 1];
+  }
+  return area / 2;
+}
+
+function getEarcutAreaDeviation(
+  vertices: Array<number>,
+  holeIndices: Array<number>,
+  triangleIndices: Array<number>
+) {
+  const polygonArea = getPreparedPolygonArea(vertices, holeIndices);
+  if (polygonArea <= 0) {
+    return 0;
+  }
+
+  return Math.abs(getTriangleIndicesArea(vertices, triangleIndices) - polygonArea) / polygonArea;
+}
+
+function getPreparedPolygonArea(
+  vertices: Array<number>,
+  holeIndices: Array<number>
+) {
+  const holeStarts = holeIndices.map((index) => index * 2);
+  const ringEnds = [...holeStarts, vertices.length];
+  let area = Math.abs(openRingAreaRange(vertices, 0, ringEnds[0]));
+
+  holeStarts.forEach((start, index) => {
+    area -= Math.abs(openRingAreaRange(vertices, start, ringEnds[index + 1]));
+  });
+
+  return area;
+}
+
+function openRingAreaRange(
+  ring: Array<number>,
+  startIndex: number,
+  endIndex: number
+) {
+  let area = 0;
+  const pointCount = Math.floor((endIndex - startIndex) / 2);
+  for (let i = 0; i < pointCount; i++) {
+    const next = (i + 1) % pointCount;
+    const currentIndex = startIndex + i * 2;
+    const nextIndex = startIndex + next * 2;
+    area +=
+      ring[currentIndex] * ring[nextIndex + 1] -
+      ring[nextIndex] * ring[currentIndex + 1];
+  }
+  return area / 2;
+}
+
+function getTriangleIndicesArea(
+  vertices: Array<number>,
+  triangleIndices: Array<number>
+) {
+  let area = 0;
+  for (let i = 0; i + 2 < triangleIndices.length; i += 3) {
+    const a = triangleIndices[i] * 2;
+    const b = triangleIndices[i + 1] * 2;
+    const c = triangleIndices[i + 2] * 2;
+    area += Math.abs(
+      (
+        vertices[a] * (vertices[b + 1] - vertices[c + 1]) +
+        vertices[b] * (vertices[c + 1] - vertices[a + 1]) +
+        vertices[c] * (vertices[a + 1] - vertices[b + 1])
+      ) / 2
+    );
+  }
+  return area;
+}
+
+function isDeepTimeGeoDebugEnabled() {
+  return (
+    typeof localStorage !== "undefined" &&
+    localStorage.getItem("deepTimeGeoDebug") === "1"
   );
 }
 

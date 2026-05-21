@@ -87,8 +87,10 @@ function DeepTimeGeoPanel(props: DeepTimeGeoPanelProps) {
         provider: MapProvider["arcgis-nature"],
         processer: tileProcesserRef.current,
         files: {
+          //polygon: "/geo/Matthews++/test/shapes_coasts.gpmlz",
+          //polygon:"/geo/Matthews++/test/Global_EarthByte_GPlates_PresentDay_Coastlines.gpmlz",
           polygon:
-            "/geo/Matthews++/PresentDay_StaticPlatePolygons_Matthews++.json",
+            "/geo/Matthews++/test/shapes_static_polygons_Merdith_et_al.gpml",
           rots: [
             "geo/Matthews++/test/1000_0_rotfile_20240725.rot",
             "geo/Matthews++/test/1800_1000_rotfile_20240725.rot",
@@ -153,7 +155,7 @@ function DeepTimeGeoPanel(props: DeepTimeGeoPanelProps) {
                 processer: tileProcesserRef.current,
                 files: {
                   polygon:
-                    "/geo/Matthews++/PresentDay_StaticPlatePolygons_Matthews++.json",
+                    "/geo/Matthews++/test/Global_EarthByte_GPlates_PresentDay_Coastlines.gpmlz",
                 },
               });
               tilePrimitivesManager.init();

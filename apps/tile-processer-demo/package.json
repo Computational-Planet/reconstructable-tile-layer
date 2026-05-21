@@ -13,12 +13,13 @@
     "@ant-design/icons": "^5.3.7",
     "cesium": "^1.119.0",
     "clsx": "^2.1.1",
+    "fflate": "^0.8.3",
+    "plates-rotation-operator": "workspace:*",
     "polygon-tile-quadtree": "workspace:*",
     "qhw-ui-demo": "workspace:*",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "tile-processer-webgl": "workspace:*",
-    "plates-rotation-operator":"workspace:*"
+    "tile-processer-webgl": "workspace:*"
   },
   "devDependencies": {
     "@types/react": "^18.3.3",

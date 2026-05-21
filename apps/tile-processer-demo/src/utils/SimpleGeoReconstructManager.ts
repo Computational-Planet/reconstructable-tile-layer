@@ -10,8 +10,18 @@ import {
   Viewer,
 } from "cesium";
 import { RotationOperator } from "plates-rotation-operator";
-import { NodeInfo, QuadTreeTileProcesser } from "polygon-tile-quadtree";
+import {
+  NodeInfo,
+  QuadTreeTileProcesser,
+  type TileClipArea,
+} from "polygon-tile-quadtree";
 import { CesiumTileProcesser, type TileImageAsset } from "tile-processer-webgl";
+import {
+  loadFeaturePolygonDataWithDiagnostics,
+  type FeatureImportDiagnostics,
+  type PolygonRenderIntentMode,
+  type RenderIntent,
+} from "./gplates";
 
 const TILE_REQUEST_CONCURRENCY = 64;
 const PRIMITIVE_BATCH_SIZE = 32;
@@ -115,9 +125,21 @@ export interface PaleoData {
   featureId: string; // 要素id（从文件获取）
   plateId: string; // 板块id（从文件获取）
   lonlats: number[];
+  clipArea: TileClipArea;
+  renderIntent: RenderIntent;
   time: {
     begine: number;
     end: number;
+  };
+  source?: {
+    featureType?: string;
+    originalFeatureId?: string;
+    featureMemberIndex?: number;
+    propertyNames?: string[];
+    name?: string;
+    polygonCount?: number;
+    interiorCount?: number;
+    attributes?: Record<string, string | number>;
   };
 }
 
@@ -126,7 +148,7 @@ type TilePrimitiveRecord = {
   imageAsset: TileImageAsset;
   primitive: Primitive | null;
   tileXYL: NodeInfo["tileXYL"];
-  polygons: Array<Array<number>>;
+  clipAreas: TileClipArea[];
   coversFullTile: boolean;
   sourceFeatureIds: string[];
   plateId: string;
@@ -142,7 +164,7 @@ type PolygonQuadTreeRecord = {
 type CompositeTileTask = {
   tileId: string;
   tileXYL: NodeInfo["tileXYL"];
-  polygons: Array<Array<number>>;
+  clipAreas: TileClipArea[];
   coversFullTile: boolean;
   sourceFeatureIds: string[];
   plateId: string;
@@ -156,6 +178,7 @@ type GeoTileStats = {
   uniqueRawTileCount: number;
   maxPolygonsPerComposite: number;
   avgPolygonsPerComposite: number;
+  importDiagnostics?: FeatureImportDiagnostics;
 };
 
 type PrimitiveTransformMode = "dynamic3D" | "bakedInstance";
@@ -174,6 +197,7 @@ export interface SimpleGeoReconstructManagerConstructorOptions {
   provider: ImageryProvider;
   processer: CesiumTileProcesser;
   files: {
+    polygonRenderIntent?: PolygonRenderIntentMode;
     polygon: string; // 多边形的路径
     rots: string[];
   };
@@ -184,10 +208,12 @@ export class SimpleGeoReconstructManager {
   processer: CesiumTileProcesser;
   rotationOperator: RotationOperator = new RotationOperator();
   private _files: {
+    polygonRenderIntent?: PolygonRenderIntentMode;
     polygon: string; // 多边形的路径
     rots: string[];
   };
   paleoData: PaleoData[] = [];
+  allPaleoData: PaleoData[] = [];
   // key为plateID，其内部的Map中key为featureID
   plates: Map<string, PlateQuadTreeGroup> = new Map<
     string,
@@ -205,6 +231,7 @@ export class SimpleGeoReconstructManager {
     uniqueRawTileCount: 0,
     maxPolygonsPerComposite: 0,
     avgPolygonsPerComposite: 0,
+    importDiagnostics: undefined,
   };
   private _generationToken = 0;
   private _ageUpdateToken = 0;
@@ -234,24 +261,9 @@ export class SimpleGeoReconstructManager {
   }
 
   async getPaleoDataFlatten(url: string) {
-    const res: PaleoData[] = [];
-    const polygons: PaleoItem[] = await (await fetch(url)).json();
-
-    polygons.forEach((item) => {
-      res.push({
-        featureId: item.FeatureID,
-        plateId: item.PlateID,
-        lonlats: item.Polygon[0].PosList.flatMap((pos) => [
-          pos.Longitude,
-          pos.Latitude,
-        ]),
-        time: {
-          begine: item.ValidTime.Begin,
-          end: item.ValidTime.End,
-        },
-      });
+    return loadFeaturePolygonDataWithDiagnostics(url, {
+      polygonRenderIntent: this._files.polygonRenderIntent,
     });
-    return res;
   }
 
   async init() {
@@ -261,7 +273,12 @@ export class SimpleGeoReconstructManager {
     this._rotationMatrixCache.clear();
     this._compositeTileRecords.clear();
 
-    this.paleoData = await this.getPaleoDataFlatten(this._files.polygon);
+    const loadResult = await this.getPaleoDataFlatten(this._files.polygon);
+    this.allPaleoData = loadResult.items;
+    this.paleoData = loadResult.items.filter(
+      (item) => item.renderIntent === "area"
+    );
+    this._geoTileStats.importDiagnostics = loadResult.diagnostics;
     this.paleoData.forEach((item) => {
       if (!this.plates.get(item.plateId)) {
         this.plates.set(item.plateId, {
@@ -269,11 +286,22 @@ export class SimpleGeoReconstructManager {
           polygonQuadTrees: new Map<string, PolygonQuadTreeRecord>(),
         });
       }
-      this.plates.get(item.plateId)?.polygonQuadTrees.set(item.featureId, {
+      const plateGroup = this.plates.get(item.plateId);
+      if (plateGroup?.polygonQuadTrees.has(item.featureId)) {
+        if (isDeepTimeGeoDebugEnabled()) {
+          console.warn("[DeepTimeGeo] duplicate featureId collision", {
+            plateId: item.plateId,
+            featureId: item.featureId,
+            source: item.source,
+          });
+        }
+        return;
+      }
+      plateGroup?.polygonQuadTrees.set(item.featureId, {
         info: item,
         quadTree: new QuadTreeTileProcesser(
           this._provider.tilingScheme,
-          item.lonlats
+          item.clipArea
         ),
         primitives: {},
       });
@@ -493,7 +521,7 @@ export class SimpleGeoReconstructManager {
             task = {
               tileId,
               tileXYL: tileInfo.tileXYL,
-              polygons: [],
+              clipAreas: [],
               coversFullTile: false,
               sourceFeatureIds: [],
               plateId: polygonItem.info.plateId,
@@ -503,8 +531,16 @@ export class SimpleGeoReconstructManager {
           }
 
           task.sourceFeatureIds.push(polygonItem.info.featureId);
-          if (tileInfo.polygon) {
-            task.polygons.push(tileInfo.polygon);
+          if (tileInfo.clipArea) {
+            task.clipAreas.push(tileInfo.clipArea);
+          } else if (tileInfo.polygon) {
+            task.clipAreas.push({
+              polygons: [
+                {
+                  exterior: tileInfo.polygon,
+                },
+              ],
+            });
           } else {
             task.coversFullTile = true;
           }
@@ -587,7 +623,7 @@ export class SimpleGeoReconstructManager {
             imageAsset,
             primitive,
             tileXYL: task.tileXYL,
-            polygons: task.polygons,
+            clipAreas: task.clipAreas,
             coversFullTile: task.coversFullTile,
             sourceFeatureIds: task.sourceFeatureIds,
             plateId: task.plateId,
@@ -676,15 +712,15 @@ export class SimpleGeoReconstructManager {
   }
 
   private async getReprojectedTileImageAsset(
-    tile: Pick<TilePrimitiveRecord, "tileXYL" | "polygons" | "coversFullTile">,
+    tile: Pick<TilePrimitiveRecord, "tileXYL" | "clipAreas" | "coversFullTile">,
     provider: ImageryProvider
   ): Promise<TileImageAsset | null> {
-    if (!tile.coversFullTile && tile.polygons.length > 0) {
-      return this.processer.reprojectMultiClippedTileImage(
+    if (!tile.coversFullTile && tile.clipAreas.length > 0) {
+      return this.processer.reprojectMultiClippedTileAreaImage(
         tile.tileXYL.x,
         tile.tileXYL.y,
         tile.tileXYL.l,
-        tile.polygons,
+        tile.clipAreas,
         provider
       );
     }
@@ -741,7 +777,7 @@ export class SimpleGeoReconstructManager {
     uniqueRawTileCount: number
   ) {
     const polygonCounts = tasks.map((task) =>
-      task.coversFullTile ? task.sourceFeatureIds.length : task.polygons.length
+      task.coversFullTile ? task.sourceFeatureIds.length : task.clipAreas.length
     );
     const totalPolygonCount = polygonCounts.reduce((sum, count) => sum + count, 0);
     this._geoTileStats = {
@@ -753,7 +789,12 @@ export class SimpleGeoReconstructManager {
         polygonCounts.length > 0 ? Math.max(...polygonCounts) : 0,
       avgPolygonsPerComposite:
         tasks.length > 0 ? totalPolygonCount / tasks.length : 0,
+      importDiagnostics: this._geoTileStats.importDiagnostics,
     };
+
+    if (isDeepTimeGeoDebugEnabled()) {
+      console.debug("[DeepTimeGeo] tile tasks", this._geoTileStats);
+    }
   }
 
   private createTilePrimitive(
@@ -956,4 +997,11 @@ export class SimpleGeoReconstructManager {
   private getTilingSchemeKey() {
     return this._provider.tilingScheme.constructor.name;
   }
+}
+
+function isDeepTimeGeoDebugEnabled() {
+  return (
+    typeof localStorage !== "undefined" &&
+    localStorage.getItem("deepTimeGeoDebug") === "1"
+  );
 }

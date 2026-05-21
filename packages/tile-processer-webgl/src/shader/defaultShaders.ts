@@ -25,6 +25,26 @@ void main() {
 }
 `;
 
+// GPU 裁剪遮罩只需要写入 stencil，因此片元颜色本身不会进入最终图像。
+export const maskVS: string = /*glsl*/ `
+attribute vec2 aVertexPosition;
+
+uniform mat4 uModelViewMatrix;
+uniform mat4 uProjectionMatrix;
+
+void main() {
+  gl_Position = uProjectionMatrix * uModelViewMatrix * vec4(aVertexPosition * 2.0 - 1.0, 0.0, 1.0);
+}
+`;
+
+export const maskFS: string = /*glsl*/ `
+precision highp float;
+
+void main() {
+  gl_FragColor = vec4(1.0);
+}
+`;
+
 export const clipFS: string = /*glsl*/ /* `
 precision highp float;
 varying highp vec2 vTextureCoord;

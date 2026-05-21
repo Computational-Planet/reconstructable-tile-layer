@@ -324,29 +324,30 @@ function setTextureCoordAttribute(
   gl.enableVertexAttribArray(programInfo.attribLocations.textureCoord);
 }
 
-// 绘制场景
-function drawScene(
+function setMaskPositionAttribute(
+  gl: WebGLRenderingContext,
+  maskVertexBuffer: WebGLBuffer,
+  programInfo: WebGLProgramInfo
+) {
+  gl.bindBuffer(gl.ARRAY_BUFFER, maskVertexBuffer);
+  gl.vertexAttribPointer(
+    programInfo.attribLocations.vertexPosition,
+    2,
+    gl.FLOAT,
+    false,
+    0,
+    0
+  );
+  gl.enableVertexAttribArray(programInfo.attribLocations.vertexPosition);
+}
+
+function drawTexturedQuad(
   gl: WebGLRenderingContext,
   vertexRowNum: number,
   programInfo: WebGLProgramInfo,
   texture: WebGLTexture | null,
   buffers: Buffers
 ) {
-  //如果canvas类型不是HTMLCanvasElement则报错并返回
-  if (!("clientWidth" in gl.canvas)) {
-    alert("canvas 类型有误");
-    return;
-  }
-
-  gl.clearColor(0.0, 0.0, 0.0, 0.0); // 设置清除颜色为透明
-  gl.clearDepth(1.0); // 设置清除深度为1.0
-  gl.enable(gl.DEPTH_TEST); // 开启深度检测
-  gl.depthFunc(gl.LEQUAL); // 深度检测方法为近的东西遮盖远的东西
-
-  // 清除画布，这里清除了颜色的缓冲和深度的缓冲
-
-  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-
   //不进行变换，显示原本的状态
   const projectionMatrix = mat4.create(); //创建一个4x4空矩阵，用于存储透视投影的结果
   const modelViewMatrix = mat4.create();
@@ -389,6 +390,108 @@ function drawScene(
     const offset = 0;
     const vertexCount = vertexRowNum * 2; //顶点数目
     gl.drawArrays(gl.TRIANGLE_STRIP, offset, vertexCount); //TRIANGLE_STRIP模式下，上个三角形的一条边和下一个点组成新的三角形。
+  }
+}
+
+// 绘制完整场景
+function drawScene(
+  gl: WebGLRenderingContext,
+  vertexRowNum: number,
+  programInfo: WebGLProgramInfo,
+  texture: WebGLTexture | null,
+  buffers: Buffers
+) {
+  //如果canvas类型不是HTMLCanvasElement则报错并返回
+  if (!("clientWidth" in gl.canvas)) {
+    alert("canvas 类型有误");
+    return;
+  }
+
+  gl.disable(gl.STENCIL_TEST);
+  gl.stencilMask(0xff);
+  gl.colorMask(true, true, true, true);
+  gl.clearColor(0.0, 0.0, 0.0, 0.0); // 设置清除颜色为透明
+  gl.clearDepth(1.0); // 设置清除深度为1.0
+  gl.enable(gl.DEPTH_TEST); // 开启深度检测
+  gl.depthFunc(gl.LEQUAL); // 深度检测方法为近的东西遮盖远的东西
+
+  // 清除画布，这里清除了颜色的缓冲和深度的缓冲
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  drawTexturedQuad(gl, vertexRowNum, programInfo, texture, buffers);
+}
+
+function drawSceneMasked(
+  gl: WebGLRenderingContext,
+  vertexRowNum: number,
+  defaultProgramInfo: WebGLProgramInfo,
+  maskProgramInfo: WebGLProgramInfo,
+  texture: WebGLTexture | null,
+  buffers: Buffers,
+  maskVertices: Float32Array
+) {
+  if (!("clientWidth" in gl.canvas)) {
+    alert("canvas 类型有误");
+    return;
+  }
+
+  const maskVertexCount = Math.floor(maskVertices.length / 2);
+  if (maskVertexCount < 3) {
+    gl.clearColor(0.0, 0.0, 0.0, 0.0);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
+    return;
+  }
+
+  const maskVertexBuffer = gl.createBuffer();
+  if (!maskVertexBuffer) {
+    throw new Error("创建裁剪遮罩顶点缓冲失败");
+  }
+
+  gl.disable(gl.DEPTH_TEST);
+  gl.enable(gl.STENCIL_TEST);
+  gl.clearColor(0.0, 0.0, 0.0, 0.0);
+  gl.clearDepth(1.0);
+  gl.clearStencil(0);
+  gl.stencilMask(0xff);
+  gl.colorMask(true, true, true, true);
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
+
+  try {
+    // 第一段：三角化后的 TileClipArea 只写入 stencil，不写颜色。
+    gl.bindBuffer(gl.ARRAY_BUFFER, maskVertexBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, maskVertices, gl.STATIC_DRAW);
+    gl.useProgram(maskProgramInfo.program);
+    setMaskPositionAttribute(gl, maskVertexBuffer, maskProgramInfo);
+
+    const projectionMatrix = mat4.create();
+    const modelViewMatrix = mat4.create();
+    gl.uniformMatrix4fv(
+      maskProgramInfo.uniformLocations.projectionMatrix,
+      false,
+      projectionMatrix
+    );
+    gl.uniformMatrix4fv(
+      maskProgramInfo.uniformLocations.modelViewMatrix,
+      false,
+      modelViewMatrix
+    );
+
+    gl.colorMask(false, false, false, false);
+    gl.stencilFunc(gl.ALWAYS, 1, 0xff);
+    gl.stencilOp(gl.REPLACE, gl.REPLACE, gl.REPLACE);
+    gl.drawArrays(gl.TRIANGLES, 0, maskVertexCount);
+
+    // 第二段：只在 stencil 内绘制重投影后的瓦片纹理。
+    gl.colorMask(true, true, true, true);
+    gl.stencilMask(0x00);
+    gl.stencilFunc(gl.EQUAL, 1, 0xff);
+    gl.stencilOp(gl.KEEP, gl.KEEP, gl.KEEP);
+    drawTexturedQuad(gl, vertexRowNum, defaultProgramInfo, texture, buffers);
+  } finally {
+    gl.deleteBuffer(maskVertexBuffer);
+    gl.stencilMask(0xff);
+    gl.disable(gl.STENCIL_TEST);
+    gl.enable(gl.DEPTH_TEST);
+    gl.colorMask(true, true, true, true);
   }
 }
 
@@ -471,4 +574,4 @@ function drawSceneClipped(
   }
 }
 
-export { drawScene, drawSceneClipped };
+export { drawScene, drawSceneClipped, drawSceneMasked };

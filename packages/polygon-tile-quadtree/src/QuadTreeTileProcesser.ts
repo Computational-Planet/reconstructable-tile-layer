@@ -1,12 +1,18 @@
 import { WebMercatorTilingScheme, TilingScheme, ImageryProvider, Rectangle } from "cesium";
-import { NodeInfo, QuadTreeTileNode, TileClipMode, TileXYL } from "./QuadTreeTileNode";
+import { QuadTreeTileNode, TileClipMode } from "./QuadTreeTileNode";
+import type { ClipPolygon, NodeInfo, TileClipArea, TileXYL } from "./QuadTreeTileNode";
 import { ANGLE_ACCURATE, DEFAULT_ACCURATE, PI_10 } from "./constants";
 import { calIntersectionWithX, clipToLR, Point } from "./utils/geometry";
+import { AreaQuadTreeTileNode, normalizeAreaToTileRectangle } from "./AreaQuadTreeTileNode";
 
 
 type CrossInfo = {
   index: number; // 在多边形中的索引
   magnify: boolean; // 是否是在经度增加的过程中跨越边界
+}
+
+function isTileClipArea(value: Array<number> | TileClipArea): value is TileClipArea {
+  return !Array.isArray(value) && Array.isArray(value.polygons);
 }
 // 下一步修改想法：
 // 树内记录一个完整的多边形，可以有多个根节点（使用180°经线切分成n块（最多三块？），同时需要处理跨越极点的多边形）。
@@ -16,25 +22,37 @@ export class QuadTreeTileProcesser {
   private _tilingScheme: TilingScheme = new WebMercatorTilingScheme();
   private _rectangle: Array<Rectangle> = []; //记录多边形的包围盒，用作视野估算
   private _polygon: Array<number> = []; // 原始多边形数据
+  private _sourceGeometry: Array<number> | TileClipArea = [];
   private _rootNum: number = 0; // 根节点数目，1个或2个
   private _rootXYLs: Array<TileXYL> = []; //根节点的XYL
   private _realRootLevel: Array<number> = []; // 真正的根节点层级
   private _roots: Array<QuadTreeTileNode> = []; // 根节点数组
+  private _areaMode = false;
+  private _areaRoots: Array<AreaQuadTreeTileNode> = [];
 
   // 要求：多边形首尾相同
   constructor(
     tilingScheme: TilingScheme, // 需要事先知道切片方案
-    polygon: Array<number>, // 多边形
+    polygon: Array<number> | TileClipArea, // 多边形，或带洞的 MultiPolygon 面域
   ) {
     this.init(tilingScheme, polygon);
   }
 
-  private init(tilingScheme: TilingScheme, polygon: Array<number>) {
+  private init(tilingScheme: TilingScheme, polygon: Array<number> | TileClipArea) {
     this._tilingScheme = tilingScheme;
+    this._sourceGeometry = polygon;
+    if (isTileClipArea(polygon)) {
+      this.initArea(tilingScheme, polygon);
+      return;
+    }
+
     this._polygon = polygon;
     this._rootNum = 0;
     this._rootXYLs = [];
+    this._realRootLevel = [];
     this._roots = [];
+    this._areaRoots = [];
+    this._areaMode = false;
 
     for (let i = 0; i < this._polygon.length; i = i + 2) {
       if (this._polygon[i + 1] > 89.5) {
@@ -377,7 +395,53 @@ export class QuadTreeTileProcesser {
     this.calBoundingBox();
   }
 
+  private initArea(tilingScheme: TilingScheme, area: TileClipArea) {
+    this._tilingScheme = tilingScheme;
+    this._polygon = [];
+    this._rootNum = 0;
+    this._rootXYLs = [];
+    this._realRootLevel = [];
+    this._roots = [];
+    this._areaRoots = [];
+    this._areaMode = true;
+
+    const rootXCount = tilingScheme.getNumberOfXTilesAtLevel(0);
+    const rootYCount = tilingScheme.getNumberOfYTilesAtLevel(0);
+    for (let y = 0; y < rootYCount; y++) {
+      for (let x = 0; x < rootXCount; x++) {
+        const rectangle = tilingScheme.tileXYToRectangle(x, y, 0);
+        const localArea = normalizeAreaToTileRectangle(area, rectangle);
+        const node = new AreaQuadTreeTileNode(
+          x,
+          y,
+          0,
+          rectangle,
+          tilingScheme,
+          localArea
+        );
+        if (node.status === TileClipMode.NONE_DISPLAY) {
+          continue;
+        }
+
+        this._rootNum++;
+        this._rootXYLs.push({ x, y, l: 0 });
+        this._areaRoots.push(node);
+      }
+    }
+
+    this.calAreaBoundingBox();
+  }
+
   findTilesByLevel(level: number, result: Array<NodeInfo>) {
+    if (this._areaMode) {
+      for (let i = 0; i < this.rootNum; i++) {
+        const subResult: NodeInfo[] = [];
+        this._areaRoots[i].getTileInfoByLevel(level, subResult);
+        result.push(...subResult);
+      }
+      return result;
+    }
+
     for (let i = 0; i < this.rootNum; i++) {
       const subResult: NodeInfo[] = [];
       this._roots[i].getTileInfoByLevel(level, subResult);
@@ -390,6 +454,16 @@ export class QuadTreeTileProcesser {
   }
 
   findTilesAtRoot(result: Array<NodeInfo>) {
+    if (this._areaMode) {
+      for (let i = 0; i < this.rootNum; i++) {
+        const subResult: NodeInfo[] = [];
+        const level = this._realRootLevel[i] > 3 ? this._realRootLevel[i] : 3;
+        this._areaRoots[i].getTileInfoByLevel(level, subResult);
+        result.push(...subResult);
+      }
+      return result;
+    }
+
     for (let i = 0; i < this.rootNum; i++) {
       const subResult: NodeInfo[] = [];
       const level = this._realRootLevel[i] > 3 ? this._realRootLevel[i] : 3;
@@ -436,17 +510,47 @@ export class QuadTreeTileProcesser {
     //console.log(this._rectangle)
   }
 
+  private calAreaBoundingBox() {
+    this._rectangle = [];
+    for (let i = 0; i < this.rootNum; i++) {
+      let currentNode = this._areaRoots[i];
+      while (true) {
+        let count = 0;
+        currentNode.splitNodeIfNeeded();
+        if (currentNode.child?.lb.status !== TileClipMode.NONE_DISPLAY) count++;
+        if (currentNode.child?.lt.status !== TileClipMode.NONE_DISPLAY) count++;
+        if (currentNode.child?.rb.status !== TileClipMode.NONE_DISPLAY) count++;
+        if (currentNode.child?.rt.status !== TileClipMode.NONE_DISPLAY) count++;
+
+        if (count > 1 || currentNode.status === TileClipMode.FULL_DISPLAY) {
+          this._rectangle.push(currentNode.rectangle);
+          this._realRootLevel.push(currentNode.tileXYZ.l);
+          break;
+        }
+
+        if (count === 0 || !currentNode.child) {
+          return;
+        }
+
+        if (currentNode.child.lb.status !== TileClipMode.NONE_DISPLAY) currentNode = currentNode.child.lb;
+        else if (currentNode.child.lt.status !== TileClipMode.NONE_DISPLAY) currentNode = currentNode.child.lt;
+        else if (currentNode.child.rb.status !== TileClipMode.NONE_DISPLAY) currentNode = currentNode.child.rb;
+        else if (currentNode.child.rt.status !== TileClipMode.NONE_DISPLAY) currentNode = currentNode.child.rt;
+      }
+    }
+  }
+
   // 当图层更新时判断是否要重新构建树
   updateProvider(provider: ImageryProvider) {
     if ((provider.tilingScheme instanceof this._tilingScheme.constructor)) {
       return;
     }
     else {
-      this.init(provider.tilingScheme, this._polygon);
+      this.init(provider.tilingScheme, this._sourceGeometry);
     }
   }
   //根据新多边形重新建立树
-  updatePolygon(polygon: Array<number>) {
+  updatePolygon(polygon: Array<number> | TileClipArea) {
     this.init(this._tilingScheme, polygon);
   }
 
@@ -473,4 +577,4 @@ export class QuadTreeTileProcesser {
   }
 }
 
-export { NodeInfo }
+export type { ClipPolygon, NodeInfo, TileClipArea }
