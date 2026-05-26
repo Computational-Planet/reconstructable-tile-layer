@@ -1,4 +1,37 @@
-import { Color, Viewer } from "cesium";
+import { Color, ShadowMode, Viewer } from "cesium";
+
+export const DEFAULT_GLOBE_BASE_COLOR = "#2f343b";
+
+export function applyGlobeBaseColor(viewer: Viewer, color: string) {
+  viewer.scene.globe.baseColor = Color.fromCssColorString(color);
+  viewer.scene.requestRender();
+}
+
+function disableDecorativeSceneEffects(viewer: Viewer) {
+  const { scene } = viewer;
+  const controller = scene.screenSpaceCameraController;
+
+  // Keep the scene visually plain so reconstructed tile imagery is the focus.
+  scene.backgroundColor = Color.fromCssColorString("#000000");
+  scene.fog.enabled = false;
+  scene.globe.enableLighting = false;
+  scene.globe.showGroundAtmosphere = false;
+  scene.globe.shadows = ShadowMode.DISABLED;
+  applyGlobeBaseColor(viewer, DEFAULT_GLOBE_BASE_COLOR);
+  scene.moon.show = false;
+  scene.sun.show = false;
+  scene.sunBloom = false;
+  scene.skyBox.show = false;
+  scene.skyAtmosphere.show = false;
+  scene.shadowMap.enabled = false;
+  scene.postProcessStages.fxaa.enabled = false;
+  viewer.shadows = false;
+
+  controller.inertiaSpin = 0;
+  controller.inertiaTranslate = 0;
+  controller.inertiaZoom = 0;
+  controller.bounceAnimationTime = 0;
+}
 
 export function createViewer(container: HTMLElement) {
   const viewer = new Viewer(container, {
@@ -14,6 +47,7 @@ export function createViewer(container: HTMLElement) {
     maximumRenderTimeChange: Infinity,
     sceneModePicker: true,
     selectionIndicator: false,
+    shadows: false,
     shouldAnimate: true,
     timeline: false,
     useBrowserRecommendedResolution: false,
@@ -28,13 +62,7 @@ export function createViewer(container: HTMLElement) {
   const creditContainer = viewer.cesiumWidget.creditContainer as HTMLDivElement;
   creditContainer.style.display = "none";
 
-  const { scene } = viewer;
-  scene.fog.density = 0.0001;
-  scene.globe.enableLighting = false;
-  scene.globe.baseColor = Color.fromCssColorString("#c9d0d6");
-  scene.moon.show = false;
-  scene.sun.show = false;
-  scene.skyBox.show = false;
+  disableDecorativeSceneEffects(viewer);
 
   return viewer;
 }

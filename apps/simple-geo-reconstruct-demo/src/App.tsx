@@ -11,8 +11,19 @@ import {
   type TileImageOutputType,
 } from "tile-processer-webgl";
 
-import { createImageryProvider, type ProviderKey } from "./cesium/providers";
-import { createViewer } from "./cesium/createViewer";
+import {
+  createImageryProvider,
+  DEFAULT_CUSTOM_PROVIDER_CONFIG,
+  DEFAULT_PROVIDER_KEY,
+  validateUrlTemplateProviderConfig,
+  type ProviderKey,
+  type UrlTemplateProviderConfig,
+} from "./cesium/providers";
+import {
+  applyGlobeBaseColor,
+  createViewer,
+  DEFAULT_GLOBE_BASE_COLOR,
+} from "./cesium/createViewer";
 import { ControlPanel } from "./components/ControlPanel";
 import {
   DEFAULT_FEATURE_PRESET,
@@ -28,7 +39,9 @@ const TILE_OUTPUT_TYPE: TileImageOutputType = "canvas";
 declare global {
   interface Window {
     __simpleGeoReconstructStats?: () => GeoTileStats;
-    __tileProcesserStats?: () => ReturnType<CesiumTileProcesser["getPoolStats"]>;
+    __tileProcesserStats?: () => ReturnType<
+      CesiumTileProcesser["getPoolStats"]
+    >;
   }
 }
 
@@ -65,6 +78,9 @@ function App() {
     DEFAULT_FEATURE_PRESET.key,
   );
   const [featureUrl, setFeatureUrl] = useState(DEFAULT_FEATURE_PRESET.url);
+  const [globeBaseColor, setGlobeBaseColor] = useState(
+    DEFAULT_GLOBE_BASE_COLOR,
+  );
   const [initialized, setInitialized] = useState(false);
   const [level, setLevel] = useState(3);
   const [polygonRenderIntent, setPolygonRenderIntent] =
@@ -72,7 +88,10 @@ function App() {
   const [primitiveTransformMode, setPrimitiveTransformModeState] =
     useState<PrimitiveTransformMode>("dynamic3D");
   const [providerKey, setProviderKey] =
-    useState<ProviderKey>("arcgis-world-imagery");
+    useState<ProviderKey>(DEFAULT_PROVIDER_KEY);
+  const [customProviderConfig, setCustomProviderConfig] =
+    useState<UrlTemplateProviderConfig>(DEFAULT_CUSTOM_PROVIDER_CONFIG);
+  const [customProviderError, setCustomProviderError] = useState("");
   const [rotPresetKey, setRotPresetKey] = useState<RotationPresetKey>(
     DEFAULT_ROTATION_PRESET.key,
   );
@@ -84,6 +103,27 @@ function App() {
 
   const refreshStats = () => {
     setStats(managerRef.current?.getStats() ?? null);
+  };
+
+  const createSelectedImageryProvider = () => {
+    if (providerKey === "custom-url-template") {
+      const errors = validateUrlTemplateProviderConfig(customProviderConfig);
+      if (errors.length > 0) {
+        setCustomProviderError(errors[0]);
+        setStatus(errors[0]);
+        return null;
+      }
+    }
+
+    try {
+      setCustomProviderError("");
+      return createImageryProvider(providerKey, customProviderConfig);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setCustomProviderError(message);
+      setStatus(message);
+      return null;
+    }
   };
 
   useEffect(() => {
@@ -125,6 +165,15 @@ function App() {
   }, [debugEnabled]);
 
   useEffect(() => {
+    const viewer = viewerRef.current;
+    if (!viewer) {
+      return;
+    }
+
+    applyGlobeBaseColor(viewer, globeBaseColor);
+  }, [globeBaseColor]);
+
+  useEffect(() => {
     if (!initialized || !managerRef.current) {
       return;
     }
@@ -156,6 +205,11 @@ function App() {
       return;
     }
 
+    const provider = createSelectedImageryProvider();
+    if (!provider) {
+      return;
+    }
+
     setBusy(true);
     setStatus("Loading feature and rotation data...");
     try {
@@ -163,7 +217,7 @@ function App() {
       managerRef.current?.destroy(viewer);
 
       const manager = new SimpleGeoReconstructManager({
-        provider: createImageryProvider(providerKey),
+        provider,
         processer,
         featureSource: {
           url: featureUrl.trim(),
@@ -261,7 +315,9 @@ function App() {
     setRotPresetKey("custom");
     setRotUrls(formatRotationUrls(urls));
     setStatus(
-      `ROT uploads selected: ${selectedFiles.map((file) => file.name).join(", ")}`,
+      `ROT uploads selected: ${selectedFiles
+        .map((file) => file.name)
+        .join(", ")}`,
     );
   };
 
@@ -278,10 +334,15 @@ function App() {
       return;
     }
 
+    const provider = createSelectedImageryProvider();
+    if (!provider) {
+      return;
+    }
+
     setBusy(true);
     setStatus("Refreshing loaded tile imagery...");
     try {
-      await manager.setProvider(viewer, createImageryProvider(providerKey));
+      await manager.setProvider(viewer, provider);
       setStatus("Provider applied.");
       refreshStats();
     } catch (error) {
@@ -290,6 +351,20 @@ function App() {
     } finally {
       setBusy(false);
     }
+  };
+
+  const handleSaveCustomProviderConfig = () => {
+    const errors = validateUrlTemplateProviderConfig(customProviderConfig);
+    if (errors.length > 0) {
+      setCustomProviderError(errors[0]);
+      setStatus(errors[0]);
+      return false;
+    }
+
+    setCustomProviderError("");
+    setProviderKey("custom-url-template");
+    setStatus("Custom provider settings saved.");
+    return true;
   };
 
   const handleApplyTransformMode = async () => {
@@ -372,8 +447,8 @@ function App() {
       const nextStatus = result.skippedReason
         ? `View load skipped: ${result.skippedReason}.`
         : result.loadedCount > 0
-          ? `Loaded ${result.loadedCount}/${result.taskCount} view tiles at level ${result.level}.`
-          : `No new view tiles at level ${result.level}. Move the camera or zoom in.`;
+        ? `Loaded ${result.loadedCount}/${result.taskCount} view tiles at level ${result.level}.`
+        : `No new view tiles at level ${result.level}. Move the camera or zoom in.`;
       setStatus(nextStatus);
       refreshStats();
     } catch (error) {
@@ -406,6 +481,9 @@ function App() {
         featurePresetKey={featurePresetKey}
         featurePresets={FEATURE_PRESETS}
         featureUrl={featureUrl}
+        globeBaseColor={globeBaseColor}
+        customProviderConfig={customProviderConfig}
+        customProviderError={customProviderError}
         initialized={initialized}
         level={level}
         polygonRenderIntent={polygonRenderIntent}
@@ -420,10 +498,12 @@ function App() {
         onApplyProvider={handleApplyProvider}
         onApplyTransformMode={handleApplyTransformMode}
         onClear={handleClear}
+        onCustomProviderConfigChange={setCustomProviderConfig}
         onDebugEnabledChange={setDebugEnabled}
         onFeatureUrlChange={handleFeatureUrlChange}
         onFeaturePresetChange={handleFeaturePresetChange}
         onFeatureUpload={handleFeatureUpload}
+        onGlobeBaseColorChange={setGlobeBaseColor}
         onInit={handleInit}
         onLevelChange={setLevel}
         onLoadFineInView={handleLoadFineInView}
@@ -435,6 +515,7 @@ function App() {
         onRotPresetChange={handleRotPresetChange}
         onRotUpload={handleRotUpload}
         onRotUrlsChange={handleRotUrlsChange}
+        onSaveCustomProviderConfig={handleSaveCustomProviderConfig}
       />
     </main>
   );
