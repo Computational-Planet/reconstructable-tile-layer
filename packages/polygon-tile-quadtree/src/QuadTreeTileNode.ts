@@ -1,4 +1,4 @@
-import { Rectangle, TilingScheme } from "cesium";
+import { BoundingSphere, Cartesian3, Rectangle, TilingScheme } from "cesium";
 import { checkClipMode, clipPolygonByQuadTreeNodes } from "./utils/geometry";
 
 export enum TileClipMode {
@@ -35,10 +35,22 @@ export interface NodeInfo {
   clipArea?: TileClipArea | null;
 }
 
+export function boundingSpheresIntersect(
+  left: BoundingSphere,
+  right: BoundingSphere
+) {
+  const radiusSum = left.radius + right.radius;
+  return (
+    Cartesian3.distanceSquared(left.center, right.center) <=
+    radiusSum * radiusSum
+  );
+}
+
 export class QuadTreeTileNode {
   private _rectangle: Rectangle;
   private _tilingScheme: TilingScheme;
   private _tileXYL: TileXYL;
+  private _boundingSphere: BoundingSphere;
   private _polygon: Array<number> | null = null;
   private _status: TileClipMode;
   private _child: NodeChild | null = null;
@@ -64,6 +76,10 @@ export class QuadTreeTileNode {
     this._tileXYL = { x: x, y: y, l: l };
     this._rectangle = rec;
     this._tilingScheme = tilingScheme;
+    this._boundingSphere = BoundingSphere.fromRectangle3D(
+      rec,
+      tilingScheme.ellipsoid
+    );
     if (!polygon) {
       this._status = TileClipMode.FULL_DISPLAY;
     } else {
@@ -201,6 +217,49 @@ export class QuadTreeTileNode {
     return;
   }
 
+  getTileInfoByLevelInBoundingSphere(
+    level: number,
+    boundingSphere: BoundingSphere,
+    result: Array<NodeInfo>
+  ) {
+    if (
+      this._status === TileClipMode.NONE_DISPLAY ||
+      !boundingSpheresIntersect(this._boundingSphere, boundingSphere)
+    ) {
+      return result;
+    }
+
+    if (this._tileXYL.l < level) {
+      this.splitNodeIfNeeded();
+      if (this._child) {
+        this._child.lb.getTileInfoByLevelInBoundingSphere(
+          level,
+          boundingSphere,
+          result
+        );
+        this._child.lt.getTileInfoByLevelInBoundingSphere(
+          level,
+          boundingSphere,
+          result
+        );
+        this._child.rb.getTileInfoByLevelInBoundingSphere(
+          level,
+          boundingSphere,
+          result
+        );
+        this._child.rt.getTileInfoByLevelInBoundingSphere(
+          level,
+          boundingSphere,
+          result
+        );
+      }
+    } else if (this._tileXYL.l === level) {
+      result.push({ tileXYL: this._tileXYL, polygon: this._polygon });
+    }
+
+    return result;
+  }
+
   // 递归删除所有的子节点
   destroyAllChild() {
     if (this._child) {
@@ -222,6 +281,10 @@ export class QuadTreeTileNode {
 
   get rectangle() {
     return this._rectangle;
+  }
+
+  get boundingSphere() {
+    return this._boundingSphere;
   }
 
   get tileXYZ() {

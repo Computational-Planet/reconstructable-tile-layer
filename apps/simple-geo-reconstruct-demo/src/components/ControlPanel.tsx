@@ -42,6 +42,7 @@ type ControlPanelProps = {
   onFeatureUrlChange: (value: string) => void;
   onInit: () => void;
   onLevelChange: (value: number) => void;
+  onLoadFineInView: () => void;
   onLoadLevel: () => void;
   onLoadRoot: () => void;
   onPolygonRenderIntentChange: (value: PolygonRenderIntentMode) => void;
@@ -80,6 +81,7 @@ export function ControlPanel(props: ControlPanelProps) {
     onFeatureUrlChange,
     onInit,
     onLevelChange,
+    onLoadFineInView,
     onLoadLevel,
     onLoadRoot,
     onPolygonRenderIntentChange,
@@ -282,6 +284,9 @@ export function ControlPanel(props: ControlPanelProps) {
         </button>
         <button disabled={busy || !initialized} onClick={onLoadLevel}>
           Load level
+        </button>
+        <button disabled={busy || !initialized} onClick={onLoadFineInView}>
+          Load view
         </button>
         <button disabled={busy || !initialized} onClick={onClear}>
           Clear

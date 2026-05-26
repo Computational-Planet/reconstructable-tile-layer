@@ -1,6 +1,10 @@
 import { Cartesian3, Quaternion, QuaternionSpline, Math as CMath } from "cesium";
 import { convertFileContentToJson } from "./handleRot";
-import { getRotateMatirxAtAge } from "./rotate";
+import {
+  getInverseRotateMatrixAtAge,
+  getRotateMatirxAtAge,
+  rotatePointToModern,
+} from "./rotate";
 
 export type RotItem = {
   plateId: string;
@@ -73,5 +77,12 @@ export class RotationOperator {
   async getRotateMatrix(plateId: string, age: number) {
     return getRotateMatirxAtAge(plateId, this.rotData, age);
   }
-}
 
+  async getInverseRotateMatrix(plateId: string, age: number) {
+    return getInverseRotateMatrixAtAge(plateId, this.rotData, age);
+  }
+
+  async rotatePointToModern(point: Cartesian3, plateId: string, age: number) {
+    return rotatePointToModern(point, plateId, this.rotData, age);
+  }
+}

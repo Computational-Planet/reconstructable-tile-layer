@@ -62,6 +62,42 @@ export async function getRotateMatirxAtAge(
   return rotationMatrix;
 }
 
+export async function getInverseRotateMatrixAtAge(
+  plateId: string,
+  rotData: Map<string, RotSplineItem>,
+  age: number,
+) {
+  const rotationMatrix = await getRotateMatirxAtAge(plateId, rotData, age);
+  if (!rotationMatrix) {
+    return undefined;
+  }
+
+  // 旋转矩阵是正交矩阵，逆矩阵等于转置矩阵。
+  return Matrix3.transpose(rotationMatrix, new Matrix3());
+}
+
+export async function rotatePointToModern(
+  point: Cartesian3,
+  plateId: string,
+  rotData: Map<string, RotSplineItem>,
+  age: number,
+) {
+  const inverseRotationMatrix = await getInverseRotateMatrixAtAge(
+    plateId,
+    rotData,
+    age,
+  );
+  if (!inverseRotationMatrix) {
+    return null;
+  }
+
+  return Matrix3.multiplyByVector(
+    inverseRotationMatrix,
+    point,
+    new Cartesian3(),
+  );
+}
+
 export function getPositionsAtAge(
   positions: Cartesian3[],
   intervals: RotItem[],

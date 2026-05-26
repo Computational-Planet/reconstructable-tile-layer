@@ -1,5 +1,16 @@
-import { WebMercatorTilingScheme, TilingScheme, ImageryProvider, Rectangle } from "cesium";
-import { QuadTreeTileNode, TileClipMode } from "./QuadTreeTileNode";
+import {
+  BoundingSphere,
+  ImageryProvider,
+  Matrix4,
+  Rectangle,
+  TilingScheme,
+  WebMercatorTilingScheme,
+} from "cesium";
+import {
+  boundingSpheresIntersect,
+  QuadTreeTileNode,
+  TileClipMode,
+} from "./QuadTreeTileNode";
 import type { ClipPolygon, NodeInfo, TileClipArea, TileXYL } from "./QuadTreeTileNode";
 import { ANGLE_ACCURATE, DEFAULT_ACCURATE, PI_10 } from "./constants";
 import { calIntersectionWithX, clipToLR, Point } from "./utils/geometry";
@@ -21,6 +32,8 @@ function isTileClipArea(value: Array<number> | TileClipArea): value is TileClipA
 export class QuadTreeTileProcesser {
   private _tilingScheme: TilingScheme = new WebMercatorTilingScheme();
   private _rectangle: Array<Rectangle> = []; //记录多边形的包围盒，用作视野估算
+  private _boundingSpheres: Array<BoundingSphere> = []; // 现代坐标系下的包围球
+  private _currentBoundingSpheres: Array<BoundingSphere> = []; // 按当前板块旋转后的包围球
   private _polygon: Array<number> = []; // 原始多边形数据
   private _sourceGeometry: Array<number> | TileClipArea = [];
   private _rootNum: number = 0; // 根节点数目，1个或2个
@@ -52,6 +65,8 @@ export class QuadTreeTileProcesser {
     this._realRootLevel = [];
     this._roots = [];
     this._areaRoots = [];
+    this._boundingSpheres = [];
+    this._currentBoundingSpheres = [];
     this._areaMode = false;
 
     for (let i = 0; i < this._polygon.length; i = i + 2) {
@@ -403,6 +418,8 @@ export class QuadTreeTileProcesser {
     this._realRootLevel = [];
     this._roots = [];
     this._areaRoots = [];
+    this._boundingSpheres = [];
+    this._currentBoundingSpheres = [];
     this._areaMode = true;
 
     const rootXCount = tilingScheme.getNumberOfXTilesAtLevel(0);
@@ -453,6 +470,36 @@ export class QuadTreeTileProcesser {
     return result;
   }
 
+  findTilesByLevelInBoundingSphere(
+    level: number,
+    boundingSphere: BoundingSphere,
+    result: Array<NodeInfo>
+  ) {
+    if (this._areaMode) {
+      for (let i = 0; i < this.rootNum; i++) {
+        const subResult: NodeInfo[] = [];
+        this._areaRoots[i].getTileInfoByLevelInBoundingSphere(
+          level,
+          boundingSphere,
+          subResult
+        );
+        result.push(...subResult);
+      }
+      return result;
+    }
+
+    for (let i = 0; i < this.rootNum; i++) {
+      const subResult: NodeInfo[] = [];
+      this._roots[i].getTileInfoByLevelInBoundingSphere(
+        level,
+        boundingSphere,
+        subResult
+      );
+      result.push(...subResult);
+    }
+    return result;
+  }
+
   findTilesAtRoot(result: Array<NodeInfo>) {
     if (this._areaMode) {
       for (let i = 0; i < this.rootNum; i++) {
@@ -480,6 +527,7 @@ export class QuadTreeTileProcesser {
   // 重新计算包围盒范围（根据实际的根节点）
   calBoundingBox() {
     this._rectangle = [];
+    this._realRootLevel = [];
     for (let i = 0; i < this.rootNum; i++) {
       let currentNode = this._roots[i];
       while (true) {
@@ -507,11 +555,13 @@ export class QuadTreeTileProcesser {
         if (currentNode.child && currentNode.child?.rt.status !== TileClipMode.NONE_DISPLAY) currentNode = currentNode.child.rt;
       }
     }
+    this.rebuildBoundingSpheres();
     //console.log(this._rectangle)
   }
 
   private calAreaBoundingBox() {
     this._rectangle = [];
+    this._realRootLevel = [];
     for (let i = 0; i < this.rootNum; i++) {
       let currentNode = this._areaRoots[i];
       while (true) {
@@ -529,6 +579,7 @@ export class QuadTreeTileProcesser {
         }
 
         if (count === 0 || !currentNode.child) {
+          this.rebuildBoundingSpheres();
           return;
         }
 
@@ -538,6 +589,31 @@ export class QuadTreeTileProcesser {
         else if (currentNode.child.rt.status !== TileClipMode.NONE_DISPLAY) currentNode = currentNode.child.rt;
       }
     }
+    this.rebuildBoundingSpheres();
+  }
+
+  private rebuildBoundingSpheres() {
+    this._boundingSpheres = this._rectangle.map((rectangle) =>
+      BoundingSphere.fromRectangle3D(rectangle, this._tilingScheme.ellipsoid)
+    );
+    this.updateBoundingSpheres(Matrix4.IDENTITY);
+  }
+
+  updateBoundingSpheres(modelMatrix: Matrix4 = Matrix4.IDENTITY) {
+    this._currentBoundingSpheres = this._boundingSpheres.map((sphere) =>
+      BoundingSphere.transformWithoutScale(
+        sphere,
+        modelMatrix,
+        new BoundingSphere()
+      )
+    );
+    return this._currentBoundingSpheres;
+  }
+
+  intersectsCurrentBoundingSphere(boundingSphere: BoundingSphere) {
+    return this._currentBoundingSpheres.some((currentSphere) =>
+      boundingSpheresIntersect(currentSphere, boundingSphere)
+    );
   }
 
   // 当图层更新时判断是否要重新构建树
@@ -574,6 +650,14 @@ export class QuadTreeTileProcesser {
 
   get rectangle() {
     return this._rectangle;
+  }
+
+  get boundingSpheres() {
+    return this._boundingSpheres;
+  }
+
+  get currentBoundingSpheres() {
+    return this._currentBoundingSpheres;
   }
 }
 

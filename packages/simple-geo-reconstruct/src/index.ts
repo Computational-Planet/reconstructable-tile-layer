@@ -7,6 +7,8 @@ export {
   type PrimitiveTransformMode,
   type ResolvedFeatureFiles,
   type SimpleGeoReconstructManagerConstructorOptions,
+  type ViewFineTileLoadOptions,
+  type ViewFineTileLoadResult,
 } from "./SimpleGeoReconstructManager";
 
 export {

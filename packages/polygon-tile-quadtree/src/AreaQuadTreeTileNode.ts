@@ -1,4 +1,4 @@
-import { Rectangle, TilingScheme } from "cesium";
+import { BoundingSphere, Rectangle, TilingScheme } from "cesium";
 import polygonClipping, {
   type MultiPolygon,
   type Pair,
@@ -6,6 +6,7 @@ import polygonClipping, {
   type Ring,
 } from "polygon-clipping";
 import {
+  boundingSpheresIntersect,
   TileClipMode,
 } from "./QuadTreeTileNode";
 import type {
@@ -244,6 +245,7 @@ export class AreaQuadTreeTileNode {
   private _rectangle: Rectangle;
   private _tilingScheme: TilingScheme;
   private _tileXYL: TileXYL;
+  private _boundingSphere: BoundingSphere;
   private _clipArea: TileClipArea | null = null;
   private _status: TileClipMode;
   private _child: AreaNodeChild | null = null;
@@ -268,6 +270,10 @@ export class AreaQuadTreeTileNode {
     this._tileXYL = { x, y, l };
     this._rectangle = rec;
     this._tilingScheme = tilingScheme;
+    this._boundingSphere = BoundingSphere.fromRectangle3D(
+      rec,
+      tilingScheme.ellipsoid
+    );
 
     if (!clipArea) {
       this._status = TileClipMode.FULL_DISPLAY;
@@ -406,6 +412,56 @@ export class AreaQuadTreeTileNode {
     };
   }
 
+  getTileInfoByLevelInBoundingSphere(
+    level: number,
+    boundingSphere: BoundingSphere,
+    result: Array<NodeInfo>
+  ) {
+    if (
+      this._status === TileClipMode.NONE_DISPLAY ||
+      !boundingSpheresIntersect(this._boundingSphere, boundingSphere)
+    ) {
+      return result;
+    }
+
+    if (this._tileXYL.l < level) {
+      this.splitNodeIfNeeded();
+      if (this._child) {
+        this._child.lb.getTileInfoByLevelInBoundingSphere(
+          level,
+          boundingSphere,
+          result
+        );
+        this._child.lt.getTileInfoByLevelInBoundingSphere(
+          level,
+          boundingSphere,
+          result
+        );
+        this._child.rb.getTileInfoByLevelInBoundingSphere(
+          level,
+          boundingSphere,
+          result
+        );
+        this._child.rt.getTileInfoByLevelInBoundingSphere(
+          level,
+          boundingSphere,
+          result
+        );
+      }
+      return result;
+    }
+
+    if (this._tileXYL.l === level) {
+      result.push({
+        tileXYL: this._tileXYL,
+        polygon: this._clipArea?.polygons[0]?.exterior ?? null,
+        clipArea: this._clipArea,
+      });
+    }
+
+    return result;
+  }
+
   getTileInfoByLevel(level: number, result: Array<NodeInfo>) {
     if (this._tileXYL.l < level) {
       this.splitNodeIfNeeded();
@@ -433,6 +489,10 @@ export class AreaQuadTreeTileNode {
 
   get rectangle() {
     return this._rectangle;
+  }
+
+  get boundingSphere() {
+    return this._boundingSphere;
   }
 
   get tileXYZ() {

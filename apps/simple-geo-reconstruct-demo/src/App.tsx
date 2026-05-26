@@ -43,6 +43,12 @@ function formatRotationUrls(urls: string[]) {
   return urls.join("\n");
 }
 
+function waitForNextPaint() {
+  return new Promise<void>((resolve) => {
+    requestAnimationFrame(() => resolve());
+  });
+}
+
 function App() {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const viewerRef = useRef<Viewer | null>(null);
@@ -351,6 +357,33 @@ function App() {
     }
   };
 
+  const handleLoadFineInView = async () => {
+    const viewer = viewerRef.current;
+    const manager = managerRef.current;
+    if (!viewer || !manager) {
+      return;
+    }
+
+    setBusy(true);
+    setStatus("Loading tiles in current view...");
+    try {
+      await waitForNextPaint();
+      const result = await manager.loadFineTilesInView(viewer);
+      const nextStatus = result.skippedReason
+        ? `View load skipped: ${result.skippedReason}.`
+        : result.loadedCount > 0
+          ? `Loaded ${result.loadedCount}/${result.taskCount} view tiles at level ${result.level}.`
+          : `No new view tiles at level ${result.level}. Move the camera or zoom in.`;
+      setStatus(nextStatus);
+      refreshStats();
+    } catch (error) {
+      console.error(error);
+      setStatus(error instanceof Error ? error.message : String(error));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const handleClear = () => {
     const viewer = viewerRef.current;
     const manager = managerRef.current;
@@ -393,6 +426,7 @@ function App() {
         onFeatureUpload={handleFeatureUpload}
         onInit={handleInit}
         onLevelChange={setLevel}
+        onLoadFineInView={handleLoadFineInView}
         onLoadLevel={handleLoadLevel}
         onLoadRoot={handleLoadRoot}
         onPolygonRenderIntentChange={setPolygonRenderIntent}

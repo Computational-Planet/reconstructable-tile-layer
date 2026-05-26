@@ -1,10 +1,14 @@
 ﻿import {
+  BoundingSphere,
+  Cartographic,
+  Cartesian3,
   EllipsoidSurfaceAppearance,
   GeometryInstance,
   ImageryProvider,
   Material,
   Matrix4,
   Primitive,
+  Rectangle,
   RectangleGeometry,
   SceneMode,
   Viewer,
@@ -25,6 +29,10 @@ import {
 
 const DEFAULT_TILE_REQUEST_CONCURRENCY = 64;
 const DEFAULT_PRIMITIVE_BATCH_SIZE = 32;
+const DEFAULT_VIEW_TARGET_TILE_SCREEN_SIZE = 256;
+const DEFAULT_VIEW_MAX_RAW_TILE_COUNT = 128;
+const DEFAULT_VIEW_MAX_LEVEL = 18;
+const RECTANGLE_SAMPLE_EPSILON = 1e-10;
 const GEO_TILE_STATS_SCHEMA_VERSION = 1;
 const IDENTITY_MODEL_MATRIX = Matrix4.clone(Matrix4.IDENTITY);
 
@@ -71,6 +79,14 @@ function now() {
     return performance.now();
   }
   return Date.now();
+}
+
+function clampNumber(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function normalizeInteger(value: number, fallback: number) {
+  return Number.isFinite(value) ? Math.floor(value) : fallback;
 }
 
 function createFrameRenderScheduler(
@@ -214,6 +230,22 @@ export interface SimpleGeoReconstructManagerConstructorOptions {
   primitiveTransformMode?: PrimitiveTransformMode;
   tileRequestConcurrency?: number;
   primitiveBatchSize?: number;
+}
+
+export interface ViewFineTileLoadOptions {
+  viewRectangle?: Rectangle;
+  age?: number;
+  targetTileScreenSize?: number;
+  maxRawViewTileCount?: number;
+  minLevel?: number;
+  maxLevel?: number;
+}
+
+export interface ViewFineTileLoadResult {
+  level: number;
+  loadedCount: number;
+  taskCount: number;
+  skippedReason?: string;
 }
 
 function resolveFeatureFiles(
@@ -370,6 +402,93 @@ export class SimpleGeoReconstructManager {
     return this.generateTilePrimitivesOnLevelN(viewer, level);
   }
 
+  async loadFineTilesInView(
+    viewer: Viewer,
+    options?: ViewFineTileLoadOptions
+  ): Promise<ViewFineTileLoadResult>;
+  async loadFineTilesInView(
+    viewer: Viewer,
+    level: number,
+    options?: ViewFineTileLoadOptions
+  ): Promise<ViewFineTileLoadResult>;
+  async loadFineTilesInView(
+    viewer: Viewer,
+    levelOrOptions: number | ViewFineTileLoadOptions = {},
+    options: ViewFineTileLoadOptions = {}
+  ): Promise<ViewFineTileLoadResult> {
+    if (typeof levelOrOptions === "number") {
+      return this.loadFineTilesInViewAtLevel(viewer, levelOrOptions, options);
+    }
+
+    const resolvedOptions = levelOrOptions;
+    const viewRectangle = this.resolveFineTileViewRectangle(
+      viewer,
+      resolvedOptions
+    );
+    if (!viewRectangle) {
+      return this.createFineTileLoadResult(-1, 0, 0, "no-view-rectangle");
+    }
+
+    const level = this.resolveFineViewLevel(viewer, viewRectangle, resolvedOptions);
+    return this.loadTilesInViewAtResolvedLevel(
+      viewer,
+      level,
+      viewRectangle,
+      resolvedOptions
+    );
+  }
+
+  async loadFineTilesInViewAtLevel(
+    viewer: Viewer,
+    level: number,
+    options: ViewFineTileLoadOptions = {}
+  ): Promise<ViewFineTileLoadResult> {
+    const viewRectangle = this.resolveFineTileViewRectangle(viewer, options);
+    if (!viewRectangle) {
+      return this.createFineTileLoadResult(-1, 0, 0, "no-view-rectangle");
+    }
+
+    return this.loadTilesInViewAtResolvedLevel(
+      viewer,
+      this.clampFineViewLevel(level, options),
+      viewRectangle,
+      options
+    );
+  }
+
+  private async loadTilesInViewAtResolvedLevel(
+    viewer: Viewer,
+    level: number,
+    viewRectangle: Rectangle,
+    options: ViewFineTileLoadOptions
+  ): Promise<ViewFineTileLoadResult> {
+    if (!this._ready) {
+      return this.createFineTileLoadResult(level, 0, 0, "not-ready");
+    }
+
+    const usingCurrentAge = options.age === undefined;
+    const age = options.age ?? this._currentAge;
+    const viewBoundingSphere =
+      this.createViewBoundingSphereFromRectangle(viewRectangle);
+    const plateMatrices = await this.getPlateMatrixEntries(age);
+    if (usingCurrentAge && age !== this._currentAge) {
+      return this.createFineTileLoadResult(level, 0, 0, "stale-age");
+    }
+
+    this.updateQuadTreeBoundingSpheres(plateMatrices);
+    const tasks = await this.collectFineTileTasksInView(
+      level,
+      viewBoundingSphere,
+      age
+    );
+    if (usingCurrentAge && age !== this._currentAge) {
+      return this.createFineTileLoadResult(level, 0, tasks.length, "stale-age");
+    }
+
+    const loadedCount = await this.executeTileGeneration(viewer, tasks);
+    return this.createFineTileLoadResult(level, loadedCount, tasks.length);
+  }
+
   async generateTilePrimitivesAtRoot(viewer: Viewer) {
     if (!this._ready) {
       return;
@@ -392,6 +511,8 @@ export class SimpleGeoReconstructManager {
     if (updateToken !== this._ageUpdateToken) {
       return;
     }
+
+    this.updateQuadTreeBoundingSpheres(plateMatrices);
 
     if (this._transformMode === "bakedInstance") {
       if (this._boundViewer) {
@@ -589,45 +710,15 @@ export class SimpleGeoReconstructManager {
       plateItem.polygonQuadTrees.forEach((polygonItem) => {
         const tiles = this.getTilesForPolygon(polygonItem, mode, level);
         tiles.forEach((tileInfo) => {
-          const tileId = this.getCompositeTileId(polygonItem.info, tileInfo);
-          const pendingTask = taskMap.get(tileId);
           if (
-            this._compositeTileRecords.has(tileId) ||
-            this._pendingTileTokens.has(tileId) ||
-            pendingTask?.sourceFeatureIds.includes(polygonItem.info.featureId)
+            this.appendCompositeTileTask(
+              taskMap,
+              uniqueRawTileIds,
+              polygonItem,
+              tileInfo
+            )
           ) {
-            return;
-          }
-
-          sourceTaskCount++;
-          uniqueRawTileIds.add(this.getRawTileId(tileInfo));
-          let task = pendingTask;
-          if (!task) {
-            task = {
-              tileId,
-              tileXYL: tileInfo.tileXYL,
-              clipAreas: [],
-              coversFullTile: false,
-              sourceFeatureIds: [],
-              plateId: polygonItem.info.plateId,
-              time: polygonItem.info.time,
-            };
-            taskMap.set(tileId, task);
-          }
-
-          task.sourceFeatureIds.push(polygonItem.info.featureId);
-          if (tileInfo.clipArea) {
-            task.clipAreas.push(tileInfo.clipArea);
-          } else if (tileInfo.polygon) {
-            task.clipAreas.push({
-              polygons: [
-                {
-                  exterior: tileInfo.polygon,
-                },
-              ],
-            });
-          } else {
-            task.coversFullTile = true;
+            sourceTaskCount++;
           }
         });
       });
@@ -638,9 +729,113 @@ export class SimpleGeoReconstructManager {
     return tasks;
   }
 
+  private async collectFineTileTasksInView(
+    level: number,
+    viewBoundingSphere: BoundingSphere,
+    age: number
+  ) {
+    const taskMap = new Map<string, CompositeTileTask>();
+    const uniqueRawTileIds = new Set<string>();
+    let sourceTaskCount = 0;
+
+    for (const plateItem of this.plates.values()) {
+      let modernViewBoundingSphere: BoundingSphere | null = null;
+
+      for (const polygonItem of plateItem.polygonQuadTrees.values()) {
+        if (
+          !polygonItem.quadTree.intersectsCurrentBoundingSphere(
+            viewBoundingSphere
+          )
+        ) {
+          continue;
+        }
+
+        if (!modernViewBoundingSphere) {
+          modernViewBoundingSphere =
+            await this.rotateBoundingSphereToModernCoordinates(
+              viewBoundingSphere,
+              plateItem.plateId,
+              age
+            );
+        }
+
+        const tiles: NodeInfo[] = [];
+        polygonItem.quadTree.findTilesByLevelInBoundingSphere(
+          level,
+          modernViewBoundingSphere,
+          tiles
+        );
+        tiles.forEach((tileInfo) => {
+          if (
+            this.appendCompositeTileTask(
+              taskMap,
+              uniqueRawTileIds,
+              polygonItem,
+              tileInfo
+            )
+          ) {
+            sourceTaskCount++;
+          }
+        });
+      }
+    }
+
+    const tasks = Array.from(taskMap.values());
+    this.updateGeoTileStats(tasks, sourceTaskCount, uniqueRawTileIds.size);
+    return tasks;
+  }
+
+  private appendCompositeTileTask(
+    taskMap: Map<string, CompositeTileTask>,
+    uniqueRawTileIds: Set<string>,
+    polygonItem: PolygonQuadTreeRecord,
+    tileInfo: NodeInfo
+  ) {
+    const tileId = this.getCompositeTileId(polygonItem.info, tileInfo);
+    const pendingTask = taskMap.get(tileId);
+    if (
+      this._compositeTileRecords.has(tileId) ||
+      this._pendingTileTokens.has(tileId) ||
+      pendingTask?.sourceFeatureIds.includes(polygonItem.info.featureId)
+    ) {
+      return false;
+    }
+
+    uniqueRawTileIds.add(this.getRawTileId(tileInfo));
+    let task = pendingTask;
+    if (!task) {
+      task = {
+        tileId,
+        tileXYL: tileInfo.tileXYL,
+        clipAreas: [],
+        coversFullTile: false,
+        sourceFeatureIds: [],
+        plateId: polygonItem.info.plateId,
+        time: polygonItem.info.time,
+      };
+      taskMap.set(tileId, task);
+    }
+
+    task.sourceFeatureIds.push(polygonItem.info.featureId);
+    if (tileInfo.clipArea) {
+      task.clipAreas.push(tileInfo.clipArea);
+    } else if (tileInfo.polygon) {
+      task.clipAreas.push({
+        polygons: [
+          {
+            exterior: tileInfo.polygon,
+          },
+        ],
+      });
+    } else {
+      task.coversFullTile = true;
+    }
+    return true;
+  }
+
   private async executeTileGeneration(viewer: Viewer, tasks: CompositeTileTask[]) {
     if (tasks.length === 0) {
-      return;
+      return 0;
     }
 
     this._boundViewer = viewer;
@@ -736,6 +931,8 @@ export class SimpleGeoReconstructManager {
     if (addedCount > 0 && generationToken === this._generationToken) {
       viewer.scene.requestRender();
     }
+
+    return addedCount;
   }
 
   private async refreshPrimitiveMaterials(
@@ -936,6 +1133,369 @@ export class SimpleGeoReconstructManager {
           image,
         },
       },
+    });
+  }
+
+  private createFineTileLoadResult(
+    level: number,
+    loadedCount: number,
+    taskCount: number,
+    skippedReason?: string
+  ): ViewFineTileLoadResult {
+    return {
+      level,
+      loadedCount,
+      taskCount,
+      skippedReason,
+    };
+  }
+
+  private resolveFineTileViewRectangle(
+    viewer: Viewer,
+    options: ViewFineTileLoadOptions
+  ) {
+    return (
+      options.viewRectangle ??
+      viewer.camera.computeViewRectangle(this._provider.tilingScheme.ellipsoid)
+    );
+  }
+
+  private getFineViewLevelBounds(options: ViewFineTileLoadOptions) {
+    const providerMaxLevel =
+      this._provider.maximumLevel ?? DEFAULT_VIEW_MAX_LEVEL;
+    const minLevel = Math.max(0, normalizeInteger(options.minLevel ?? 0, 0));
+    const configuredMaxLevel = normalizeInteger(
+      options.maxLevel ?? providerMaxLevel,
+      DEFAULT_VIEW_MAX_LEVEL
+    );
+    const maxLevel = Math.max(minLevel, configuredMaxLevel);
+
+    return { minLevel, maxLevel };
+  }
+
+  private clampFineViewLevel(level: number, options: ViewFineTileLoadOptions) {
+    const { minLevel, maxLevel } = this.getFineViewLevelBounds(options);
+    return clampNumber(normalizeInteger(level, minLevel), minLevel, maxLevel);
+  }
+
+  private resolveFineViewLevel(
+    viewer: Viewer,
+    viewRectangle: Rectangle,
+    options: ViewFineTileLoadOptions
+  ) {
+    const { minLevel, maxLevel } = this.getFineViewLevelBounds(options);
+    const targetTileScreenSize = Math.max(
+      1,
+      options.targetTileScreenSize ?? DEFAULT_VIEW_TARGET_TILE_SCREEN_SIZE
+    );
+    const maxRawViewTileCount = Math.max(
+      1,
+      normalizeInteger(
+        options.maxRawViewTileCount ?? DEFAULT_VIEW_MAX_RAW_TILE_COUNT,
+        DEFAULT_VIEW_MAX_RAW_TILE_COUNT
+      )
+    );
+    const metersPerPixel = this.estimateViewMetersPerPixel(
+      viewer,
+      viewRectangle
+    );
+
+    let resolvedLevel = minLevel;
+    let bestScore = Number.POSITIVE_INFINITY;
+    for (let level = minLevel; level <= maxLevel; level++) {
+      const tileMeters = this.estimateTileLongSideMetersAtLevel(
+        viewRectangle,
+        level
+      );
+      if (!Number.isFinite(tileMeters) || tileMeters <= 0) {
+        continue;
+      }
+
+      const tileScreenSize = tileMeters / metersPerPixel;
+      const score = Math.abs(Math.log(tileScreenSize / targetTileScreenSize));
+      if (score < bestScore) {
+        bestScore = score;
+        resolvedLevel = level;
+      }
+    }
+
+    while (
+      resolvedLevel > minLevel &&
+      this.estimateRawViewTileCount(viewRectangle, resolvedLevel) >
+        maxRawViewTileCount
+    ) {
+      resolvedLevel--;
+    }
+
+    return resolvedLevel;
+  }
+
+  private estimateViewMetersPerPixel(viewer: Viewer, viewRectangle: Rectangle) {
+    const canvas = viewer.scene.canvas;
+    const canvasWidth = Math.max(1, canvas.clientWidth || canvas.width || 1);
+    const canvasHeight = Math.max(1, canvas.clientHeight || canvas.height || 1);
+    const center = Rectangle.center(viewRectangle);
+    const widthMeters = this.measureLongitudeSpanMeters(
+      center.longitude,
+      center.latitude,
+      Rectangle.computeWidth(viewRectangle)
+    );
+    const heightMeters = this.measureLatitudeSpanMeters(
+      center.longitude,
+      viewRectangle.south,
+      viewRectangle.north
+    );
+    const metersPerPixel = Math.max(
+      widthMeters / canvasWidth,
+      heightMeters / canvasHeight
+    );
+
+    if (Number.isFinite(metersPerPixel) && metersPerPixel > 0) {
+      return metersPerPixel;
+    }
+
+    const cameraHeight = Math.max(0, viewer.camera.positionCartographic.height);
+    return Math.max(1, cameraHeight / Math.max(canvasWidth, canvasHeight));
+  }
+
+  private estimateTileLongSideMetersAtLevel(
+    viewRectangle: Rectangle,
+    level: number
+  ) {
+    const tilingScheme = this._provider.tilingScheme;
+    const tilingRectangle = tilingScheme.rectangle;
+    const viewCenter = Rectangle.center(viewRectangle);
+    const center = new Cartographic(
+      clampNumber(
+        viewCenter.longitude,
+        tilingRectangle.west + RECTANGLE_SAMPLE_EPSILON,
+        tilingRectangle.east - RECTANGLE_SAMPLE_EPSILON
+      ),
+      clampNumber(
+        viewCenter.latitude,
+        tilingRectangle.south + RECTANGLE_SAMPLE_EPSILON,
+        tilingRectangle.north - RECTANGLE_SAMPLE_EPSILON
+      )
+    );
+    const tileXY = tilingScheme.positionToTileXY(center, level) as
+      | { x: number; y: number }
+      | undefined;
+    if (!tileXY) {
+      return 0;
+    }
+
+    const tileRectangle = tilingScheme.tileXYToRectangle(
+      tileXY.x,
+      tileXY.y,
+      level
+    );
+    const tileCenter = Rectangle.center(tileRectangle);
+    const widthMeters = this.measureLongitudeSpanMeters(
+      tileCenter.longitude,
+      tileCenter.latitude,
+      Rectangle.computeWidth(tileRectangle)
+    );
+    const heightMeters = this.measureLatitudeSpanMeters(
+      tileCenter.longitude,
+      tileRectangle.south,
+      tileRectangle.north
+    );
+
+    return Math.max(widthMeters, heightMeters);
+  }
+
+  private estimateRawViewTileCount(viewRectangle: Rectangle, level: number) {
+    const tilingScheme = this._provider.tilingScheme;
+    const tilingRectangle = tilingScheme.rectangle;
+    const xTileCount = tilingScheme.getNumberOfXTilesAtLevel(level);
+    const yTileCount = tilingScheme.getNumberOfYTilesAtLevel(level);
+    const maxTileCount = xTileCount * yTileCount;
+    const north = clampNumber(
+      viewRectangle.north,
+      tilingRectangle.south + RECTANGLE_SAMPLE_EPSILON,
+      tilingRectangle.north - RECTANGLE_SAMPLE_EPSILON
+    );
+    const south = clampNumber(
+      viewRectangle.south,
+      tilingRectangle.south + RECTANGLE_SAMPLE_EPSILON,
+      tilingRectangle.north - RECTANGLE_SAMPLE_EPSILON
+    );
+    if (north <= south) {
+      return maxTileCount;
+    }
+
+    let totalTileCount = 0;
+    this.getLongitudeSegments(viewRectangle).forEach((segment) => {
+      const west = clampNumber(
+        segment.west + RECTANGLE_SAMPLE_EPSILON,
+        tilingRectangle.west + RECTANGLE_SAMPLE_EPSILON,
+        tilingRectangle.east - RECTANGLE_SAMPLE_EPSILON
+      );
+      const east = clampNumber(
+        segment.east - RECTANGLE_SAMPLE_EPSILON,
+        tilingRectangle.west + RECTANGLE_SAMPLE_EPSILON,
+        tilingRectangle.east - RECTANGLE_SAMPLE_EPSILON
+      );
+      if (east < west) {
+        return;
+      }
+
+      const northwest = tilingScheme.positionToTileXY(
+        new Cartographic(west, north),
+        level
+      ) as { x: number; y: number } | undefined;
+      const southeast = tilingScheme.positionToTileXY(
+        new Cartographic(east, south),
+        level
+      ) as { x: number; y: number } | undefined;
+      if (!northwest || !southeast) {
+        return;
+      }
+
+      totalTileCount +=
+        (Math.abs(southeast.x - northwest.x) + 1) *
+        (Math.abs(southeast.y - northwest.y) + 1);
+    });
+
+    if (totalTileCount > 0) {
+      return Math.min(maxTileCount, totalTileCount);
+    }
+
+    const tilingWidth = Rectangle.computeWidth(tilingRectangle);
+    const tilingHeight = Rectangle.computeHeight(tilingRectangle);
+    const viewWidth = Math.min(Rectangle.computeWidth(viewRectangle), tilingWidth);
+    const viewHeight = Math.min(
+      Rectangle.computeHeight(viewRectangle),
+      tilingHeight
+    );
+    const estimatedX = Math.ceil(viewWidth / (tilingWidth / xTileCount));
+    const estimatedY = Math.ceil(viewHeight / (tilingHeight / yTileCount));
+    return Math.min(maxTileCount, Math.max(1, estimatedX * estimatedY));
+  }
+
+  private getLongitudeSegments(viewRectangle: Rectangle) {
+    const tilingRectangle = this._provider.tilingScheme.rectangle;
+    const tilingWidth = Rectangle.computeWidth(tilingRectangle);
+    if (Rectangle.computeWidth(viewRectangle) >= tilingWidth - 1e-9) {
+      return [
+        {
+          west: tilingRectangle.west,
+          east: tilingRectangle.east,
+        },
+      ];
+    }
+
+    if (viewRectangle.west <= viewRectangle.east) {
+      return [
+        {
+          west: Math.max(viewRectangle.west, tilingRectangle.west),
+          east: Math.min(viewRectangle.east, tilingRectangle.east),
+        },
+      ];
+    }
+
+    return [
+      {
+        west: Math.max(viewRectangle.west, tilingRectangle.west),
+        east: tilingRectangle.east,
+      },
+      {
+        west: tilingRectangle.west,
+        east: Math.min(viewRectangle.east, tilingRectangle.east),
+      },
+    ];
+  }
+
+  private measureLongitudeSpanMeters(
+    centerLongitude: number,
+    latitude: number,
+    longitudeWidth: number
+  ) {
+    const ellipsoid = this._provider.tilingScheme.ellipsoid;
+    const width = Math.min(Math.abs(longitudeWidth), Math.PI * 2);
+    if (width >= Math.PI * 2 - 1e-9) {
+      return Math.PI * 2 * ellipsoid.maximumRadius * Math.abs(Math.cos(latitude));
+    }
+
+    const halfWidth = width / 2;
+    return Cartesian3.distance(
+      Cartesian3.fromRadians(
+        centerLongitude - halfWidth,
+        latitude,
+        0,
+        ellipsoid
+      ),
+      Cartesian3.fromRadians(
+        centerLongitude + halfWidth,
+        latitude,
+        0,
+        ellipsoid
+      )
+    );
+  }
+
+  private measureLatitudeSpanMeters(
+    centerLongitude: number,
+    south: number,
+    north: number
+  ) {
+    const ellipsoid = this._provider.tilingScheme.ellipsoid;
+    return Cartesian3.distance(
+      Cartesian3.fromRadians(centerLongitude, south, 0, ellipsoid),
+      Cartesian3.fromRadians(centerLongitude, north, 0, ellipsoid)
+    );
+  }
+
+  private createViewBoundingSphereFromRectangle(viewRectangle: Rectangle) {
+    const ellipsoid = this._provider.tilingScheme.ellipsoid;
+    const centerCartographic = Rectangle.center(viewRectangle);
+    const center = Cartesian3.fromRadians(
+      centerCartographic.longitude,
+      centerCartographic.latitude,
+      0,
+      ellipsoid
+    );
+    const samplePositions = Rectangle.subsample(viewRectangle, ellipsoid);
+    const radius = samplePositions.reduce(
+      (maxDistance, position) =>
+        Math.max(maxDistance, Cartesian3.distance(center, position)),
+      0
+    );
+
+    return new BoundingSphere(center, radius);
+  }
+
+  private async rotateBoundingSphereToModernCoordinates(
+    boundingSphere: BoundingSphere,
+    plateId: string,
+    age: number
+  ) {
+    const modernCenter = await this.rotationOperator.rotatePointToModern(
+      boundingSphere.center,
+      plateId,
+      age
+    );
+
+    return new BoundingSphere(
+      modernCenter ?? Cartesian3.clone(boundingSphere.center),
+      boundingSphere.radius
+    );
+  }
+
+  private updateQuadTreeBoundingSpheres(plateMatrices: PlateMatrixEntry[]) {
+    const matrixByPlate = new Map(
+      plateMatrices.map(({ plateItem, modelMatrix }) => [
+        plateItem.plateId,
+        modelMatrix,
+      ])
+    );
+
+    this.plates.forEach((plateItem) => {
+      const modelMatrix =
+        matrixByPlate.get(plateItem.plateId) ?? IDENTITY_MODEL_MATRIX;
+      plateItem.polygonQuadTrees.forEach((polygonItem) => {
+        polygonItem.quadTree.updateBoundingSpheres(modelMatrix);
+      });
     });
   }
 
