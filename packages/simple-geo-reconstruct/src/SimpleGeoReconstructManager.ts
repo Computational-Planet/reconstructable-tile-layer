@@ -1106,6 +1106,7 @@ export class SimpleGeoReconstructManager {
       // each completed tile as soon as its image is ready.
       asynchronous: false,
       appearance: new EllipsoidSurfaceAppearance({
+        flat: true,
         material: this.createImageMaterial(image),
         renderState: {
           depthTest: {

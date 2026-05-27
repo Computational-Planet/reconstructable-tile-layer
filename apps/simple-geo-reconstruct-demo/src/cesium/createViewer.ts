@@ -1,4 +1,9 @@
-import { Color, ShadowMode, Viewer } from "cesium";
+import {
+  Color,
+  DynamicAtmosphereLightingType,
+  ShadowMode,
+  Viewer,
+} from "cesium";
 
 export const DEFAULT_GLOBE_BASE_COLOR = "#2f343b";
 
@@ -14,10 +19,16 @@ function disableDecorativeSceneEffects(viewer: Viewer) {
   // Keep the scene visually plain so reconstructed tile imagery is the focus.
   scene.backgroundColor = Color.fromCssColorString("#000000");
   scene.fog.enabled = false;
+  scene.atmosphere.dynamicLighting = DynamicAtmosphereLightingType.NONE;
+  scene.atmosphere.lightIntensity = 0;
+  scene.atmosphere.brightnessShift = -1;
+  scene.atmosphere.saturationShift = -1;
   scene.globe.enableLighting = false;
   scene.globe.showGroundAtmosphere = false;
+  scene.globe.atmosphereLightIntensity = 0;
+  scene.globe.atmosphereBrightnessShift = -1;
+  scene.globe.atmosphereSaturationShift = -1;
   scene.globe.shadows = ShadowMode.DISABLED;
-  applyGlobeBaseColor(viewer, DEFAULT_GLOBE_BASE_COLOR);
   scene.moon.show = false;
   scene.sun.show = false;
   scene.sunBloom = false;
@@ -63,6 +74,13 @@ export function createViewer(container: HTMLElement) {
   creditContainer.style.display = "none";
 
   disableDecorativeSceneEffects(viewer);
+  applyGlobeBaseColor(viewer, DEFAULT_GLOBE_BASE_COLOR);
+  viewer.scene.morphStart.addEventListener(() =>
+    disableDecorativeSceneEffects(viewer),
+  );
+  viewer.scene.morphComplete.addEventListener(() =>
+    disableDecorativeSceneEffects(viewer),
+  );
 
   return viewer;
 }
