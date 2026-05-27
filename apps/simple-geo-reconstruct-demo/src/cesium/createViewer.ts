@@ -1,3 +1,4 @@
+/** Creates and normalizes the Cesium viewer used by the demo. */
 import {
   Color,
   DynamicAtmosphereLightingType,
@@ -56,7 +57,7 @@ export function createViewer(container: HTMLElement) {
     navigationHelpButton: false,
     requestRenderMode: true,
     maximumRenderTimeChange: Infinity,
-    sceneModePicker: true,
+    sceneModePicker: false,
     selectionIndicator: false,
     shadows: false,
     shouldAnimate: true,
@@ -66,6 +67,7 @@ export function createViewer(container: HTMLElement) {
     contextOptions: {
       webgl: {
         alpha: true,
+        preserveDrawingBuffer: true,
       },
     },
   });
