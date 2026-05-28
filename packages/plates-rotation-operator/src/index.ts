@@ -1,1 +1,1 @@
-export { RotationOperator } from "./RotationOperator"
+export { RotationOperator, type RotationOperatorOptions } from "./RotationOperator"

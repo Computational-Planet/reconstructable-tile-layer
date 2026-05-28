@@ -17,6 +17,7 @@ import {
   type ProviderKey,
   type UrlTemplateProviderConfig,
 } from "../cesium/providers";
+import { DEMO_ELLIPSOID_CONFIG } from "../cesium/createViewer";
 
 type UseReconstructActionsOptions = {
   age: number;
@@ -77,7 +78,9 @@ export function useReconstructActions({
 
     try {
       setCustomProviderError("");
-      return createImageryProvider(providerKey, customProviderConfig);
+      return createImageryProvider(providerKey, customProviderConfig, {
+        ellipsoid: DEMO_ELLIPSOID_CONFIG.ellipsoid,
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       setCustomProviderError(message);
@@ -138,6 +141,7 @@ export function useReconstructActions({
         rotationSources,
         initialAge: age,
         primitiveTransformMode,
+        referenceEllipsoid: DEMO_ELLIPSOID_CONFIG.ellipsoid,
       });
 
       managerRef.current = manager;

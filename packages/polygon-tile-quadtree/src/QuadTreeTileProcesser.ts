@@ -22,6 +22,11 @@ type CrossInfo = {
   magnify: boolean; // 是否是在经度增加的过程中跨越边界
 }
 
+function getTilingSchemeReferenceKey(tilingScheme: TilingScheme) {
+  const { x, y, z } = tilingScheme.ellipsoid.radii;
+  return `${tilingScheme.constructor.name}:${x},${y},${z}`;
+}
+
 function isTileClipArea(value: Array<number> | TileClipArea): value is TileClipArea {
   return !Array.isArray(value) && Array.isArray(value.polygons);
 }
@@ -30,7 +35,7 @@ function isTileClipArea(value: Array<number> | TileClipArea): value is TileClipA
 // 根节点初始直接设成0，0，0瓦片（4326还需要再看看怎么分配，如果刚好和180°经线一样顺便就切掉了），之后在裁剪的时候分出去。可以多加一个函数，用于重新计算根节点，可以递归拓展根节点，直到根节点的子节点不再是只有唯一一个子节点。（至少有两个子节点多边形不为空）
 // 最后要记录多边形实际的包围盒，用于计算是否在视野范围内。
 export class QuadTreeTileProcesser {
-  private _tilingScheme: TilingScheme = new WebMercatorTilingScheme();
+  private _tilingScheme!: TilingScheme;
   private _rectangle: Array<Rectangle> = []; //记录多边形的包围盒，用作视野估算
   private _boundingSpheres: Array<BoundingSphere> = []; // 现代坐标系下的包围球
   private _currentBoundingSpheres: Array<BoundingSphere> = []; // 按当前板块旋转后的包围球
@@ -618,7 +623,10 @@ export class QuadTreeTileProcesser {
 
   // 当图层更新时判断是否要重新构建树
   updateProvider(provider: ImageryProvider) {
-    if ((provider.tilingScheme instanceof this._tilingScheme.constructor)) {
+    if (
+      getTilingSchemeReferenceKey(provider.tilingScheme) ===
+      getTilingSchemeReferenceKey(this._tilingScheme)
+    ) {
       return;
     }
     else {

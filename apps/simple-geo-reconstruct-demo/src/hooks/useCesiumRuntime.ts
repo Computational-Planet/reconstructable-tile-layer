@@ -8,6 +8,7 @@ import type { SimpleGeoReconstructManager } from "simple-geo-reconstruct";
 import {
   applyGlobeBaseColor,
   createViewer,
+  DEMO_ELLIPSOID_CONFIG,
 } from "../cesium/createViewer";
 import type { ExperimentOutputConfig } from "../experiment";
 
@@ -44,7 +45,7 @@ export function useCesiumRuntime({
       return;
     }
 
-    const viewer = createViewer(containerRef.current);
+    const viewer = createViewer(containerRef.current, DEMO_ELLIPSOID_CONFIG);
     const processer = new CesiumTileProcesser({
       slotCount: 4,
       outputType: TILE_OUTPUT_TYPE,

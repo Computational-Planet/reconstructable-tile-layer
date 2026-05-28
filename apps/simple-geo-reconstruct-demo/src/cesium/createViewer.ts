@@ -2,11 +2,27 @@
 import {
   Color,
   DynamicAtmosphereLightingType,
+  Ellipsoid,
   ShadowMode,
   Viewer,
 } from "cesium";
 
 export const DEFAULT_GLOBE_BASE_COLOR = "#2f343b";
+export const GPLATES_MEAN_EARTH_RADIUS_METERS = 6371009;
+
+export type DemoEllipsoidConfig = {
+  ellipsoid: Ellipsoid;
+};
+
+export const DEMO_ELLIPSOID_CONFIG: DemoEllipsoidConfig = {
+  // GPlates/pyGPlates reconstruction math is sphere based; use a meter-scale
+  // sphere so Cesium rendering keeps normal Earth-sized camera distances.
+  ellipsoid: new Ellipsoid(
+    GPLATES_MEAN_EARTH_RADIUS_METERS,
+    GPLATES_MEAN_EARTH_RADIUS_METERS,
+    GPLATES_MEAN_EARTH_RADIUS_METERS,
+  ),
+};
 
 export function applyGlobeBaseColor(viewer: Viewer, color: string) {
   viewer.scene.globe.baseColor = Color.fromCssColorString(color);
@@ -30,11 +46,19 @@ function disableDecorativeSceneEffects(viewer: Viewer) {
   scene.globe.atmosphereBrightnessShift = -1;
   scene.globe.atmosphereSaturationShift = -1;
   scene.globe.shadows = ShadowMode.DISABLED;
-  scene.moon.show = false;
-  scene.sun.show = false;
+  if (scene.moon) {
+    scene.moon.show = false;
+  }
+  if (scene.sun) {
+    scene.sun.show = false;
+  }
   scene.sunBloom = false;
-  scene.skyBox.show = false;
-  scene.skyAtmosphere.show = false;
+  if (scene.skyBox) {
+    scene.skyBox.show = false;
+  }
+  if (scene.skyAtmosphere) {
+    scene.skyAtmosphere.show = false;
+  }
   scene.shadowMap.enabled = false;
   scene.postProcessStages.fxaa.enabled = false;
   viewer.shadows = false;
@@ -45,11 +69,17 @@ function disableDecorativeSceneEffects(viewer: Viewer) {
   controller.bounceAnimationTime = 0;
 }
 
-export function createViewer(container: HTMLElement) {
+export function createViewer(
+  container: HTMLElement,
+  config: DemoEllipsoidConfig = DEMO_ELLIPSOID_CONFIG,
+) {
+  Ellipsoid.default = config.ellipsoid;
+
   const viewer = new Viewer(container, {
     animation: false,
     baseLayer: false,
     baseLayerPicker: false,
+    ellipsoid: config.ellipsoid,
     fullscreenButton: false,
     geocoder: false,
     homeButton: false,

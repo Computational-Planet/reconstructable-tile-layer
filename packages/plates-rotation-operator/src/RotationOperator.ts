@@ -1,4 +1,10 @@
-import { Cartesian3, Quaternion, QuaternionSpline, Math as CMath } from "cesium";
+import {
+  Cartesian3,
+  Ellipsoid,
+  Quaternion,
+  QuaternionSpline,
+  Math as CMath,
+} from "cesium";
 import { convertFileContentToJson } from "./handleRot";
 import {
   getInverseRotateMatrixAtAge,
@@ -22,11 +28,17 @@ export type RotSplineItem = {
   items: RotItem[];
 };
 
+export type RotationOperatorOptions = {
+  referenceEllipsoid?: Ellipsoid;
+};
+
 export class RotationOperator {
   rotData: Map<string, RotSplineItem> = new Map<string, RotSplineItem>()
   private _ready: boolean = false
+  private _referenceEllipsoid: Ellipsoid
 
-  constructor() {
+  constructor(options: RotationOperatorOptions = {}) {
+    this._referenceEllipsoid = options.referenceEllipsoid ?? Ellipsoid.default;
   }
 
   get ready() {
@@ -51,7 +63,7 @@ export class RotationOperator {
       if (items.length === 0) return;
 
       const times = items.map((item) => item.age);
-      const points = items.map(this.createQuaternionFromRotation);
+      const points = items.map((item) => this.createQuaternionFromRotation(item));
 
       const spline =
         times.length > 1
@@ -69,7 +81,12 @@ export class RotationOperator {
 
   createQuaternionFromRotation(item: RotItem): Quaternion {
     return Quaternion.fromAxisAngle(
-      Cartesian3.fromDegrees(item.rotation.longitude, item.rotation.latitude),
+      Cartesian3.fromDegrees(
+        item.rotation.longitude,
+        item.rotation.latitude,
+        0,
+        this._referenceEllipsoid,
+      ),
       CMath.toRadians(item.rotation.angle),
     );
   }

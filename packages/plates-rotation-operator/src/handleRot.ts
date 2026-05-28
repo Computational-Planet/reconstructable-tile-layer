@@ -1,4 +1,4 @@
-import { Math as CMath, Cartesian3, Quaternion } from "cesium";
+import { Math as CMath, Cartesian3, Ellipsoid, Quaternion } from "cesium";
 
 import type { QuaternionSpline } from "cesium";
 
@@ -58,9 +58,17 @@ export type RotSplineItem = {
   items: RotItem[];
 };
 
-export function createQuaternionFromRotation(item: RotItem): Quaternion {
+export function createQuaternionFromRotation(
+  item: RotItem,
+  referenceEllipsoid: Ellipsoid = Ellipsoid.default,
+): Quaternion {
   return Quaternion.fromAxisAngle(
-    Cartesian3.fromDegrees(item.rotation.longitude, item.rotation.latitude),
+    Cartesian3.fromDegrees(
+      item.rotation.longitude,
+      item.rotation.latitude,
+      0,
+      referenceEllipsoid,
+    ),
     CMath.toRadians(item.rotation.angle),
   );
 }

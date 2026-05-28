@@ -2,6 +2,7 @@
   BoundingSphere,
   Cartographic,
   Cartesian3,
+  type Ellipsoid,
   EllipsoidSurfaceAppearance,
   GeometryInstance,
   ImageryProvider,
@@ -228,6 +229,7 @@ export interface SimpleGeoReconstructManagerConstructorOptions {
   rotationSources?: string[];
   initialAge?: number;
   primitiveTransformMode?: PrimitiveTransformMode;
+  referenceEllipsoid?: Ellipsoid;
   tileRequestConcurrency?: number;
   primitiveBatchSize?: number;
 }
@@ -275,8 +277,9 @@ function resolveFeatureFiles(
 export class SimpleGeoReconstructManager {
   private _provider: ImageryProvider;
   processer: CesiumTileProcesser;
-  rotationOperator: RotationOperator = new RotationOperator();
+  rotationOperator: RotationOperator;
   private _files: ResolvedFeatureFiles;
+  private _referenceEllipsoid: Ellipsoid;
   paleoData: PaleoData[] = [];
   allPaleoData: PaleoData[] = [];
   // key涓簆lateID锛屽叾鍐呴儴鐨凪ap涓璳ey涓篺eatureID
@@ -313,6 +316,11 @@ export class SimpleGeoReconstructManager {
     this._provider = data.provider;
     this.processer = data.processer;
     this._files = resolveFeatureFiles(data);
+    this._referenceEllipsoid =
+      data.referenceEllipsoid ?? data.provider.tilingScheme.ellipsoid;
+    this.rotationOperator = new RotationOperator({
+      referenceEllipsoid: this._referenceEllipsoid,
+    });
     this._currentAge = data.initialAge ?? 0;
     this._transformMode = data.primitiveTransformMode ?? "dynamic3D";
     this._tileRequestConcurrency =
@@ -323,6 +331,10 @@ export class SimpleGeoReconstructManager {
 
   get ready() {
     return this._ready;
+  }
+
+  get referenceEllipsoid() {
+    return this._referenceEllipsoid;
   }
 
   getGeoTileStats() {
@@ -1093,6 +1105,7 @@ export class SimpleGeoReconstructManager {
         modelMatrix:
           transformMode === "bakedInstance" ? modelMatrix : IDENTITY_MODEL_MATRIX,
         geometry: new RectangleGeometry({
+          ellipsoid: this._provider.tilingScheme.ellipsoid,
           rectangle: this._provider.tilingScheme.tileXYToRectangle(
             tileInfo.tileXYL.x,
             tileInfo.tileXYL.y,
@@ -1650,15 +1663,27 @@ export class SimpleGeoReconstructManager {
     previousProvider: ImageryProvider,
     nextProvider: ImageryProvider
   ) {
+    const previousTilingScheme = previousProvider.tilingScheme;
+    const nextTilingScheme = nextProvider.tilingScheme;
     return (
-      previousProvider.tilingScheme.constructor ===
-      nextProvider.tilingScheme.constructor
+      previousTilingScheme.constructor === nextTilingScheme.constructor &&
+      getEllipsoidKey(previousTilingScheme.ellipsoid) ===
+        getEllipsoidKey(nextTilingScheme.ellipsoid)
     );
   }
 
   private getTilingSchemeKey() {
-    return this._provider.tilingScheme.constructor.name;
+    const tilingScheme = this._provider.tilingScheme;
+    return [
+      tilingScheme.constructor.name,
+      getEllipsoidKey(tilingScheme.ellipsoid),
+    ].join(":");
   }
+}
+
+function getEllipsoidKey(ellipsoid: Ellipsoid) {
+  const { x, y, z } = ellipsoid.radii;
+  return `${x},${y},${z}`;
 }
 
 function isDeepTimeGeoDebugEnabled() {

@@ -1,4 +1,5 @@
 import {
+  Ellipsoid,
   GeographicTilingScheme,
   type ImageryProvider,
   UrlTemplateImageryProvider,
@@ -21,6 +22,10 @@ export type UrlTemplateProviderConfig = {
   maximumLevel: number;
 };
 
+export type ImageryProviderReferenceOptions = {
+  ellipsoid?: Ellipsoid;
+};
+
 export const DEFAULT_PROVIDER_KEY: ProviderKey = "gplates-image-4326";
 
 export const DEFAULT_CUSTOM_PROVIDER_CONFIG: UrlTemplateProviderConfig = {
@@ -40,12 +45,20 @@ export const PROVIDER_OPTIONS: Array<{
   { key: "custom-url-template", label: "Custom URL Template" },
 ];
 
-function createTilingScheme(key: UrlTemplateTilingSchemeKey) {
+function resolveProviderEllipsoid(options?: ImageryProviderReferenceOptions) {
+  return options?.ellipsoid ?? Ellipsoid.default;
+}
+
+function createTilingScheme(
+  key: UrlTemplateTilingSchemeKey,
+  options?: ImageryProviderReferenceOptions,
+) {
+  const ellipsoid = resolveProviderEllipsoid(options);
   if (key === "geographic") {
-    return new GeographicTilingScheme();
+    return new GeographicTilingScheme({ ellipsoid });
   }
 
-  return new WebMercatorTilingScheme({});
+  return new WebMercatorTilingScheme({ ellipsoid });
 }
 
 export function validateUrlTemplateProviderConfig(
@@ -91,6 +104,7 @@ export function validateUrlTemplateProviderConfig(
 
 function createUrlTemplateProvider(
   config: UrlTemplateProviderConfig,
+  options?: ImageryProviderReferenceOptions,
 ): ImageryProvider {
   const errors = validateUrlTemplateProviderConfig(config);
   if (errors.length > 0) {
@@ -99,7 +113,7 @@ function createUrlTemplateProvider(
 
   return new UrlTemplateImageryProvider({
     url: config.url.trim(),
-    tilingScheme: createTilingScheme(config.tilingSchemeKey),
+    tilingScheme: createTilingScheme(config.tilingSchemeKey, options),
     minimumLevel: config.minimumLevel,
     maximumLevel: config.maximumLevel,
   });
@@ -108,11 +122,13 @@ function createUrlTemplateProvider(
 export function createImageryProvider(
   key: ProviderKey,
   customProviderConfig?: UrlTemplateProviderConfig,
+  options?: ImageryProviderReferenceOptions,
 ): ImageryProvider {
+  const ellipsoid = resolveProviderEllipsoid(options);
   if (key === "gplates-image-4326") {
     return new UrlTemplateImageryProvider({
       url: "http://210.32.153.209:9003/image/wmts/HC4aVmBO/{z}/{x}/{y}",
-      tilingScheme: new GeographicTilingScheme(),
+      tilingScheme: new GeographicTilingScheme({ ellipsoid }),
       minimumLevel: 0,
       maximumLevel: 12,
     });
@@ -121,7 +137,7 @@ export function createImageryProvider(
   if (key === "mars-viking-4326") {
     return new UrlTemplateImageryProvider({
       url: "https://trek.nasa.gov/tiles/Mars/EQ/Mars_Viking_MDIM21_ClrMosaic_global_232m/1.0.0//default/default028mm/{z}/{y}/{x}.jpg",
-      tilingScheme: new GeographicTilingScheme(),
+      tilingScheme: new GeographicTilingScheme({ ellipsoid }),
     });
   }
 
@@ -130,9 +146,7 @@ export function createImageryProvider(
       throw new Error("Custom provider settings are required.");
     }
 
-    // Custom providers use Cesium's URL-template provider so callers can
-    // choose the tiling scheme while keeping the tile URL token format stable.
-    return createUrlTemplateProvider(customProviderConfig);
+    return createUrlTemplateProvider(customProviderConfig, { ellipsoid });
   }
 
   return new WebMapTileServiceImageryProvider({
@@ -142,6 +156,6 @@ export function createImageryProvider(
     style: "default",
     format: "image/jpeg",
     maximumLevel: 18,
-    tilingScheme: new WebMercatorTilingScheme({}),
+    tilingScheme: new WebMercatorTilingScheme({ ellipsoid }),
   });
 }

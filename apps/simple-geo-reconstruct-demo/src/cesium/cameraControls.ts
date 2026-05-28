@@ -195,7 +195,12 @@ export function applyPoseView(viewer: Viewer, camera3D: ExperimentCamera3D) {
     viewer.camera.switchToPerspectiveFrustum();
   }
 
-  const target = Cartesian3.fromDegrees(camera3D.targetLon, camera3D.targetLat);
+  const target = Cartesian3.fromDegrees(
+    camera3D.targetLon,
+    camera3D.targetLat,
+    0,
+    viewer.scene.globe.ellipsoid,
+  );
   viewer.camera.lookAt(
     target,
     new HeadingPitchRange(

@@ -1,5 +1,6 @@
 import {
   Cartesian3,
+  Ellipsoid,
   Math as CesiumMath,
   Matrix3,
   PolygonHierarchy,
@@ -102,6 +103,7 @@ export function getPositionsAtAge(
   positions: Cartesian3[],
   intervals: RotItem[],
   age: number,
+  referenceEllipsoid: Ellipsoid = Ellipsoid.default,
 ) {
   const intervalIndex = intervals.findIndex(
     (item, index) => item.age >= age && (intervals[index - 1]?.age ?? 0) <= age,
@@ -112,6 +114,8 @@ export function getPositionsAtAge(
   const rotatePosition = Cartesian3.fromDegrees(
     rotation.latitude,
     rotation.longitude,
+    0,
+    referenceEllipsoid,
   );
   const newPositions = positions.map((cartesian3) =>
     rotateCartensianPoint(cartesian3, rotatePosition, angle),
