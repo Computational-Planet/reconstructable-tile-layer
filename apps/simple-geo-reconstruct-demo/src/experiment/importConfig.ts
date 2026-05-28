@@ -32,7 +32,7 @@ const ROTATION_PRESET_KEYS: RotationPresetKey[] = [
 ];
 
 const PROVIDER_KEYS: ProviderKey[] = [
-  "gplates-image-4326",
+  "gplates-topography-4326",
   "arcgis-world-imagery",
   "mars-viking-4326",
   "custom-url-template",

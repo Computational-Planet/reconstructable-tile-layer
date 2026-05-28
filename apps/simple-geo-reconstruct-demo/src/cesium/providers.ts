@@ -8,7 +8,7 @@ import {
 } from "cesium";
 
 export type ProviderKey =
-  | "gplates-image-4326"
+  | "gplates-topography-4326"
   | "arcgis-world-imagery"
   | "mars-viking-4326"
   | "custom-url-template";
@@ -26,7 +26,9 @@ export type ImageryProviderReferenceOptions = {
   ellipsoid?: Ellipsoid;
 };
 
-export const DEFAULT_PROVIDER_KEY: ProviderKey = "gplates-image-4326";
+export const DEFAULT_PROVIDER_KEY: ProviderKey = "gplates-topography-4326";
+const GPLATES_TOPOGRAPHY_TILE_URL =
+  "/tiles/Gplates_Topography/{z}/{x}/{y}.png";
 
 export const DEFAULT_CUSTOM_PROVIDER_CONFIG: UrlTemplateProviderConfig = {
   url: "",
@@ -39,7 +41,7 @@ export const PROVIDER_OPTIONS: Array<{
   key: ProviderKey;
   label: string;
 }> = [
-  { key: "gplates-image-4326", label: "GPlates Image (4326)" },
+  { key: "gplates-topography-4326", label: "GPlates Topography (4326)" },
   { key: "arcgis-world-imagery", label: "ArcGIS World Imagery (3857)" },
   { key: "mars-viking-4326", label: "Mars Viking Mosaic (4326)" },
   { key: "custom-url-template", label: "Custom URL Template" },
@@ -125,12 +127,12 @@ export function createImageryProvider(
   options?: ImageryProviderReferenceOptions,
 ): ImageryProvider {
   const ellipsoid = resolveProviderEllipsoid(options);
-  if (key === "gplates-image-4326") {
+  if (key === "gplates-topography-4326") {
     return new UrlTemplateImageryProvider({
-      url: "http://210.32.153.209:9003/image/wmts/HC4aVmBO/{z}/{x}/{y}",
+      url: GPLATES_TOPOGRAPHY_TILE_URL,
       tilingScheme: new GeographicTilingScheme({ ellipsoid }),
       minimumLevel: 0,
-      maximumLevel: 12,
+      maximumLevel: 4,
     });
   }
 
