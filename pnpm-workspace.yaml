@@ -1,3 +1,3 @@
 packages:
-  - "apps/*"
+  - "apps/simple-geo-reconstruct-demo"
   - "packages/*"
