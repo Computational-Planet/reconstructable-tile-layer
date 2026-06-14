@@ -20,10 +20,7 @@ import {
   type UrlTemplateProviderConfig,
 } from "./cesium/providers";
 import { ControlPanel } from "./components/ControlPanel";
-import {
-  FEATURE_PRESETS,
-  ROTATION_PRESETS,
-} from "./dataSources";
+import { FEATURE_PRESETS, ROTATION_PRESETS } from "./dataSources";
 import {
   createDefaultExperimentViewConfig,
   type ExperimentOutputConfig,
@@ -43,7 +40,7 @@ function App() {
     DEFAULT_GLOBE_BASE_COLOR,
   );
   const [initialized, setInitialized] = useState(false);
-  const [level, setLevel] = useState(3);
+  const [level, setLevel] = useState(4);
   const [polygonRenderIntent, setPolygonRenderIntent] =
     useState<PolygonRenderIntentMode>("all-polygons-area");
   const [primitiveTransformMode, setPrimitiveTransformModeState] =
@@ -164,9 +161,7 @@ function App() {
         viewMode: "2D_RECTANGULAR",
       }));
       const { west, south, east, north } = experimentViewConfig.extent;
-      setStatus(
-        `Extent view applied: ${west}, ${south}, ${east}, ${north}.`,
-      );
+      setStatus(`Extent view applied: ${west}, ${south}, ${east}, ${north}.`);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : String(error));
     }
