@@ -1,78 +1,56 @@
 export type FeaturePresetKey =
-  | "matthews-static-gpml"
-  | "matthews-coastlines-gpmlz"
-  | "cao-coasts-gpmlz"
-  | "matthews-static-json"
-  | "scotese-json"
+  | "earthbyte-static-polygons-gpmlz"
+  | "zahirovic-2022-feature-geometries-gpml"
   | "custom";
 
 export type RotationPresetKey =
-  | "matthews-test-1800-0"
-  | "matthews-global-410-0"
-  | "scotese"
+  | "zahirovic-2022-optimised-mantle-rot"
   | "custom";
 
 export type FeaturePreset = {
   key: FeaturePresetKey;
   label: string;
   url: string;
+  citation: string;
 };
 
 export type RotationPreset = {
   key: RotationPresetKey;
   label: string;
   urls: string[];
+  citation: string;
 };
+
+const GPLATES_25_GEODATA_CITATION =
+  "Data package: EarthByte (2024), GPlates 2.5 GeoData version 1, DOI: 10.5281/zenodo.14194897.";
 
 export const FEATURE_PRESETS: FeaturePreset[] = [
   {
-    key: "matthews-static-gpml",
-    label: "Matthews static polygons GPML",
-    url: "/geo/Matthews++/test/shapes_static_polygons_Merdith_et_al.gpml",
+    key: "earthbyte-static-polygons-gpmlz",
+    label: "EarthByte present-day static plate polygons GPMLZ",
+    url: "/features/Global_EarthByte_GPlates_PresentDay_StaticPlatePolygons.gpmlz",
+    citation:
+      "Static polygons: cite Müller et al. (2019), Seton et al. (2020), and Zahirovic et al. (2022). " +
+      GPLATES_25_GEODATA_CITATION,
   },
   {
-    key: "matthews-coastlines-gpmlz",
-    label: "EarthByte present-day coastlines GPMLZ",
-    url: "/geo/Matthews++/test/Global_EarthByte_GPlates_PresentDay_Coastlines.gpmlz",
-  },
-  {
-    key: "cao-coasts-gpmlz",
-    label: "Cao shapes coasts GPMLZ",
-    url: "/geo/Matthews++/test/shapes_coasts.gpmlz",
-  },
-  {
-    key: "matthews-static-json",
-    label: "Matthews static polygons JSON",
-    url: "/geo/Matthews++/PresentDay_StaticPlatePolygons_Matthews++.json",
-  },
-  {
-    key: "scotese-json",
-    label: "Scotese paleo plate polygons JSON",
-    url: "/geo/Scotese/PALEO_PLATE_POLYGON.json",
+    key: "zahirovic-2022-feature-geometries-gpml",
+    label: "Zahirovic et al. (2022) feature geometries GPML",
+    url: "/features/Zahirovic_etal_2022_Feature_Geometries.gpml",
+    citation:
+      "Feature geometries: cite Zahirovic et al. (2022). " +
+      GPLATES_25_GEODATA_CITATION,
   },
 ];
 
 export const ROTATION_PRESETS: RotationPreset[] = [
   {
-    key: "matthews-test-1800-0",
-    label: "Matthews test ROT 1800-0 Ma",
-    urls: [
-      "/geo/Matthews++/test/1000_0_rotfile_20240725.rot",
-      "/geo/Matthews++/test/1800_1000_rotfile_20240725.rot",
-    ],
-  },
-  {
-    key: "matthews-global-410-0",
-    label: "Matthews global ROT 410-0 Ma",
-    urls: [
-      "/geo/Matthews++/Global_EB_250-0Ma_GK07_Matthews++.rot",
-      "/geo/Matthews++/Global_EB_410-250Ma_GK07_Matthews++.rot",
-    ],
-  },
-  {
-    key: "scotese",
-    label: "Scotese PALEOMAP ROT",
-    urls: ["/geo/Scotese/PALEOMAP_PlateModel.rot"],
+    key: "zahirovic-2022-optimised-mantle-rot",
+    label: "Zahirovic et al. (2022) optimised mantle ROT",
+    urls: ["/rotations/Zahirovic_etal_2022_OptimisedMantleRef_and_NNRMantleRef.rot"],
+    citation:
+      "Rotation model: cite Zahirovic et al. (2022). " +
+      GPLATES_25_GEODATA_CITATION,
   },
 ];
 

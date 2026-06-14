@@ -16,18 +16,13 @@ import type {
 } from "./types";
 
 const FEATURE_PRESET_KEYS: FeaturePresetKey[] = [
-  "matthews-static-gpml",
-  "matthews-coastlines-gpmlz",
-  "cao-coasts-gpmlz",
-  "matthews-static-json",
-  "scotese-json",
+  "earthbyte-static-polygons-gpmlz",
+  "zahirovic-2022-feature-geometries-gpml",
   "custom",
 ];
 
 const ROTATION_PRESET_KEYS: RotationPresetKey[] = [
-  "matthews-test-1800-0",
-  "matthews-global-410-0",
-  "scotese",
+  "zahirovic-2022-optimised-mantle-rot",
   "custom",
 ];
 
