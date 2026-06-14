@@ -18,6 +18,12 @@ import type {
 
 const EPSILON = 1e-9;
 const MIN_RING_POINTS = 4;
+const POLAR_LATITUDE_EPSILON = 1e-6;
+
+type LonLatPoint = {
+  lon: number;
+  lat: number;
+};
 
 export interface AreaNodeChild {
   lb: AreaQuadTreeTileNode;
@@ -44,6 +50,27 @@ function closeFlatRing(ring: Array<number>) {
     closed.push(firstX, firstY);
   }
   return closed;
+}
+
+function sameFlatPoint(
+  leftX: number | undefined,
+  leftY: number | undefined,
+  rightX: number,
+  rightY: number
+) {
+  return (
+    leftX !== undefined &&
+    leftY !== undefined &&
+    Math.abs(leftX - rightX) <= EPSILON &&
+    Math.abs(leftY - rightY) <= EPSILON
+  );
+}
+
+function sameLonLatPoint(left: LonLatPoint, right: LonLatPoint) {
+  return (
+    Math.abs(left.lon - right.lon) <= EPSILON &&
+    Math.abs(left.lat - right.lat) <= EPSILON
+  );
 }
 
 function flatRingArea(ring: Array<number>) {
@@ -194,22 +221,149 @@ function transformFlatRing(ring: Array<number>, transform: (x: number, y: number
   return closeFlatRing(transformed);
 }
 
+function flatRingToLonLatPoints(ring: Array<number>) {
+  const points: LonLatPoint[] = [];
+  for (let i = 0; i + 1 < ring.length; i += 2) {
+    const lon = ring[i];
+    const lat = ring[i + 1];
+    if (!Number.isFinite(lon) || !Number.isFinite(lat)) {
+      return null;
+    }
+    points.push({ lon, lat });
+  }
+
+  if (points.length > 1 && sameLonLatPoint(points[0], points[points.length - 1])) {
+    points.pop();
+  }
+  return points;
+}
+
+function getPolarSign(latitude: number) {
+  if (Math.abs(Math.abs(latitude) - 90) > POLAR_LATITUDE_EPSILON) {
+    return 0;
+  }
+  return latitude >= 0 ? 1 : -1;
+}
+
+function isPolarLatitude(latitude: number) {
+  return getPolarSign(latitude) !== 0;
+}
+
+function rotateRingToNonPolarStart(points: LonLatPoint[]) {
+  const firstNonPolarIndex = points.findIndex(
+    (point) => !isPolarLatitude(point.lat)
+  );
+  if (firstNonPolarIndex <= 0) {
+    return points;
+  }
+  return [
+    ...points.slice(firstNonPolarIndex),
+    ...points.slice(0, firstNonPolarIndex),
+  ];
+}
+
+function normalizeLonLatPoint(
+  longitude: number,
+  latitude: number,
+  rectangle: Rectangle
+): Pair {
+  const clampedLatitude = Math.max(-90, Math.min(90, latitude));
+  return [
+    ((longitude * Math.PI) / 180 - rectangle.west) /
+      (rectangle.east - rectangle.west),
+    ((clampedLatitude * Math.PI) / 180 - rectangle.south) /
+      (rectangle.north - rectangle.south),
+  ];
+}
+
+function findAdjacentNonPolarPoint(
+  points: LonLatPoint[],
+  startIndex: number,
+  step: 1 | -1
+) {
+  for (let offset = 1; offset < points.length; offset++) {
+    const index =
+      (startIndex + step * offset + points.length) % points.length;
+    const point = points[index];
+    if (!isPolarLatitude(point.lat)) {
+      return point;
+    }
+  }
+  return null;
+}
+
+function normalizePolarRun(
+  points: LonLatPoint[],
+  runStartIndex: number,
+  runEndIndex: number,
+  rectangle: Rectangle
+) {
+  const polarSign = getPolarSign(points[runStartIndex].lat);
+  const poleLatitude = polarSign > 0 ? 90 : -90;
+  const previous = findAdjacentNonPolarPoint(points, runStartIndex, -1);
+  const next = findAdjacentNonPolarPoint(points, runEndIndex, 1);
+  if (!previous || !next) {
+    return [];
+  }
+
+  // At the pole longitude is only a topological marker. Project the adjoining
+  // longitudes onto the pole edge so planar clipping preserves the polar cap.
+  return [
+    normalizeLonLatPoint(previous.lon, poleLatitude, rectangle),
+    normalizeLonLatPoint(next.lon, poleLatitude, rectangle),
+  ];
+}
+
+function pushNormalizedPoint(normalized: Array<number>, [x, y]: Pair) {
+  if (!Number.isFinite(x) || !Number.isFinite(y)) {
+    return;
+  }
+  const previousX = normalized[normalized.length - 2];
+  const previousY = normalized[normalized.length - 1];
+  if (sameFlatPoint(previousX, previousY, x, y)) {
+    return;
+  }
+  normalized.push(x, y);
+}
+
 function normalizeLongitudeLatitudeRing(
   ring: Array<number>,
   rectangle: Rectangle
 ) {
   const normalized: Array<number> = [];
-  const west = rectangle.west;
-  const east = rectangle.east;
-  const south = rectangle.south;
-  const north = rectangle.north;
+  const points = flatRingToLonLatPoints(ring);
+  if (!points || points.length === 0) {
+    return normalized;
+  }
 
-  for (let i = 0; i < ring.length; i += 2) {
-    const longitude = ring[i];
-    const latitude = Math.max(-89.5, Math.min(89.5, ring[i + 1]));
-    const x = ((longitude * Math.PI) / 180 - west) / (east - west);
-    const y = ((latitude * Math.PI) / 180 - south) / (north - south);
-    normalized.push(x, y);
+  const rotatedPoints = rotateRingToNonPolarStart(points);
+  if (rotatedPoints.every((point) => isPolarLatitude(point.lat))) {
+    return normalized;
+  }
+
+  for (let i = 0; i < rotatedPoints.length; i++) {
+    const point = rotatedPoints[i];
+    const polarSign = getPolarSign(point.lat);
+    if (polarSign === 0) {
+      pushNormalizedPoint(
+        normalized,
+        normalizeLonLatPoint(point.lon, point.lat, rectangle)
+      );
+      continue;
+    }
+
+    let runEndIndex = i;
+    while (
+      runEndIndex + 1 < rotatedPoints.length &&
+      getPolarSign(rotatedPoints[runEndIndex + 1].lat) === polarSign
+    ) {
+      runEndIndex++;
+    }
+
+    normalizePolarRun(rotatedPoints, i, runEndIndex, rectangle).forEach(
+      (normalizedPoint) => pushNormalizedPoint(normalized, normalizedPoint)
+    );
+    i = runEndIndex;
   }
 
   return closeFlatRing(normalized);

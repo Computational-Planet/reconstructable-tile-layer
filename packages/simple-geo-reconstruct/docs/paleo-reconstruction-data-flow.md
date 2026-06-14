@@ -135,7 +135,7 @@ GPML 文本先由 [`parseGpmlText`](../src/gplates/GpmlParser.ts#L414) 解析成
 - 用 [`normalizeAreaToTileRectangle`](../../polygon-tile-quadtree/src/AreaQuadTreeTileNode.ts#L218) 把经纬度 ring 归一化到当前 tile 的局部 `[0, 1]` 坐标。
 - 创建 [`AreaQuadTreeTileNode`](../../polygon-tile-quadtree/src/AreaQuadTreeTileNode.ts#L244)，如果该根瓦片与面域没有交集，则跳过。
 
-`normalizeAreaToTileRectangle` 的关键点是：输入 `TileClipArea` 里的经纬度会先按当前瓦片矩形转成局部坐标，再通过 [`clipAreaToRectangle`](../../polygon-tile-quadtree/src/AreaQuadTreeTileNode.ts#L147) 与 `[0, 0, 1, 1]` 矩形求交。这里使用 `polygon-clipping.intersection`，因此能保留 MultiPolygon 和 interior ring。
+`normalizeAreaToTileRectangle` 的关键点是：输入 `TileClipArea` 里的经纬度会先按当前瓦片矩形转成局部坐标，再通过 [`clipAreaToRectangle`](../../polygon-tile-quadtree/src/AreaQuadTreeTileNode.ts#L147) 与 `[0, 0, 1, 1]` 矩形求交。对于 GPlates 数据中用 `±90°` 极点闭合的 ring，归一化前会把连续极点顶点按相邻非极点经度展开到当前 tile 的北/南边界，避免把球面极点语义误裁成平面大斜边。这里使用 `polygon-clipping.intersection`，因此能保留 MultiPolygon 和 interior ring。
 
 `AreaQuadTreeTileNode` 构造时会判断当前 tile 的显示状态：
 
