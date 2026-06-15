@@ -8,7 +8,12 @@ import type {
   ProviderKey,
   UrlTemplateProviderConfig,
 } from "../cesium/providers";
-import type { FeaturePresetKey, RotationPresetKey } from "../dataSources";
+import {
+  GPLATES_REFERENCE_POLYGON_SOURCES,
+  type FeaturePresetKey,
+  type GplatesReferencePolygonKey,
+  type RotationPresetKey,
+} from "../dataSources";
 import type {
   ExperimentViewMode,
   GeographicExtent,
@@ -24,6 +29,17 @@ const FEATURE_PRESET_KEYS: FeaturePresetKey[] = [
 const ROTATION_PRESET_KEYS: RotationPresetKey[] = [
   "zahirovic-2022-optimised-mantle-rot",
   "custom",
+];
+
+const GPLATES_REFERENCE_POLYGON_KEYS: GplatesReferencePolygonKey[] = [
+  "off",
+  "reconstructed-0",
+  "reconstructed-35",
+  "reconstructed-50",
+  "reconstructed-120",
+  "reconstructed-200",
+  "reconstructed-400",
+  "reconstructed-600",
 ];
 
 const PROVIDER_KEYS: ProviderKey[] = [
@@ -215,7 +231,9 @@ export function parseImportedExperimentConfig(
   const output = getRecord(value, "output");
   const extent = getRecord(value, "extent");
   const camera3D = getRecord(value, "camera3D");
-  const result: ImportedExperimentControlState = {};
+  const result: ImportedExperimentControlState = {
+    referencePolygonKey: "off",
+  };
   const viewConfig: ImportedExperimentControlState["experimentViewConfig"] = {};
 
   const caseId = getString(value, "caseId");
@@ -268,6 +286,21 @@ export function parseImportedExperimentConfig(
     );
     result.featureUrl =
       getString(sources, "featureUrl") ?? getString(value, "platePolygonFile");
+    result.referencePolygonKey = getEnumValue(
+      sources,
+      "gplatesReferencePolygonKey",
+      GPLATES_REFERENCE_POLYGON_KEYS,
+    );
+    if (!result.referencePolygonKey) {
+      const referencePolygonUrl = getString(
+        sources,
+        "gplatesReferencePolygonUrl",
+      );
+      result.referencePolygonKey =
+        GPLATES_REFERENCE_POLYGON_SOURCES.find(
+          (source) => source.url === referencePolygonUrl,
+        )?.key ?? "off";
+    }
     result.rotPresetKey = getEnumValue(
       sources,
       "rotationPresetKey",

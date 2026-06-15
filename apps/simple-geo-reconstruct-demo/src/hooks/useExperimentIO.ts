@@ -18,7 +18,11 @@ import type {
   ProviderKey,
   UrlTemplateProviderConfig,
 } from "../cesium/providers";
-import type { FeaturePresetKey, RotationPresetKey } from "../dataSources";
+import type {
+  FeaturePresetKey,
+  GplatesReferencePolygonKey,
+  RotationPresetKey,
+} from "../dataSources";
 import {
   createExperimentExportInfo,
   createExportBaseName,
@@ -50,6 +54,7 @@ type UseExperimentIOOptions = {
   polygonRenderIntent: PolygonRenderIntentMode;
   primitiveTransformMode: PrimitiveTransformMode;
   providerKey: ProviderKey;
+  referencePolygonKey: GplatesReferencePolygonKey;
   rotationSources: string[];
   rotPresetKey: RotationPresetKey;
   setAge: (value: number) => void;
@@ -68,6 +73,7 @@ type UseExperimentIOOptions = {
   setPolygonRenderIntent: (value: PolygonRenderIntentMode) => void;
   setPrimitiveTransformMode: (value: PrimitiveTransformMode) => void;
   setProviderKey: (value: ProviderKey) => void;
+  setReferencePolygonKey: (value: GplatesReferencePolygonKey) => void;
   setStatus: (value: string) => void;
   stats: GeoTileStats | null;
   status: string;
@@ -91,6 +97,7 @@ export function useExperimentIO({
   polygonRenderIntent,
   primitiveTransformMode,
   providerKey,
+  referencePolygonKey,
   rotationSources,
   rotPresetKey,
   setAge,
@@ -105,6 +112,7 @@ export function useExperimentIO({
   setPolygonRenderIntent,
   setPrimitiveTransformMode,
   setProviderKey,
+  setReferencePolygonKey,
   setStatus,
   stats,
   status,
@@ -132,6 +140,7 @@ export function useExperimentIO({
         polygonRenderIntent,
         primitiveTransformMode,
         providerKey,
+        referencePolygonKey,
         rotationFiles: rotationSources,
         rotPresetKey,
         stats,
@@ -201,6 +210,9 @@ export function useExperimentIO({
       }
       if (importedConfig.providerKey) {
         setProviderKey(importedConfig.providerKey);
+      }
+      if (importedConfig.referencePolygonKey) {
+        setReferencePolygonKey(importedConfig.referencePolygonKey);
       }
 
       applyImportedFeatureSource(

@@ -20,7 +20,13 @@ import {
   type UrlTemplateProviderConfig,
 } from "./cesium/providers";
 import { ControlPanel } from "./components/ControlPanel";
-import { FEATURE_PRESETS, ROTATION_PRESETS } from "./dataSources";
+import {
+  DEFAULT_GPLATES_REFERENCE_POLYGON_KEY,
+  FEATURE_PRESETS,
+  GPLATES_REFERENCE_POLYGON_SOURCES,
+  ROTATION_PRESETS,
+  type GplatesReferencePolygonKey,
+} from "./dataSources";
 import {
   createDefaultExperimentViewConfig,
   type ExperimentOutputConfig,
@@ -29,6 +35,7 @@ import {
 import { useCesiumRuntime } from "./hooks/useCesiumRuntime";
 import { useDataSourceControls } from "./hooks/useDataSourceControls";
 import { useExperimentIO } from "./hooks/useExperimentIO";
+import { useReferencePolygonOverlay } from "./hooks/useReferencePolygonOverlay";
 import { useReconstructActions } from "./hooks/useReconstructActions";
 import { DEFAULT_GLOBE_BASE_COLOR } from "./cesium/createViewer";
 
@@ -47,6 +54,8 @@ function App() {
     useState<PrimitiveTransformMode>("dynamic3D");
   const [providerKey, setProviderKey] =
     useState<ProviderKey>(DEFAULT_PROVIDER_KEY);
+  const [referencePolygonKey, setReferencePolygonKey] =
+    useState<GplatesReferencePolygonKey>(DEFAULT_GPLATES_REFERENCE_POLYGON_KEY);
   const [customProviderConfig, setCustomProviderConfig] =
     useState<UrlTemplateProviderConfig>(DEFAULT_CUSTOM_PROVIDER_CONFIG);
   const [customProviderError, setCustomProviderError] = useState("");
@@ -87,6 +96,12 @@ function App() {
     }
   }, [debugEnabled]);
 
+  useReferencePolygonOverlay({
+    referencePolygonKey,
+    setStatus,
+    viewerRef,
+  });
+
   const reconstructActions = useReconstructActions({
     age,
     customProviderConfig,
@@ -126,6 +141,7 @@ function App() {
     polygonRenderIntent,
     primitiveTransformMode,
     providerKey,
+    referencePolygonKey,
     rotationSources: dataSourceControls.rotationSources,
     rotPresetKey: dataSourceControls.rotPresetKey,
     setAge,
@@ -140,6 +156,7 @@ function App() {
     setPolygonRenderIntent,
     setPrimitiveTransformMode: setPrimitiveTransformModeState,
     setProviderKey,
+    setReferencePolygonKey,
     setStatus,
     stats,
     status,
@@ -248,6 +265,8 @@ function App() {
         polygonRenderIntent={polygonRenderIntent}
         primitiveTransformMode={primitiveTransformMode}
         providerKey={providerKey}
+        referencePolygonKey={referencePolygonKey}
+        referencePolygonSources={GPLATES_REFERENCE_POLYGON_SOURCES}
         rotPresetKey={dataSourceControls.rotPresetKey}
         rotPresets={ROTATION_PRESETS}
         rotUrls={dataSourceControls.rotUrls}
@@ -279,6 +298,7 @@ function App() {
         onPolygonRenderIntentChange={setPolygonRenderIntent}
         onPrimitiveTransformModeChange={setPrimitiveTransformModeState}
         onProviderKeyChange={setProviderKey}
+        onReferencePolygonKeyChange={setReferencePolygonKey}
         onRotPresetChange={dataSourceControls.handleRotPresetChange}
         onRotUpload={dataSourceControls.handleRotUpload}
         onRotUrlsChange={dataSourceControls.handleRotUrlsChange}

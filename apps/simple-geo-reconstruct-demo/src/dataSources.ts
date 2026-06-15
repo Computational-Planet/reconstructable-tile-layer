@@ -7,6 +7,16 @@ export type RotationPresetKey =
   | "zahirovic-2022-optimised-mantle-rot"
   | "custom";
 
+export type GplatesReferencePolygonKey =
+  | "off"
+  | "reconstructed-0"
+  | "reconstructed-35"
+  | "reconstructed-50"
+  | "reconstructed-120"
+  | "reconstructed-200"
+  | "reconstructed-400"
+  | "reconstructed-600";
+
 export type FeaturePreset = {
   key: FeaturePresetKey;
   label: string;
@@ -19,6 +29,12 @@ export type RotationPreset = {
   label: string;
   urls: string[];
   citation: string;
+};
+
+export type GplatesReferencePolygonSource = {
+  key: GplatesReferencePolygonKey;
+  label: string;
+  url: string | null;
 };
 
 const GPLATES_25_GEODATA_CITATION =
@@ -54,5 +70,57 @@ export const ROTATION_PRESETS: RotationPreset[] = [
   },
 ];
 
+export const GPLATES_REFERENCE_POLYGON_SOURCES: GplatesReferencePolygonSource[] =
+  [
+    {
+      key: "off",
+      label: "Off",
+      url: null,
+    },
+    {
+      key: "reconstructed-0",
+      label: "GPlates reconstructed 0 Ma",
+      url: "/gplates_ref/geojson/reconstructed_0.00Ma.geojson",
+    },
+    {
+      key: "reconstructed-35",
+      label: "GPlates reconstructed 35 Ma",
+      url: "/gplates_ref/geojson/reconstructed_35.00Ma.geojson",
+    },
+    {
+      key: "reconstructed-50",
+      label: "GPlates reconstructed 50 Ma",
+      url: "/gplates_ref/geojson/reconstructed_50.00Ma.geojson",
+    },
+    {
+      key: "reconstructed-120",
+      label: "GPlates reconstructed 120 Ma",
+      url: "/gplates_ref/geojson/reconstructed_120.00Ma.geojson",
+    },
+    {
+      key: "reconstructed-200",
+      label: "GPlates reconstructed 200 Ma",
+      url: "/gplates_ref/geojson/reconstructed_200.00Ma.geojson",
+    },
+    {
+      key: "reconstructed-400",
+      label: "GPlates reconstructed 400 Ma",
+      url: "/gplates_ref/geojson/reconstructed_400.00Ma.geojson",
+    },
+    {
+      key: "reconstructed-600",
+      label: "GPlates reconstructed 600 Ma",
+      url: "/gplates_ref/geojson/reconstructed_600.00Ma.geojson",
+    },
+  ];
+
 export const DEFAULT_FEATURE_PRESET = FEATURE_PRESETS[0];
 export const DEFAULT_ROTATION_PRESET = ROTATION_PRESETS[0];
+export const DEFAULT_GPLATES_REFERENCE_POLYGON_KEY: GplatesReferencePolygonKey =
+  "off";
+
+export function getGplatesReferencePolygonSource(
+  key: GplatesReferencePolygonKey,
+) {
+  return GPLATES_REFERENCE_POLYGON_SOURCES.find((source) => source.key === key);
+}

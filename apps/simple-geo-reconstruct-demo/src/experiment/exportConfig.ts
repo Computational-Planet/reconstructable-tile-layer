@@ -21,7 +21,12 @@ import {
   type ProviderKey,
   type UrlTemplateProviderConfig,
 } from "../cesium/providers";
-import type { FeaturePresetKey, RotationPresetKey } from "../dataSources";
+import {
+  getGplatesReferencePolygonSource,
+  type FeaturePresetKey,
+  type GplatesReferencePolygonKey,
+  type RotationPresetKey,
+} from "../dataSources";
 import { roundNumber } from "../utils/numbers";
 import type { ExperimentExportInfo, ExperimentViewConfig } from "./types";
 
@@ -39,6 +44,7 @@ export type ExperimentExportContext = {
   polygonRenderIntent: PolygonRenderIntentMode;
   primitiveTransformMode: PrimitiveTransformMode;
   providerKey: ProviderKey;
+  referencePolygonKey: GplatesReferencePolygonKey;
   rotationFiles: string[];
   rotPresetKey: RotationPresetKey;
   stats: GeoTileStats | null;
@@ -89,6 +95,9 @@ export function createExperimentExportInfo(
   const position = camera.positionCartographic;
   const canvas = scene.canvas;
   const providerLabel = getProviderLabel(context.providerKey);
+  const referencePolygonSource = getGplatesReferencePolygonSource(
+    context.referencePolygonKey,
+  );
   const orthographic = isOrthographicCamera(context.viewer);
 
   return {
@@ -137,12 +146,17 @@ export function createExperimentExportInfo(
       plateBoundary: context.initialized,
       controlPoints: false,
       graticule: false,
+      gplatesReferencePolygons:
+        context.referencePolygonKey !== "off" &&
+        Boolean(referencePolygonSource?.url),
       backgroundColor: context.globeBaseColor,
       opacity: 1,
     },
     sources: {
       featurePresetKey: context.featurePresetKey,
       featureUrl: context.featureUrl,
+      gplatesReferencePolygonKey: context.referencePolygonKey,
+      gplatesReferencePolygonUrl: referencePolygonSource?.url ?? null,
       rotationPresetKey: context.rotPresetKey,
       rotUrls: context.rotationFiles,
       providerKey: context.providerKey,

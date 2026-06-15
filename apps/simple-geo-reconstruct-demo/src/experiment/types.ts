@@ -10,7 +10,11 @@ import type {
   ProviderKey,
   UrlTemplateProviderConfig,
 } from "../cesium/providers";
-import type { FeaturePresetKey, RotationPresetKey } from "../dataSources";
+import type {
+  FeaturePresetKey,
+  GplatesReferencePolygonKey,
+  RotationPresetKey,
+} from "../dataSources";
 
 export type GeographicExtent = {
   west: number;
@@ -80,12 +84,15 @@ export type ExperimentExportInfo = {
     plateBoundary: boolean;
     controlPoints: boolean;
     graticule: boolean;
+    gplatesReferencePolygons: boolean;
     backgroundColor: string;
     opacity: number;
   };
   sources: {
     featurePresetKey: FeaturePresetKey;
     featureUrl: string;
+    gplatesReferencePolygonKey: GplatesReferencePolygonKey;
+    gplatesReferencePolygonUrl: string | null;
     rotationPresetKey: RotationPresetKey;
     rotUrls: string[];
     providerKey: ProviderKey;
@@ -136,6 +143,7 @@ export type ImportedExperimentControlState = {
   polygonRenderIntent?: PolygonRenderIntentMode;
   primitiveTransformMode?: PrimitiveTransformMode;
   providerKey?: ProviderKey;
+  referencePolygonKey?: GplatesReferencePolygonKey;
   rotPresetKey?: RotationPresetKey;
   rotUrls?: string[];
 };

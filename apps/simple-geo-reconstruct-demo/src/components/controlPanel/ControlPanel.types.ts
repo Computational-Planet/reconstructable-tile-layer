@@ -12,6 +12,8 @@ import type {
 import type {
   FeaturePreset,
   FeaturePresetKey,
+  GplatesReferencePolygonKey,
+  GplatesReferencePolygonSource,
   RotationPreset,
   RotationPresetKey,
 } from "../../dataSources";
@@ -25,6 +27,8 @@ export type ControlPanelProps = {
   featurePresets: FeaturePreset[];
   featureUrl: string;
   globeBaseColor: string;
+  referencePolygonKey: GplatesReferencePolygonKey;
+  referencePolygonSources: GplatesReferencePolygonSource[];
   customProviderConfig: UrlTemplateProviderConfig;
   customProviderError: string;
   experimentViewConfig: ExperimentViewConfig;
@@ -64,6 +68,7 @@ export type ControlPanelProps = {
   onPolygonRenderIntentChange: (value: PolygonRenderIntentMode) => void;
   onPrimitiveTransformModeChange: (value: PrimitiveTransformMode) => void;
   onProviderKeyChange: (value: ProviderKey) => void;
+  onReferencePolygonKeyChange: (value: GplatesReferencePolygonKey) => void;
   onRotPresetChange: (value: RotationPresetKey) => void;
   onRotUpload: (files: FileList | null) => void;
   onRotUrlsChange: (value: string) => void;

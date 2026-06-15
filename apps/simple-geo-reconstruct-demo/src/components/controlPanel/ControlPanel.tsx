@@ -50,6 +50,8 @@ export function ControlPanel(props: ControlPanelProps) {
           polygonRenderIntent={props.polygonRenderIntent}
           primitiveTransformMode={props.primitiveTransformMode}
           providerKey={props.providerKey}
+          referencePolygonKey={props.referencePolygonKey}
+          referencePolygonSources={props.referencePolygonSources}
           onConfigureCustomProvider={() => setCustomProviderDialogOpen(true)}
           onDebugEnabledChange={props.onDebugEnabledChange}
           onGlobeBaseColorChange={props.onGlobeBaseColorChange}
@@ -58,6 +60,7 @@ export function ControlPanel(props: ControlPanelProps) {
             props.onPrimitiveTransformModeChange
           }
           onProviderKeyChange={props.onProviderKeyChange}
+          onReferencePolygonKeyChange={props.onReferencePolygonKeyChange}
         />
 
         <CameraOutputSection

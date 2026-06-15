@@ -5,6 +5,7 @@ import type {
 } from "simple-geo-reconstruct";
 
 import { PROVIDER_OPTIONS, type ProviderKey } from "../../cesium/providers";
+import type { GplatesReferencePolygonKey } from "../../dataSources";
 import type { ControlPanelProps } from "./ControlPanel.types";
 
 type RenderingSectionProps = Pick<
@@ -14,11 +15,14 @@ type RenderingSectionProps = Pick<
   | "polygonRenderIntent"
   | "primitiveTransformMode"
   | "providerKey"
+  | "referencePolygonKey"
+  | "referencePolygonSources"
   | "onDebugEnabledChange"
   | "onGlobeBaseColorChange"
   | "onPolygonRenderIntentChange"
   | "onPrimitiveTransformModeChange"
   | "onProviderKeyChange"
+  | "onReferencePolygonKeyChange"
 > & {
   onConfigureCustomProvider: () => void;
 };
@@ -29,12 +33,15 @@ export function RenderingSection({
   polygonRenderIntent,
   primitiveTransformMode,
   providerKey,
+  referencePolygonKey,
+  referencePolygonSources,
   onConfigureCustomProvider,
   onDebugEnabledChange,
   onGlobeBaseColorChange,
   onPolygonRenderIntentChange,
   onPrimitiveTransformModeChange,
   onProviderKeyChange,
+  onReferencePolygonKeyChange,
 }: RenderingSectionProps) {
   return (
     <section className="panel-section">
@@ -99,6 +106,24 @@ export function RenderingSection({
           >
             <option value="dynamic3D">dynamic3D</option>
             <option value="bakedInstance">bakedInstance</option>
+          </select>
+        </label>
+
+        <label>
+          GPlates reference
+          <select
+            value={referencePolygonKey}
+            onChange={(event) =>
+              onReferencePolygonKeyChange(
+                event.target.value as GplatesReferencePolygonKey,
+              )
+            }
+          >
+            {referencePolygonSources.map((source) => (
+              <option key={source.key} value={source.key}>
+                {source.label}
+              </option>
+            ))}
           </select>
         </label>
       </div>

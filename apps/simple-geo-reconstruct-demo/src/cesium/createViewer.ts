@@ -22,6 +22,7 @@ export const DEMO_ELLIPSOID_CONFIG: DemoEllipsoidConfig = {
     GPLATES_MEAN_EARTH_RADIUS_METERS,
     GPLATES_MEAN_EARTH_RADIUS_METERS,
   ),
+  /* ellipsoid: Ellipsoid.UNIT_SPHERE, */
 };
 
 export function applyGlobeBaseColor(viewer: Viewer, color: string) {
