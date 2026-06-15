@@ -1,7 +1,11 @@
 /** Renders feature and rotation source controls for the demo. */
 import { useState } from "react";
 
-import type { FeaturePresetKey, RotationPresetKey } from "../../dataSources";
+import type {
+  FeaturePresetKey,
+  RotationAnchorMode,
+  RotationPresetKey,
+} from "../../dataSources";
 import type { ControlPanelProps } from "./ControlPanel.types";
 
 type DataSourcesSectionProps = Pick<
@@ -9,12 +13,16 @@ type DataSourcesSectionProps = Pick<
   | "featurePresetKey"
   | "featurePresets"
   | "featureUrl"
+  | "anchorPlateIdInput"
+  | "rotationAnchorMode"
   | "rotPresetKey"
   | "rotPresets"
   | "rotUrls"
   | "onFeaturePresetChange"
   | "onFeatureUpload"
   | "onFeatureUrlChange"
+  | "onAnchorPlateIdInputChange"
+  | "onRotationAnchorModeChange"
   | "onRotPresetChange"
   | "onRotUpload"
   | "onRotUrlsChange"
@@ -62,12 +70,16 @@ export function DataSourcesSection({
   featurePresetKey,
   featurePresets,
   featureUrl,
+  anchorPlateIdInput,
+  rotationAnchorMode,
   rotPresetKey,
   rotPresets,
   rotUrls,
   onFeaturePresetChange,
   onFeatureUpload,
   onFeatureUrlChange,
+  onAnchorPlateIdInputChange,
+  onRotationAnchorModeChange,
   onRotPresetChange,
   onRotUpload,
   onRotUrlsChange,
@@ -165,6 +177,34 @@ export function DataSourcesSection({
           />
         </div>
       </div>
+
+      <label>
+        Rotation anchor
+        <select
+          value={rotationAnchorMode}
+          onChange={(event) =>
+            onRotationAnchorModeChange(
+              event.target.value as RotationAnchorMode,
+            )
+          }
+        >
+          <option value="default">GPlates anchor 0</option>
+          <option value="auto">Auto recurse</option>
+          <option value="custom">Custom plate ID</option>
+        </select>
+      </label>
+
+      {rotationAnchorMode === "custom" ? (
+        <label>
+          Anchor plate ID
+          <input
+            value={anchorPlateIdInput}
+            onChange={(event) =>
+              onAnchorPlateIdInputChange(event.target.value)
+            }
+          />
+        </label>
+      ) : null}
 
       <label>
         ROT URLs

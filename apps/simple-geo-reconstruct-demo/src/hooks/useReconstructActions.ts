@@ -21,6 +21,7 @@ import { DEMO_ELLIPSOID_CONFIG } from "../cesium/createViewer";
 
 type UseReconstructActionsOptions = {
   age: number;
+  anchorPlateId: string | null;
   customProviderConfig: UrlTemplateProviderConfig;
   featureUrl: string;
   initialized: boolean;
@@ -43,6 +44,7 @@ type UseReconstructActionsOptions = {
 
 export function useReconstructActions({
   age,
+  anchorPlateId,
   customProviderConfig,
   featureUrl,
   initialized,
@@ -119,6 +121,12 @@ export function useReconstructActions({
       setStatus("Add at least one ROT file before initialization.");
       return;
     }
+    const resolvedAnchorPlateId =
+      anchorPlateId === null ? null : anchorPlateId.trim();
+    if (resolvedAnchorPlateId === "") {
+      setStatus("Enter an anchor plate ID or choose Auto recurse.");
+      return;
+    }
 
     const provider = createSelectedImageryProvider();
     if (!provider) {
@@ -132,6 +140,7 @@ export function useReconstructActions({
       managerRef.current?.destroy(viewer);
 
       const manager = new SimpleGeoReconstructManager({
+        anchorPlateId: resolvedAnchorPlateId,
         provider,
         processer,
         featureSource: {

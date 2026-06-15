@@ -7,7 +7,7 @@ import {
   Quaternion,
 } from "cesium";
 
-import { getQuaternionAtAge } from "./getQuaternionAtAge";
+import { getQuaternionAtAge, type AnchorPlateId } from "./getQuaternionAtAge";
 
 import type { RotItem, RotSplineItem } from "./handleRot";
 
@@ -41,8 +41,9 @@ export async function rotatePoints(
   plateId: string,
   rotData: Map<string, RotSplineItem>,
   age: number,
+  anchorPlateId: AnchorPlateId = "0",
 ) {
-  const quat = getQuaternionAtAge(plateId, rotData, age);
+  const quat = getQuaternionAtAge(plateId, rotData, age, anchorPlateId);
   if (!quat) {
     return null;
   }
@@ -54,8 +55,9 @@ export async function getRotateMatirxAtAge(
   plateId: string,
   rotData: Map<string, RotSplineItem>,
   age: number,
+  anchorPlateId: AnchorPlateId = "0",
 ) {
-  const quat = getQuaternionAtAge(plateId, rotData, age);
+  const quat = getQuaternionAtAge(plateId, rotData, age, anchorPlateId);
   if (!quat) {
     return undefined;
   }
@@ -67,8 +69,14 @@ export async function getInverseRotateMatrixAtAge(
   plateId: string,
   rotData: Map<string, RotSplineItem>,
   age: number,
+  anchorPlateId: AnchorPlateId = "0",
 ) {
-  const rotationMatrix = await getRotateMatirxAtAge(plateId, rotData, age);
+  const rotationMatrix = await getRotateMatirxAtAge(
+    plateId,
+    rotData,
+    age,
+    anchorPlateId,
+  );
   if (!rotationMatrix) {
     return undefined;
   }
@@ -82,11 +90,13 @@ export async function rotatePointToModern(
   plateId: string,
   rotData: Map<string, RotSplineItem>,
   age: number,
+  anchorPlateId: AnchorPlateId = "0",
 ) {
   const inverseRotationMatrix = await getInverseRotateMatrixAtAge(
     plateId,
     rotData,
     age,
+    anchorPlateId,
   );
   if (!inverseRotationMatrix) {
     return null;
@@ -112,8 +122,8 @@ export function getPositionsAtAge(
 
   const angle = rotation.angle;
   const rotatePosition = Cartesian3.fromDegrees(
-    rotation.latitude,
     rotation.longitude,
+    rotation.latitude,
     0,
     referenceEllipsoid,
   );

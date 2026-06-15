@@ -23,7 +23,7 @@ flowchart TD
   Primitive["Cesium Primitive<br/>RectangleGeometry + Image material"]
   Reveal["reveal/show<br/>requestRevealRender"]
   Rotation["RotationOperator<br/>ROT -> QuaternionSpline"]
-  Matrix["modelMatrix<br/>plateId + age"]
+  Matrix["modelMatrix<br/>plateId + age + anchor"]
 
   FeatureSource --> Loader
   Loader --> Reader
@@ -59,10 +59,11 @@ flowchart TD
 - `provider`：Cesium `ImageryProvider`，负责提供原始瓦片影像和 tiling scheme。
 - `processer`：`CesiumTileProcesser`，负责请求瓦片、重投影、裁剪并导出新瓦片图像。
 - `featureSource/files.polygon` 与 `rotationSources/files.rots`：分别指向板块要素文件和 ROT 旋转文件。
+- `anchorPlateId`：可选旋转锚定板块。默认值为 `"0"`，与 GPlates `ANCHOR: 0` 输出对齐；传入 `null` 时自动递归到终端板块。
 
 文件来源由 [`resolveFeatureFiles`](../src/SimpleGeoReconstructManager.ts#L266) 统一解析。它支持新接口 `featureSource` / `rotationSources`，也兼容旧接口 `files.polygon` / `files.rots`。如果缺少要素文件或 ROT 文件，会在构造期直接抛错。
 
-构造函数 [`constructor`](../src/SimpleGeoReconstructManager.ts#L334) 还会初始化当前年龄 `_currentAge`、Primitive 变换模式 `_transformMode`、瓦片请求并发数 `_tileRequestConcurrency` 和 Primitive 批量刷新大小 `_primitiveBatchSize`。这些状态会影响后续瓦片任务执行和渲染刷新节奏。
+构造函数 [`constructor`](../src/SimpleGeoReconstructManager.ts#L334) 还会初始化当前年龄 `_currentAge`、Primitive 变换模式 `_transformMode`、旋转锚定板块、瓦片请求并发数 `_tileRequestConcurrency` 和 Primitive 批量刷新大小 `_primitiveBatchSize`。这些状态会影响后续瓦片任务执行和渲染刷新节奏。
 
 运行中最重要的内部数据结构是：
 
@@ -158,9 +159,11 @@ ROT 每行会被解析成：
 - rotation pole：`latitude`、`longitude`、`angle`
 - `relatedId`
 
-`RotationOperator` 会把同一个 `plateId` 的旋转记录转成 `QuaternionSpline`。后续 [`getRotateMatrix`](../../plates-rotation-operator/src/RotationOperator.ts#L63) 会按 `plateId + age` 取得旋转矩阵；[`rotatePointToModern`](../../plates-rotation-operator/src/RotationOperator.ts#L71) 则用逆旋转把当前视野包围球转回现代坐标，用于四叉树查询。
+`RotationOperator` 会把同一个 `plateId` 的旋转记录转成 `QuaternionSpline`，并在递归组合旋转时使用 `anchorPlateId` 控制递归停止位置。默认配置为 `anchorPlateId = "0"`，与 GPlates 常用 `ANCHOR: 0` 参考输出对齐；当 ROT 链路遇到 `000 -> 666666` 这类参考系转换行时，递归会在 plate `0` 处停止并返回 identity quaternion，不再把更深层的参考系旋转乘入。若显式传入 `anchorPlateId = null`，则进入自动递归到底模式，保留旧行为；若传入其他字符串 ID，则递归遇到该 plate ID 时停止。比较时会规范化数字 ID，因此 `"0"` 与 `"000"` 等价。
 
-在管理器中，旋转矩阵由 [`getCachedModelMatrix`](../src/SimpleGeoReconstructManager.ts#L1696) 获取并缓存，缓存键是 `${plateId}:${age}`。矩阵主要有三处用途：
+后续 [`getRotateMatrix`](../../plates-rotation-operator/src/RotationOperator.ts#L63) 会按 `plateId + age + anchorPlateId` 取得旋转矩阵；[`getInverseRotateMatrix`](../../plates-rotation-operator/src/RotationOperator.ts#L67) 和 [`rotatePointToModern`](../../plates-rotation-operator/src/RotationOperator.ts#L71) 使用同一 anchor 语义。也就是说，anchor 设置不仅影响 Primitive 的渲染矩阵，也影响视野内精细加载时把当前视野包围球逆旋转回现代坐标的四叉树查询。
+
+在管理器中，旋转矩阵由 [`getCachedModelMatrix`](../src/SimpleGeoReconstructManager.ts#L1696) 获取并缓存，缓存键包含 `anchorPlateId`、`plateId` 和 `age`。矩阵主要有三处用途：
 
 - 视野精细加载前，`loadFineTilesInViewAtResolvedLevel` 会取得当前年龄的板块矩阵，并通过 [`updateQuadTreeBoundingSpheres`](../src/SimpleGeoReconstructManager.ts#L1679) 把每个 feature 的包围球更新到当前年龄位置，供视野过滤。
 - 首次创建或 reveal 当前 Age 可见瓦片时，矩阵会传给 [`createTilePrimitive`](../src/SimpleGeoReconstructManager.ts#L1274) 或 [`applyDynamicVisibilityAndMatrices`](../src/SimpleGeoReconstructManager.ts#L656)，把可见瓦片放到对应古地理位置。

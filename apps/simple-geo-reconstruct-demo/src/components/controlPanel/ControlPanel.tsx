@@ -33,12 +33,16 @@ export function ControlPanel(props: ControlPanelProps) {
           featurePresetKey={props.featurePresetKey}
           featurePresets={props.featurePresets}
           featureUrl={props.featureUrl}
+          anchorPlateIdInput={props.anchorPlateIdInput}
+          rotationAnchorMode={props.rotationAnchorMode}
           rotPresetKey={props.rotPresetKey}
           rotPresets={props.rotPresets}
           rotUrls={props.rotUrls}
+          onAnchorPlateIdInputChange={props.onAnchorPlateIdInputChange}
           onFeaturePresetChange={props.onFeaturePresetChange}
           onFeatureUpload={props.onFeatureUpload}
           onFeatureUrlChange={props.onFeatureUrlChange}
+          onRotationAnchorModeChange={props.onRotationAnchorModeChange}
           onRotPresetChange={props.onRotPresetChange}
           onRotUpload={props.onRotUpload}
           onRotUrlsChange={props.onRotUrlsChange}

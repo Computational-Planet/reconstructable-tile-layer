@@ -9,9 +9,12 @@ import type {
   UrlTemplateProviderConfig,
 } from "../cesium/providers";
 import {
+  DEFAULT_ANCHOR_PLATE_ID,
+  DEFAULT_ROTATION_ANCHOR_MODE,
   GPLATES_REFERENCE_POLYGON_SOURCES,
   type FeaturePresetKey,
   type GplatesReferencePolygonKey,
+  type RotationAnchorMode,
   type RotationPresetKey,
 } from "../dataSources";
 import type {
@@ -28,6 +31,12 @@ const FEATURE_PRESET_KEYS: FeaturePresetKey[] = [
 
 const ROTATION_PRESET_KEYS: RotationPresetKey[] = [
   "zahirovic-2022-optimised-mantle-rot",
+  "custom",
+];
+
+const ROTATION_ANCHOR_MODES: RotationAnchorMode[] = [
+  "default",
+  "auto",
   "custom",
 ];
 
@@ -81,6 +90,15 @@ function getString(value: Record<string, unknown>, key: string) {
   return typeof nextValue === "string" ? nextValue : undefined;
 }
 
+function getNullableString(value: Record<string, unknown>, key: string) {
+  const nextValue = value[key];
+  if (nextValue === null) {
+    return null;
+  }
+
+  return typeof nextValue === "string" ? nextValue : undefined;
+}
+
 function getBoolean(value: Record<string, unknown>, key: string) {
   const nextValue = value[key];
   return typeof nextValue === "boolean" ? nextValue : undefined;
@@ -119,6 +137,10 @@ function getEnumValue<T extends string>(
   return nextValue && options.includes(nextValue as T)
     ? (nextValue as T)
     : undefined;
+}
+
+function isZeroLikePlateId(value: string) {
+  return /^[+-]?0+$/.test(value.trim());
 }
 
 function parseExtent(value: Record<string, unknown>) {
@@ -233,6 +255,8 @@ export function parseImportedExperimentConfig(
   const camera3D = getRecord(value, "camera3D");
   const result: ImportedExperimentControlState = {
     referencePolygonKey: "off",
+    rotationAnchorMode: DEFAULT_ROTATION_ANCHOR_MODE,
+    anchorPlateId: DEFAULT_ANCHOR_PLATE_ID,
   };
   const viewConfig: ImportedExperimentControlState["experimentViewConfig"] = {};
 
@@ -306,6 +330,31 @@ export function parseImportedExperimentConfig(
       "rotationPresetKey",
       ROTATION_PRESET_KEYS,
     );
+    const importedRotationAnchorMode = getEnumValue(
+      sources,
+      "rotationAnchorMode",
+      ROTATION_ANCHOR_MODES,
+    );
+    const importedAnchorPlateId = getNullableString(sources, "anchorPlateId");
+    if (importedRotationAnchorMode) {
+      result.rotationAnchorMode = importedRotationAnchorMode;
+      if (importedRotationAnchorMode === "default") {
+        result.anchorPlateId = DEFAULT_ANCHOR_PLATE_ID;
+      } else if (importedRotationAnchorMode === "auto") {
+        result.anchorPlateId = null;
+      } else {
+        result.anchorPlateId =
+          importedAnchorPlateId ?? DEFAULT_ANCHOR_PLATE_ID;
+      }
+    } else if (importedAnchorPlateId !== undefined) {
+      result.anchorPlateId = importedAnchorPlateId;
+      result.rotationAnchorMode =
+        importedAnchorPlateId === null
+          ? "auto"
+          : isZeroLikePlateId(importedAnchorPlateId)
+            ? "default"
+            : "custom";
+    }
     result.rotUrls =
       getStringArray(sources, "rotUrls") ??
       getStringArray(value, "rotationFiles");

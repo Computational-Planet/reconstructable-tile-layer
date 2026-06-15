@@ -18,20 +18,35 @@ export function convertFileContentToJson(content: string) {
   const res: Record<string, RotItem[]> = {};
 
   lines.forEach((line) => {
+    const dataLine = line.split("!")[0]?.trim();
+    if (!dataLine) return;
+
     const [plateId, age, rotationLat, rotationLon, rotationAngle, relatedId] =
-      line.trim().split(/\s+/);
-    if (!plateId || typeof +age !== "number") return;
+      dataLine.split(/\s+/);
+    const parsedAge = Number(age);
+    const parsedLatitude = Number(rotationLat);
+    const parsedLongitude = Number(rotationLon);
+    const parsedAngle = Number(rotationAngle);
+    if (
+      !plateId ||
+      !relatedId ||
+      !Number.isFinite(parsedAge) ||
+      !Number.isFinite(parsedLatitude) ||
+      !Number.isFinite(parsedLongitude) ||
+      !Number.isFinite(parsedAngle)
+    )
+      return;
 
     if (!res[plateId]) {
       res[plateId] = [];
     }
     const data = {
       plateId: plateId,
-      age: Number(age),
+      age: parsedAge,
       rotation: {
-        latitude: Number(rotationLat),
-        longitude: Number(rotationLon),
-        angle: Number(rotationAngle),
+        latitude: parsedLatitude,
+        longitude: parsedLongitude,
+        angle: parsedAngle,
       },
       relatedId: relatedId,
     };

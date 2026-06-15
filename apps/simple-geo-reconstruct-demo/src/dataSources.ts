@@ -7,6 +7,8 @@ export type RotationPresetKey =
   | "zahirovic-2022-optimised-mantle-rot"
   | "custom";
 
+export type RotationAnchorMode = "default" | "auto" | "custom";
+
 export type GplatesReferencePolygonKey =
   | "off"
   | "reconstructed-0"
@@ -116,6 +118,8 @@ export const GPLATES_REFERENCE_POLYGON_SOURCES: GplatesReferencePolygonSource[] 
 
 export const DEFAULT_FEATURE_PRESET = FEATURE_PRESETS[0];
 export const DEFAULT_ROTATION_PRESET = ROTATION_PRESETS[0];
+export const DEFAULT_ROTATION_ANCHOR_MODE: RotationAnchorMode = "default";
+export const DEFAULT_ANCHOR_PLATE_ID = "0";
 export const DEFAULT_GPLATES_REFERENCE_POLYGON_KEY: GplatesReferencePolygonKey =
   "off";
 

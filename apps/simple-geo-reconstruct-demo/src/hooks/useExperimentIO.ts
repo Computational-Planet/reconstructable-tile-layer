@@ -21,8 +21,10 @@ import type {
 import type {
   FeaturePresetKey,
   GplatesReferencePolygonKey,
+  RotationAnchorMode,
   RotationPresetKey,
 } from "../dataSources";
+import { DEFAULT_ANCHOR_PLATE_ID } from "../dataSources";
 import {
   createExperimentExportInfo,
   createExportBaseName,
@@ -55,6 +57,8 @@ type UseExperimentIOOptions = {
   primitiveTransformMode: PrimitiveTransformMode;
   providerKey: ProviderKey;
   referencePolygonKey: GplatesReferencePolygonKey;
+  rotationAnchorMode: RotationAnchorMode;
+  anchorPlateId: string | null;
   rotationSources: string[];
   rotPresetKey: RotationPresetKey;
   setAge: (value: number) => void;
@@ -74,6 +78,8 @@ type UseExperimentIOOptions = {
   setPrimitiveTransformMode: (value: PrimitiveTransformMode) => void;
   setProviderKey: (value: ProviderKey) => void;
   setReferencePolygonKey: (value: GplatesReferencePolygonKey) => void;
+  setRotationAnchorMode: (value: RotationAnchorMode) => void;
+  setAnchorPlateIdInput: (value: string) => void;
   setStatus: (value: string) => void;
   stats: GeoTileStats | null;
   status: string;
@@ -98,6 +104,8 @@ export function useExperimentIO({
   primitiveTransformMode,
   providerKey,
   referencePolygonKey,
+  rotationAnchorMode,
+  anchorPlateId,
   rotationSources,
   rotPresetKey,
   setAge,
@@ -113,6 +121,8 @@ export function useExperimentIO({
   setPrimitiveTransformMode,
   setProviderKey,
   setReferencePolygonKey,
+  setRotationAnchorMode,
+  setAnchorPlateIdInput,
   setStatus,
   stats,
   status,
@@ -141,6 +151,8 @@ export function useExperimentIO({
         primitiveTransformMode,
         providerKey,
         referencePolygonKey,
+        rotationAnchorMode,
+        anchorPlateId,
         rotationFiles: rotationSources,
         rotPresetKey,
         stats,
@@ -213,6 +225,14 @@ export function useExperimentIO({
       }
       if (importedConfig.referencePolygonKey) {
         setReferencePolygonKey(importedConfig.referencePolygonKey);
+      }
+      if (importedConfig.rotationAnchorMode) {
+        setRotationAnchorMode(importedConfig.rotationAnchorMode);
+      }
+      if (importedConfig.anchorPlateId !== undefined) {
+        setAnchorPlateIdInput(
+          importedConfig.anchorPlateId ?? DEFAULT_ANCHOR_PLATE_ID,
+        );
       }
 
       applyImportedFeatureSource(

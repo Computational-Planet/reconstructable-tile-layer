@@ -21,11 +21,14 @@ import {
 } from "./cesium/providers";
 import { ControlPanel } from "./components/ControlPanel";
 import {
+  DEFAULT_ANCHOR_PLATE_ID,
   DEFAULT_GPLATES_REFERENCE_POLYGON_KEY,
+  DEFAULT_ROTATION_ANCHOR_MODE,
   FEATURE_PRESETS,
   GPLATES_REFERENCE_POLYGON_SOURCES,
   ROTATION_PRESETS,
   type GplatesReferencePolygonKey,
+  type RotationAnchorMode,
 } from "./dataSources";
 import {
   createDefaultExperimentViewConfig,
@@ -56,6 +59,11 @@ function App() {
     useState<ProviderKey>(DEFAULT_PROVIDER_KEY);
   const [referencePolygonKey, setReferencePolygonKey] =
     useState<GplatesReferencePolygonKey>(DEFAULT_GPLATES_REFERENCE_POLYGON_KEY);
+  const [rotationAnchorMode, setRotationAnchorMode] =
+    useState<RotationAnchorMode>(DEFAULT_ROTATION_ANCHOR_MODE);
+  const [anchorPlateIdInput, setAnchorPlateIdInput] = useState(
+    DEFAULT_ANCHOR_PLATE_ID,
+  );
   const [customProviderConfig, setCustomProviderConfig] =
     useState<UrlTemplateProviderConfig>(DEFAULT_CUSTOM_PROVIDER_CONFIG);
   const [customProviderError, setCustomProviderError] = useState("");
@@ -102,8 +110,16 @@ function App() {
     viewerRef,
   });
 
+  const resolvedAnchorPlateId =
+    rotationAnchorMode === "auto"
+      ? null
+      : rotationAnchorMode === "default"
+        ? DEFAULT_ANCHOR_PLATE_ID
+        : anchorPlateIdInput.trim();
+
   const reconstructActions = useReconstructActions({
     age,
+    anchorPlateId: resolvedAnchorPlateId,
     customProviderConfig,
     featureUrl: dataSourceControls.featureUrl,
     initialized,
@@ -142,6 +158,8 @@ function App() {
     primitiveTransformMode,
     providerKey,
     referencePolygonKey,
+    rotationAnchorMode,
+    anchorPlateId: resolvedAnchorPlateId,
     rotationSources: dataSourceControls.rotationSources,
     rotPresetKey: dataSourceControls.rotPresetKey,
     setAge,
@@ -157,6 +175,8 @@ function App() {
     setPrimitiveTransformMode: setPrimitiveTransformModeState,
     setProviderKey,
     setReferencePolygonKey,
+    setRotationAnchorMode,
+    setAnchorPlateIdInput,
     setStatus,
     stats,
     status,
@@ -260,6 +280,7 @@ function App() {
         featurePresets={FEATURE_PRESETS}
         featureUrl={dataSourceControls.featureUrl}
         globeBaseColor={globeBaseColor}
+        anchorPlateIdInput={anchorPlateIdInput}
         initialized={initialized}
         level={level}
         polygonRenderIntent={polygonRenderIntent}
@@ -267,6 +288,7 @@ function App() {
         providerKey={providerKey}
         referencePolygonKey={referencePolygonKey}
         referencePolygonSources={GPLATES_REFERENCE_POLYGON_SOURCES}
+        rotationAnchorMode={rotationAnchorMode}
         rotPresetKey={dataSourceControls.rotPresetKey}
         rotPresets={ROTATION_PRESETS}
         rotUrls={dataSourceControls.rotUrls}
@@ -280,6 +302,7 @@ function App() {
         onApplyTransformMode={reconstructActions.handleApplyTransformMode}
         onCaptureScreenshot={experimentIO.handleCaptureScreenshot}
         onClear={reconstructActions.handleClear}
+        onAnchorPlateIdInputChange={setAnchorPlateIdInput}
         onCustomProviderConfigChange={setCustomProviderConfig}
         onDebugEnabledChange={setDebugEnabled}
         onExperimentSceneModeChange={handleExperimentSceneModeChange}
@@ -299,6 +322,7 @@ function App() {
         onPrimitiveTransformModeChange={setPrimitiveTransformModeState}
         onProviderKeyChange={setProviderKey}
         onReferencePolygonKeyChange={setReferencePolygonKey}
+        onRotationAnchorModeChange={setRotationAnchorMode}
         onRotPresetChange={dataSourceControls.handleRotPresetChange}
         onRotUpload={dataSourceControls.handleRotUpload}
         onRotUrlsChange={dataSourceControls.handleRotUrlsChange}

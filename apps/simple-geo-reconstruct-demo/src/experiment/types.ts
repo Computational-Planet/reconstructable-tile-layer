@@ -13,6 +13,7 @@ import type {
 import type {
   FeaturePresetKey,
   GplatesReferencePolygonKey,
+  RotationAnchorMode,
   RotationPresetKey,
 } from "../dataSources";
 
@@ -93,6 +94,8 @@ export type ExperimentExportInfo = {
     featureUrl: string;
     gplatesReferencePolygonKey: GplatesReferencePolygonKey;
     gplatesReferencePolygonUrl: string | null;
+    rotationAnchorMode: RotationAnchorMode;
+    anchorPlateId: string | null;
     rotationPresetKey: RotationPresetKey;
     rotUrls: string[];
     providerKey: ProviderKey;
@@ -144,6 +147,8 @@ export type ImportedExperimentControlState = {
   primitiveTransformMode?: PrimitiveTransformMode;
   providerKey?: ProviderKey;
   referencePolygonKey?: GplatesReferencePolygonKey;
+  rotationAnchorMode?: RotationAnchorMode;
+  anchorPlateId?: string | null;
   rotPresetKey?: RotationPresetKey;
   rotUrls?: string[];
 };

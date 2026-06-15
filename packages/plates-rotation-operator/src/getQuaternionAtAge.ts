@@ -2,11 +2,39 @@ import { Quaternion } from "cesium";
 
 import type { RotSplineItem } from "./handleRot";
 
+export type AnchorPlateId = string | null;
+
+function normalizePlateIdForComparison(plateId: string) {
+  const trimmed = plateId.trim();
+  if (/^[+-]?\d+$/.test(trimmed)) {
+    return String(Number(trimmed));
+  }
+
+  return trimmed;
+}
+
+function isAnchorPlateId(plateId: string, anchorPlateId: AnchorPlateId) {
+  return (
+    anchorPlateId !== null &&
+    normalizePlateIdForComparison(plateId) ===
+      normalizePlateIdForComparison(anchorPlateId)
+  );
+}
+
+function createIdentityQuaternion() {
+  return new Quaternion(0, 0, 0, 1);
+}
+
 export function getQuaternionAtAge(
   plateId: string,
   rotSplineData: Map<string, RotSplineItem>,
   age: number,
+  anchorPlateId: AnchorPlateId = "0",
 ): Quaternion | null {
+  if (isAnchorPlateId(plateId, anchorPlateId)) {
+    return createIdentityQuaternion();
+  }
+
   const rotSplineItem = rotSplineData.get(plateId);
 
   if (!rotSplineItem) {
@@ -31,11 +59,16 @@ export function getQuaternionAtAge(
 
   const relatedId = item.relatedId;
   if (!spline) {
-    return getQuaternionAtAge(relatedId, rotSplineData, age);
+    return getQuaternionAtAge(relatedId, rotSplineData, age, anchorPlateId);
   }
 
   const rotationQuaternion = spline.evaluate(time);
-  const relatedQuaternion = getQuaternionAtAge(relatedId, rotSplineData, age);
+  const relatedQuaternion = getQuaternionAtAge(
+    relatedId,
+    rotSplineData,
+    age,
+    anchorPlateId,
+  );
   if (relatedQuaternion) {
     return quaternionMultiply(relatedQuaternion, rotationQuaternion);
   } else {

@@ -25,6 +25,7 @@ import {
   getGplatesReferencePolygonSource,
   type FeaturePresetKey,
   type GplatesReferencePolygonKey,
+  type RotationAnchorMode,
   type RotationPresetKey,
 } from "../dataSources";
 import { roundNumber } from "../utils/numbers";
@@ -45,6 +46,8 @@ export type ExperimentExportContext = {
   primitiveTransformMode: PrimitiveTransformMode;
   providerKey: ProviderKey;
   referencePolygonKey: GplatesReferencePolygonKey;
+  rotationAnchorMode: RotationAnchorMode;
+  anchorPlateId: string | null;
   rotationFiles: string[];
   rotPresetKey: RotationPresetKey;
   stats: GeoTileStats | null;
@@ -157,6 +160,8 @@ export function createExperimentExportInfo(
       featureUrl: context.featureUrl,
       gplatesReferencePolygonKey: context.referencePolygonKey,
       gplatesReferencePolygonUrl: referencePolygonSource?.url ?? null,
+      rotationAnchorMode: context.rotationAnchorMode,
+      anchorPlateId: context.anchorPlateId,
       rotationPresetKey: context.rotPresetKey,
       rotUrls: context.rotationFiles,
       providerKey: context.providerKey,

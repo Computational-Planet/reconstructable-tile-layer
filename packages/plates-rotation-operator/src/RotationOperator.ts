@@ -11,6 +11,7 @@ import {
   getRotateMatirxAtAge,
   rotatePointToModern,
 } from "./rotate";
+import type { AnchorPlateId } from "./getQuaternionAtAge";
 
 export type RotItem = {
   plateId: string;
@@ -29,16 +30,24 @@ export type RotSplineItem = {
 };
 
 export type RotationOperatorOptions = {
+  anchorPlateId?: AnchorPlateId;
   referenceEllipsoid?: Ellipsoid;
 };
 
 export class RotationOperator {
   rotData: Map<string, RotSplineItem> = new Map<string, RotSplineItem>()
   private _ready: boolean = false
+  private _anchorPlateId: AnchorPlateId
   private _referenceEllipsoid: Ellipsoid
 
   constructor(options: RotationOperatorOptions = {}) {
+    this._anchorPlateId =
+      options.anchorPlateId === undefined ? "0" : options.anchorPlateId;
     this._referenceEllipsoid = options.referenceEllipsoid ?? Ellipsoid.default;
+  }
+
+  get anchorPlateId() {
+    return this._anchorPlateId;
   }
 
   get ready() {
@@ -92,14 +101,30 @@ export class RotationOperator {
   }
 
   async getRotateMatrix(plateId: string, age: number) {
-    return getRotateMatirxAtAge(plateId, this.rotData, age);
+    return getRotateMatirxAtAge(
+      plateId,
+      this.rotData,
+      age,
+      this._anchorPlateId,
+    );
   }
 
   async getInverseRotateMatrix(plateId: string, age: number) {
-    return getInverseRotateMatrixAtAge(plateId, this.rotData, age);
+    return getInverseRotateMatrixAtAge(
+      plateId,
+      this.rotData,
+      age,
+      this._anchorPlateId,
+    );
   }
 
   async rotatePointToModern(point: Cartesian3, plateId: string, age: number) {
-    return rotatePointToModern(point, plateId, this.rotData, age);
+    return rotatePointToModern(
+      point,
+      plateId,
+      this.rotData,
+      age,
+      this._anchorPlateId,
+    );
   }
 }

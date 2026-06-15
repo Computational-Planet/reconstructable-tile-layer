@@ -14,6 +14,7 @@ import type {
   FeaturePresetKey,
   GplatesReferencePolygonKey,
   GplatesReferencePolygonSource,
+  RotationAnchorMode,
   RotationPreset,
   RotationPresetKey,
 } from "../../dataSources";
@@ -37,6 +38,8 @@ export type ControlPanelProps = {
   polygonRenderIntent: PolygonRenderIntentMode;
   primitiveTransformMode: PrimitiveTransformMode;
   providerKey: ProviderKey;
+  rotationAnchorMode: RotationAnchorMode;
+  anchorPlateIdInput: string;
   rotPresetKey: RotationPresetKey;
   rotPresets: RotationPreset[];
   rotUrls: string;
@@ -69,6 +72,8 @@ export type ControlPanelProps = {
   onPrimitiveTransformModeChange: (value: PrimitiveTransformMode) => void;
   onProviderKeyChange: (value: ProviderKey) => void;
   onReferencePolygonKeyChange: (value: GplatesReferencePolygonKey) => void;
+  onRotationAnchorModeChange: (value: RotationAnchorMode) => void;
+  onAnchorPlateIdInputChange: (value: string) => void;
   onRotPresetChange: (value: RotationPresetKey) => void;
   onRotUpload: (files: FileList | null) => void;
   onRotUrlsChange: (value: string) => void;

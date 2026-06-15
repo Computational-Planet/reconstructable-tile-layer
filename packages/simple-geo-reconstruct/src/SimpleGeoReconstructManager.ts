@@ -14,7 +14,10 @@
   SceneMode,
   Viewer,
 } from "cesium";
-import { RotationOperator } from "plates-rotation-operator";
+import {
+  RotationOperator,
+  type AnchorPlateId,
+} from "plates-rotation-operator";
 import {
   NodeInfo,
   QuadTreeTileProcesser,
@@ -237,6 +240,7 @@ export interface ResolvedFeatureFiles {
 export interface SimpleGeoReconstructManagerConstructorOptions {
   provider: ImageryProvider;
   processer: CesiumTileProcesser;
+  anchorPlateId?: AnchorPlateId;
   files?: ResolvedFeatureFiles;
   featureSource?: string | FeatureSourceConfig;
   rotationSources?: string[];
@@ -338,6 +342,7 @@ export class SimpleGeoReconstructManager {
     this._referenceEllipsoid =
       data.referenceEllipsoid ?? data.provider.tilingScheme.ellipsoid;
     this.rotationOperator = new RotationOperator({
+      anchorPlateId: data.anchorPlateId,
       referenceEllipsoid: this._referenceEllipsoid,
     });
     this._currentAge = data.initialAge ?? 0;
@@ -1694,7 +1699,8 @@ export class SimpleGeoReconstructManager {
   }
 
   private async getCachedModelMatrix(plateId: string, age: number) {
-    const cacheKey = `${plateId}:${age}`;
+    const anchorKey = this.rotationOperator.anchorPlateId ?? "auto";
+    const cacheKey = `${anchorKey}:${plateId}:${age}`;
     const cachedMatrix = this._rotationMatrixCache.get(cacheKey);
     if (cachedMatrix) {
       return cachedMatrix;
