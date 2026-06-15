@@ -16,8 +16,7 @@ export type GplatesReferencePolygonKey =
   | "reconstructed-50"
   | "reconstructed-120"
   | "reconstructed-200"
-  | "reconstructed-400"
-  | "reconstructed-600";
+  | "reconstructed-400";
 
 export type FeaturePreset = {
   key: FeaturePresetKey;
@@ -65,7 +64,9 @@ export const ROTATION_PRESETS: RotationPreset[] = [
   {
     key: "zahirovic-2022-optimised-mantle-rot",
     label: "Zahirovic et al. (2022) optimised mantle ROT",
-    urls: ["/rotations/Zahirovic_etal_2022_OptimisedMantleRef_and_NNRMantleRef.rot"],
+    urls: [
+      "/rotations/Zahirovic_etal_2022_OptimisedMantleRef_and_NNRMantleRef.rot",
+    ],
     citation:
       "Rotation model: cite Zahirovic et al. (2022). " +
       GPLATES_25_GEODATA_CITATION,
@@ -108,11 +109,6 @@ export const GPLATES_REFERENCE_POLYGON_SOURCES: GplatesReferencePolygonSource[] 
       key: "reconstructed-400",
       label: "GPlates reconstructed 400 Ma",
       url: "/gplates_ref/geojson/reconstructed_400.00Ma.geojson",
-    },
-    {
-      key: "reconstructed-600",
-      label: "GPlates reconstructed 600 Ma",
-      url: "/gplates_ref/geojson/reconstructed_600.00Ma.geojson",
     },
   ];
 
