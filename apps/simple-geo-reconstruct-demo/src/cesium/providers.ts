@@ -9,6 +9,7 @@ import {
 
 export type ProviderKey =
   | "gplates-topography-4326"
+  | "gplates-topography-3857"
   | "arcgis-world-imagery"
   | "mars-viking-4326"
   | "custom-url-template";
@@ -27,8 +28,9 @@ export type ImageryProviderReferenceOptions = {
 };
 
 export const DEFAULT_PROVIDER_KEY: ProviderKey = "gplates-topography-4326";
-const GPLATES_TOPOGRAPHY_TILE_URL =
-  "/tiles/Gplates_Topography/{z}/{x}/{y}.png";
+const GPLATES_TOPOGRAPHY_TILE_URL = "/tiles/Gplates_Topography/{z}/{x}/{y}.png";
+const GPLATES_TOPOGRAPHY_3857_URL =
+  "/tiles/Gplates_Topography_3857/{z}/{x}/{y}.png";
 
 export const DEFAULT_CUSTOM_PROVIDER_CONFIG: UrlTemplateProviderConfig = {
   url: "",
@@ -42,6 +44,7 @@ export const PROVIDER_OPTIONS: Array<{
   label: string;
 }> = [
   { key: "gplates-topography-4326", label: "GPlates Topography (4326)" },
+  { key: "gplates-topography-3857", label: "GPlates Topography (3857)" },
   { key: "arcgis-world-imagery", label: "ArcGIS World Imagery (3857)" },
   { key: "mars-viking-4326", label: "Mars Viking Mosaic (4326)" },
   { key: "custom-url-template", label: "Custom URL Template" },
@@ -131,6 +134,15 @@ export function createImageryProvider(
     return new UrlTemplateImageryProvider({
       url: GPLATES_TOPOGRAPHY_TILE_URL,
       tilingScheme: new GeographicTilingScheme({ ellipsoid }),
+      minimumLevel: 0,
+      maximumLevel: 4,
+    });
+  }
+
+  if (key === "gplates-topography-3857") {
+    return new UrlTemplateImageryProvider({
+      url: GPLATES_TOPOGRAPHY_3857_URL,
+      tilingScheme: new WebMercatorTilingScheme({ ellipsoid }),
       minimumLevel: 0,
       maximumLevel: 4,
     });
