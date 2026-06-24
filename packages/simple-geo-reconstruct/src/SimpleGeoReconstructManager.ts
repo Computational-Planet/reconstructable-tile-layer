@@ -9,6 +9,7 @@
   Material,
   Matrix4,
   Primitive,
+  PrimitiveCollection,
   Rectangle,
   RectangleGeometry,
   SceneMode,
@@ -334,6 +335,8 @@ export class SimpleGeoReconstructManager {
   private _sceneModeCleanup: (() => void) | null = null;
   private _tileRequestConcurrency = DEFAULT_TILE_REQUEST_CONCURRENCY;
   private _primitiveBatchSize = DEFAULT_PRIMITIVE_BATCH_SIZE;
+  private _tileRootPrimitiveCollection: PrimitiveCollection | null = null;
+  private _platePrimitiveCollections = new Map<string, PrimitiveCollection>();
 
   constructor(data: SimpleGeoReconstructManagerConstructorOptions) {
     this._provider = data.provider;
@@ -656,6 +659,90 @@ export class SimpleGeoReconstructManager {
       rebuildToken,
       removeBeforeBuild: false,
     });
+  }
+
+  private getOrCreateTileRootPrimitiveCollection(
+    viewer: Viewer
+  ): PrimitiveCollection {
+    if (
+      this._tileRootPrimitiveCollection &&
+      viewer.scene.primitives.contains(this._tileRootPrimitiveCollection)
+    ) {
+      return this._tileRootPrimitiveCollection;
+    }
+
+    this._platePrimitiveCollections.clear();
+    const rootCollection = viewer.scene.primitives.add(
+      new PrimitiveCollection()
+    ) as PrimitiveCollection;
+    this._tileRootPrimitiveCollection = rootCollection;
+    return rootCollection;
+  }
+
+  private getOrCreatePlatePrimitiveCollection(
+    viewer: Viewer,
+    plateId: string
+  ) {
+    const rootCollection =
+      this.getOrCreateTileRootPrimitiveCollection(viewer);
+    const existingCollection = this._platePrimitiveCollections.get(plateId);
+    if (
+      existingCollection &&
+      !existingCollection.isDestroyed() &&
+      rootCollection.contains(existingCollection)
+    ) {
+      return existingCollection;
+    }
+
+    this._platePrimitiveCollections.delete(plateId);
+    const sortedExistingPlateIds = Array.from(
+      this._platePrimitiveCollections.keys()
+    ).sort(comparePlateIds);
+    const insertIndex = sortedExistingPlateIds.findIndex(
+      (existingPlateId) => comparePlateIds(plateId, existingPlateId) < 0
+    );
+    const plateCollection = new PrimitiveCollection();
+    rootCollection.add(
+      plateCollection,
+      insertIndex === -1 ? sortedExistingPlateIds.length : insertIndex
+    );
+    this._platePrimitiveCollections.set(plateId, plateCollection);
+    return plateCollection;
+  }
+
+  private addTilePrimitiveToScene(
+    viewer: Viewer,
+    plateId: string,
+    primitive: Primitive
+  ) {
+    return this.getOrCreatePlatePrimitiveCollection(viewer, plateId).add(
+      primitive
+    ) as Primitive;
+  }
+
+  private removeTilePrimitiveCollections(viewer: Viewer) {
+    const rootCollection = this._tileRootPrimitiveCollection;
+    if (
+      rootCollection &&
+      !rootCollection.isDestroyed() &&
+      viewer.scene.primitives.contains(rootCollection)
+    ) {
+      viewer.scene.primitives.remove(rootCollection);
+    } else {
+      this._platePrimitiveCollections.forEach((plateCollection) => {
+        if (!plateCollection.isDestroyed()) {
+          plateCollection.removeAll();
+        }
+      });
+    }
+
+    this._tileRootPrimitiveCollection = null;
+    this._platePrimitiveCollections.clear();
+  }
+
+  private clearTilePrimitiveCollectionReferences() {
+    this._tileRootPrimitiveCollection = null;
+    this._platePrimitiveCollections.clear();
   }
 
   private applyDynamicVisibilityAndMatrices(
@@ -1035,7 +1122,9 @@ export class SimpleGeoReconstructManager {
                 return;
               }
 
-              primitive = viewer.scene.primitives.add(
+              primitive = this.addTilePrimitiveToScene(
+                viewer,
+                task.plateId,
                 this.createTilePrimitive(
                   task.tileId,
                   task,
@@ -1832,7 +1921,11 @@ export class SimpleGeoReconstructManager {
         visible,
         mode
       );
-      tileRecord.primitive = viewer.scene.primitives.add(primitive);
+      tileRecord.primitive = this.addTilePrimitiveToScene(
+        viewer,
+        tileRecord.plateId,
+        primitive
+      );
 
       addedCount++;
       if (addedCount % this._primitiveBatchSize === 0) {
@@ -1893,7 +1986,11 @@ export class SimpleGeoReconstructManager {
         false,
         options.mode
       );
-      tileRecord.primitive = viewer.scene.primitives.add(primitive);
+      tileRecord.primitive = this.addTilePrimitiveToScene(
+        viewer,
+        tileRecord.plateId,
+        primitive
+      );
 
       addedCount++;
       if (addedCount % this._primitiveBatchSize === 0) {
@@ -1915,9 +2012,19 @@ export class SimpleGeoReconstructManager {
   }
 
   private removePrimitiveInstances(viewer: Viewer) {
+    if (this._tileRootPrimitiveCollection) {
+      this._platePrimitiveCollections.forEach((plateCollection) => {
+        if (!plateCollection.isDestroyed()) {
+          plateCollection.removeAll();
+        }
+      });
+    }
+
     this.getAllTilePrimitiveRecords().forEach((tileRecord) => {
       if (tileRecord.primitive) {
-        viewer.scene.primitives.remove(tileRecord.primitive);
+        if (viewer.scene.primitives.contains(tileRecord.primitive)) {
+          viewer.scene.primitives.remove(tileRecord.primitive);
+        }
         tileRecord.primitive = null;
       }
     });
@@ -1932,11 +2039,9 @@ export class SimpleGeoReconstructManager {
   }
 
   private removeAllPrimitives(viewer: Viewer) {
+    this.removeTilePrimitiveCollections(viewer);
     this._compositeTileRecords.forEach((tileRecord) => {
-      if (tileRecord.primitive) {
-        viewer.scene.primitives.remove(tileRecord.primitive);
-        tileRecord.primitive = null;
-      }
+      tileRecord.primitive = null;
       tileRecord.imageAsset.release();
     });
     this._compositeTileRecords.clear();
@@ -1948,6 +2053,7 @@ export class SimpleGeoReconstructManager {
   }
 
   private releaseAllTileAssets() {
+    this.clearTilePrimitiveCollectionReferences();
     this._compositeTileRecords.forEach((tileRecord) => {
       tileRecord.primitive = null;
       tileRecord.imageAsset.release();
@@ -1985,6 +2091,27 @@ export class SimpleGeoReconstructManager {
 function getEllipsoidKey(ellipsoid: Ellipsoid) {
   const { x, y, z } = ellipsoid.radii;
   return `${x},${y},${z}`;
+}
+
+function comparePlateIds(left: string, right: string) {
+  const leftNumber = Number(left);
+  const rightNumber = Number(right);
+  const leftIsNumeric = Number.isFinite(leftNumber);
+  const rightIsNumeric = Number.isFinite(rightNumber);
+
+  if (leftIsNumeric && rightIsNumeric && leftNumber !== rightNumber) {
+    return leftNumber - rightNumber;
+  }
+  if (leftIsNumeric !== rightIsNumeric) {
+    return leftIsNumeric ? -1 : 1;
+  }
+  if (left < right) {
+    return -1;
+  }
+  if (left > right) {
+    return 1;
+  }
+  return 0;
 }
 
 function isDeepTimeGeoDebugEnabled() {
