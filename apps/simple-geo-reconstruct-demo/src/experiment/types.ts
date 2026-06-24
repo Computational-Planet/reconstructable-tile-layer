@@ -92,6 +92,7 @@ export type ExperimentExportInfo = {
   sources: {
     featurePresetKey: FeaturePresetKey;
     featureUrl: string;
+    gplatesReferencePolygonColor: string;
     gplatesReferencePolygonKey: GplatesReferencePolygonKey;
     gplatesReferencePolygonUrl: string | null;
     rotationAnchorMode: RotationAnchorMode;
@@ -146,6 +147,7 @@ export type ImportedExperimentControlState = {
   polygonRenderIntent?: PolygonRenderIntentMode;
   primitiveTransformMode?: PrimitiveTransformMode;
   providerKey?: ProviderKey;
+  referencePolygonColor?: string;
   referencePolygonKey?: GplatesReferencePolygonKey;
   rotationAnchorMode?: RotationAnchorMode;
   anchorPlateId?: string | null;

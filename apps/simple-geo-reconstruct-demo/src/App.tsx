@@ -22,6 +22,7 @@ import {
 import { ControlPanel } from "./components/ControlPanel";
 import {
   DEFAULT_ANCHOR_PLATE_ID,
+  DEFAULT_GPLATES_REFERENCE_POLYGON_COLOR,
   DEFAULT_GPLATES_REFERENCE_POLYGON_KEY,
   DEFAULT_ROTATION_ANCHOR_MODE,
   FEATURE_PRESETS,
@@ -59,6 +60,9 @@ function App() {
     useState<ProviderKey>(DEFAULT_PROVIDER_KEY);
   const [referencePolygonKey, setReferencePolygonKey] =
     useState<GplatesReferencePolygonKey>(DEFAULT_GPLATES_REFERENCE_POLYGON_KEY);
+  const [referencePolygonColor, setReferencePolygonColor] = useState(
+    DEFAULT_GPLATES_REFERENCE_POLYGON_COLOR,
+  );
   const [rotationAnchorMode, setRotationAnchorMode] =
     useState<RotationAnchorMode>(DEFAULT_ROTATION_ANCHOR_MODE);
   const [anchorPlateIdInput, setAnchorPlateIdInput] = useState(
@@ -105,6 +109,7 @@ function App() {
   }, [debugEnabled]);
 
   useReferencePolygonOverlay({
+    referencePolygonColor,
     referencePolygonKey,
     setStatus,
     viewerRef,
@@ -157,6 +162,7 @@ function App() {
     polygonRenderIntent,
     primitiveTransformMode,
     providerKey,
+    referencePolygonColor,
     referencePolygonKey,
     rotationAnchorMode,
     anchorPlateId: resolvedAnchorPlateId,
@@ -174,6 +180,7 @@ function App() {
     setPolygonRenderIntent,
     setPrimitiveTransformMode: setPrimitiveTransformModeState,
     setProviderKey,
+    setReferencePolygonColor,
     setReferencePolygonKey,
     setRotationAnchorMode,
     setAnchorPlateIdInput,
@@ -286,6 +293,7 @@ function App() {
         polygonRenderIntent={polygonRenderIntent}
         primitiveTransformMode={primitiveTransformMode}
         providerKey={providerKey}
+        referencePolygonColor={referencePolygonColor}
         referencePolygonKey={referencePolygonKey}
         referencePolygonSources={GPLATES_REFERENCE_POLYGON_SOURCES}
         rotationAnchorMode={rotationAnchorMode}
@@ -321,6 +329,7 @@ function App() {
         onPolygonRenderIntentChange={setPolygonRenderIntent}
         onPrimitiveTransformModeChange={setPrimitiveTransformModeState}
         onProviderKeyChange={setProviderKey}
+        onReferencePolygonColorChange={setReferencePolygonColor}
         onReferencePolygonKeyChange={setReferencePolygonKey}
         onRotationAnchorModeChange={setRotationAnchorMode}
         onRotPresetChange={dataSourceControls.handleRotPresetChange}

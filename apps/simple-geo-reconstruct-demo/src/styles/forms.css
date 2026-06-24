@@ -195,6 +195,12 @@ button:disabled {
   gap: 10px;
 }
 
+.reference-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 42px;
+  gap: 10px;
+}
+
 .checkbox-row {
   display: flex;
   align-items: center;

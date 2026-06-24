@@ -15,6 +15,7 @@ type RenderingSectionProps = Pick<
   | "polygonRenderIntent"
   | "primitiveTransformMode"
   | "providerKey"
+  | "referencePolygonColor"
   | "referencePolygonKey"
   | "referencePolygonSources"
   | "onDebugEnabledChange"
@@ -22,6 +23,7 @@ type RenderingSectionProps = Pick<
   | "onPolygonRenderIntentChange"
   | "onPrimitiveTransformModeChange"
   | "onProviderKeyChange"
+  | "onReferencePolygonColorChange"
   | "onReferencePolygonKeyChange"
 > & {
   onConfigureCustomProvider: () => void;
@@ -33,6 +35,7 @@ export function RenderingSection({
   polygonRenderIntent,
   primitiveTransformMode,
   providerKey,
+  referencePolygonColor,
   referencePolygonKey,
   referencePolygonSources,
   onConfigureCustomProvider,
@@ -41,6 +44,7 @@ export function RenderingSection({
   onPolygonRenderIntentChange,
   onPrimitiveTransformModeChange,
   onProviderKeyChange,
+  onReferencePolygonColorChange,
   onReferencePolygonKeyChange,
 }: RenderingSectionProps) {
   return (
@@ -111,20 +115,30 @@ export function RenderingSection({
 
         <label>
           GPlates reference
-          <select
-            value={referencePolygonKey}
-            onChange={(event) =>
-              onReferencePolygonKeyChange(
-                event.target.value as GplatesReferencePolygonKey,
-              )
-            }
-          >
-            {referencePolygonSources.map((source) => (
-              <option key={source.key} value={source.key}>
-                {source.label}
-              </option>
-            ))}
-          </select>
+          <div className="reference-control">
+            <select
+              value={referencePolygonKey}
+              onChange={(event) =>
+                onReferencePolygonKeyChange(
+                  event.target.value as GplatesReferencePolygonKey,
+                )
+              }
+            >
+              {referencePolygonSources.map((source) => (
+                <option key={source.key} value={source.key}>
+                  {source.label}
+                </option>
+              ))}
+            </select>
+            <input
+              aria-label="GPlates reference color"
+              type="color"
+              value={referencePolygonColor}
+              onChange={(event) =>
+                onReferencePolygonColorChange(event.target.value)
+              }
+            />
+          </div>
         </label>
       </div>
 

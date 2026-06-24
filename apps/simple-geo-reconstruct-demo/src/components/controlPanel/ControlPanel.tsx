@@ -54,6 +54,7 @@ export function ControlPanel(props: ControlPanelProps) {
           polygonRenderIntent={props.polygonRenderIntent}
           primitiveTransformMode={props.primitiveTransformMode}
           providerKey={props.providerKey}
+          referencePolygonColor={props.referencePolygonColor}
           referencePolygonKey={props.referencePolygonKey}
           referencePolygonSources={props.referencePolygonSources}
           onConfigureCustomProvider={() => setCustomProviderDialogOpen(true)}
@@ -64,6 +65,9 @@ export function ControlPanel(props: ControlPanelProps) {
             props.onPrimitiveTransformModeChange
           }
           onProviderKeyChange={props.onProviderKeyChange}
+          onReferencePolygonColorChange={
+            props.onReferencePolygonColorChange
+          }
           onReferencePolygonKeyChange={props.onReferencePolygonKeyChange}
         />
 

@@ -56,6 +56,7 @@ type UseExperimentIOOptions = {
   polygonRenderIntent: PolygonRenderIntentMode;
   primitiveTransformMode: PrimitiveTransformMode;
   providerKey: ProviderKey;
+  referencePolygonColor: string;
   referencePolygonKey: GplatesReferencePolygonKey;
   rotationAnchorMode: RotationAnchorMode;
   anchorPlateId: string | null;
@@ -77,6 +78,7 @@ type UseExperimentIOOptions = {
   setPolygonRenderIntent: (value: PolygonRenderIntentMode) => void;
   setPrimitiveTransformMode: (value: PrimitiveTransformMode) => void;
   setProviderKey: (value: ProviderKey) => void;
+  setReferencePolygonColor: (value: string) => void;
   setReferencePolygonKey: (value: GplatesReferencePolygonKey) => void;
   setRotationAnchorMode: (value: RotationAnchorMode) => void;
   setAnchorPlateIdInput: (value: string) => void;
@@ -103,6 +105,7 @@ export function useExperimentIO({
   polygonRenderIntent,
   primitiveTransformMode,
   providerKey,
+  referencePolygonColor,
   referencePolygonKey,
   rotationAnchorMode,
   anchorPlateId,
@@ -120,6 +123,7 @@ export function useExperimentIO({
   setPolygonRenderIntent,
   setPrimitiveTransformMode,
   setProviderKey,
+  setReferencePolygonColor,
   setReferencePolygonKey,
   setRotationAnchorMode,
   setAnchorPlateIdInput,
@@ -150,6 +154,7 @@ export function useExperimentIO({
         polygonRenderIntent,
         primitiveTransformMode,
         providerKey,
+        referencePolygonColor,
         referencePolygonKey,
         rotationAnchorMode,
         anchorPlateId,
@@ -222,6 +227,9 @@ export function useExperimentIO({
       }
       if (importedConfig.providerKey) {
         setProviderKey(importedConfig.providerKey);
+      }
+      if (importedConfig.referencePolygonColor) {
+        setReferencePolygonColor(importedConfig.referencePolygonColor);
       }
       if (importedConfig.referencePolygonKey) {
         setReferencePolygonKey(importedConfig.referencePolygonKey);

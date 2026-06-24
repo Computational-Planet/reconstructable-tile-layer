@@ -45,6 +45,7 @@ export type ExperimentExportContext = {
   polygonRenderIntent: PolygonRenderIntentMode;
   primitiveTransformMode: PrimitiveTransformMode;
   providerKey: ProviderKey;
+  referencePolygonColor: string;
   referencePolygonKey: GplatesReferencePolygonKey;
   rotationAnchorMode: RotationAnchorMode;
   anchorPlateId: string | null;
@@ -158,6 +159,7 @@ export function createExperimentExportInfo(
     sources: {
       featurePresetKey: context.featurePresetKey,
       featureUrl: context.featureUrl,
+      gplatesReferencePolygonColor: context.referencePolygonColor,
       gplatesReferencePolygonKey: context.referencePolygonKey,
       gplatesReferencePolygonUrl: referencePolygonSource?.url ?? null,
       rotationAnchorMode: context.rotationAnchorMode,

@@ -10,6 +10,7 @@ import type {
 } from "../cesium/providers";
 import {
   DEFAULT_ANCHOR_PLATE_ID,
+  DEFAULT_GPLATES_REFERENCE_POLYGON_COLOR,
   DEFAULT_ROTATION_ANCHOR_MODE,
   GPLATES_REFERENCE_POLYGON_SOURCES,
   type FeaturePresetKey,
@@ -48,7 +49,6 @@ const GPLATES_REFERENCE_POLYGON_KEYS: GplatesReferencePolygonKey[] = [
   "reconstructed-120",
   "reconstructed-200",
   "reconstructed-400",
-  "reconstructed-600",
 ];
 
 const PROVIDER_KEYS: ProviderKey[] = [
@@ -141,6 +141,10 @@ function getEnumValue<T extends string>(
 
 function isZeroLikePlateId(value: string) {
   return /^[+-]?0+$/.test(value.trim());
+}
+
+function isHexColor(value: string) {
+  return /^#[0-9a-fA-F]{6}$/.test(value);
 }
 
 function parseExtent(value: Record<string, unknown>) {
@@ -254,6 +258,7 @@ export function parseImportedExperimentConfig(
   const extent = getRecord(value, "extent");
   const camera3D = getRecord(value, "camera3D");
   const result: ImportedExperimentControlState = {
+    referencePolygonColor: DEFAULT_GPLATES_REFERENCE_POLYGON_COLOR,
     referencePolygonKey: "off",
     rotationAnchorMode: DEFAULT_ROTATION_ANCHOR_MODE,
     anchorPlateId: DEFAULT_ANCHOR_PLATE_ID,
@@ -310,6 +315,13 @@ export function parseImportedExperimentConfig(
     );
     result.featureUrl =
       getString(sources, "featureUrl") ?? getString(value, "platePolygonFile");
+    const referencePolygonColor = getString(
+      sources,
+      "gplatesReferencePolygonColor",
+    );
+    if (referencePolygonColor && isHexColor(referencePolygonColor)) {
+      result.referencePolygonColor = referencePolygonColor;
+    }
     result.referencePolygonKey = getEnumValue(
       sources,
       "gplatesReferencePolygonKey",

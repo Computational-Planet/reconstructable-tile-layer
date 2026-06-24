@@ -118,6 +118,7 @@ export const DEFAULT_ROTATION_ANCHOR_MODE: RotationAnchorMode = "default";
 export const DEFAULT_ANCHOR_PLATE_ID = "0";
 export const DEFAULT_GPLATES_REFERENCE_POLYGON_KEY: GplatesReferencePolygonKey =
   "off";
+export const DEFAULT_GPLATES_REFERENCE_POLYGON_COLOR = "#E6E6E6";
 
 export function getGplatesReferencePolygonSource(
   key: GplatesReferencePolygonKey,

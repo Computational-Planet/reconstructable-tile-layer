@@ -4,6 +4,7 @@ import {
   ArcType,
   Cartesian3,
   Color,
+  ColorMaterialProperty,
   CustomDataSource,
   ShadowMode,
   type Viewer,
@@ -16,7 +17,7 @@ import {
 } from "../dataSources";
 
 const REFERENCE_DATA_SOURCE_NAME = "gplates-reference-polygons";
-const REFERENCE_LINE_COLOR = new Color(0.18, 0.92, 1, 0.82);
+const REFERENCE_LINE_ALPHA = 0.82;
 const REFERENCE_LINE_WIDTH = 1.5;
 
 type LonLatPosition = {
@@ -30,6 +31,7 @@ type ReferencePolygonLoadResult = {
 };
 
 type UseReferencePolygonOverlayOptions = {
+  referencePolygonColor: string;
   referencePolygonKey: GplatesReferencePolygonKey;
   setStatus: (value: string) => void;
   viewerRef: MutableRefObject<Viewer | null>;
@@ -71,7 +73,10 @@ function normalizeRing(rawRing: unknown) {
   return positions;
 }
 
-function appendPolygonRings(rawPolygonCoordinates: unknown, rings: LonLatPosition[][]) {
+function appendPolygonRings(
+  rawPolygonCoordinates: unknown,
+  rings: LonLatPosition[][],
+) {
   if (!Array.isArray(rawPolygonCoordinates)) {
     return;
   }
@@ -142,8 +147,26 @@ function createPolylinePositions(ring: LonLatPosition[]) {
   );
 }
 
+function createReferenceLineMaterial(color: string) {
+  return new ColorMaterialProperty(
+    Color.fromCssColorString(color).withAlpha(REFERENCE_LINE_ALPHA),
+  );
+}
+
+function applyReferenceLineColor(
+  dataSource: CustomDataSource,
+  color: string,
+) {
+  for (const entity of dataSource.entities.values) {
+    if (entity.polyline) {
+      entity.polyline.material = createReferenceLineMaterial(color);
+    }
+  }
+}
+
 async function loadReferencePolygonDataSource(
   url: string,
+  lineColor: string,
   signal: AbortSignal,
 ): Promise<ReferencePolygonLoadResult> {
   const response = await fetch(url, { signal });
@@ -171,7 +194,7 @@ async function loadReferencePolygonDataSource(
       polyline: {
         arcType: ArcType.GEODESIC,
         clampToGround: false,
-        material: REFERENCE_LINE_COLOR,
+        material: createReferenceLineMaterial(lineColor),
         positions,
         shadows: ShadowMode.DISABLED,
         width: REFERENCE_LINE_WIDTH,
@@ -198,12 +221,27 @@ function removeReferenceDataSource(
 }
 
 export function useReferencePolygonOverlay({
+  referencePolygonColor,
   referencePolygonKey,
   setStatus,
   viewerRef,
 }: UseReferencePolygonOverlayOptions) {
   const dataSourceRef = useRef<CustomDataSource | null>(null);
+  const referencePolygonColorRef = useRef(referencePolygonColor);
   const requestIdRef = useRef(0);
+
+  useEffect(() => {
+    referencePolygonColorRef.current = referencePolygonColor;
+
+    const viewer = viewerRef.current;
+    const dataSource = dataSourceRef.current;
+    if (!viewer || !dataSource) {
+      return;
+    }
+
+    applyReferenceLineColor(dataSource, referencePolygonColor);
+    viewer.scene.requestRender();
+  }, [referencePolygonColor, viewerRef]);
 
   useEffect(() => {
     const viewer = viewerRef.current;
@@ -232,6 +270,7 @@ export function useReferencePolygonOverlay({
       try {
         const result = await loadReferencePolygonDataSource(
           sourceUrl,
+          referencePolygonColorRef.current,
           abortController.signal,
         );
         const isStale =
@@ -240,6 +279,10 @@ export function useReferencePolygonOverlay({
           return;
         }
 
+        applyReferenceLineColor(
+          result.dataSource,
+          referencePolygonColorRef.current,
+        );
         await viewer.dataSources.add(result.dataSource);
         if (
           abortController.signal.aborted ||

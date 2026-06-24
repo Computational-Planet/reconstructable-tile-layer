@@ -28,6 +28,7 @@ export type ControlPanelProps = {
   featurePresets: FeaturePreset[];
   featureUrl: string;
   globeBaseColor: string;
+  referencePolygonColor: string;
   referencePolygonKey: GplatesReferencePolygonKey;
   referencePolygonSources: GplatesReferencePolygonSource[];
   customProviderConfig: UrlTemplateProviderConfig;
@@ -71,6 +72,7 @@ export type ControlPanelProps = {
   onPolygonRenderIntentChange: (value: PolygonRenderIntentMode) => void;
   onPrimitiveTransformModeChange: (value: PrimitiveTransformMode) => void;
   onProviderKeyChange: (value: ProviderKey) => void;
+  onReferencePolygonColorChange: (value: string) => void;
   onReferencePolygonKeyChange: (value: GplatesReferencePolygonKey) => void;
   onRotationAnchorModeChange: (value: RotationAnchorMode) => void;
   onAnchorPlateIdInputChange: (value: string) => void;
