@@ -823,28 +823,18 @@ export class SimpleGeoReconstructManager {
     }
 
     this._boundViewer = viewer;
-    const sameTilingScheme = this.isSameTilingSchemeType(
-      this._provider,
-      provider
-    );
     this._provider = provider;
-    const updateToken = ++this._generationToken;
+    this._generationToken++;
     this._pendingTileTokens.clear();
     this.processer.clearBuffer();
-
-    if (!sameTilingScheme) {
-      this.plates.forEach((plateItem) => {
-        plateItem.polygonQuadTrees.forEach((polygonItem) => {
-          polygonItem.quadTree.updateProvider(provider);
-        });
+    this.plates.forEach((plateItem) => {
+      plateItem.polygonQuadTrees.forEach((polygonItem) => {
+        polygonItem.quadTree.updateProvider(provider);
       });
-      this._tileListCache.clear();
-      this.removeAllPrimitives(viewer);
-      viewer.scene.requestRender();
-      return;
-    }
-
-    await this.refreshPrimitiveMaterials(viewer, provider, updateToken);
+    });
+    this._tileListCache.clear();
+    this.removeAllPrimitives(viewer);
+    viewer.scene.requestRender();
   }
 
   async setProvider(viewer: Viewer, provider: ImageryProvider) {
@@ -1205,64 +1195,6 @@ export class SimpleGeoReconstructManager {
     return visibleLoadedCount;
   }
 
-  private async refreshPrimitiveMaterials(
-    viewer: Viewer,
-    provider: ImageryProvider,
-    updateToken: number
-  ) {
-    const tileRecords = this.getAllTilePrimitiveRecords();
-    const scheduleRender = createFrameRenderScheduler(
-      viewer,
-      () => updateToken === this._generationToken
-    );
-    let updatedCount = 0;
-
-    await runStreamingWithConcurrency(
-      tileRecords,
-      this._tileRequestConcurrency,
-      async (record) => {
-        let imageAsset: TileImageAsset | null = null;
-        try {
-          if (updateToken !== this._generationToken) {
-            return;
-          }
-
-          imageAsset = await this.getReprojectedTileImageAsset(record, provider);
-          if (!imageAsset) {
-            return;
-          }
-          if (updateToken !== this._generationToken) {
-            imageAsset.release();
-            imageAsset = null;
-            return;
-          }
-
-          const previousAsset = record.imageAsset;
-          record.imageAsset = imageAsset;
-          if (record.primitive) {
-            this.applyImageMaterial(record.primitive, imageAsset.source);
-          }
-          previousAsset.release();
-          imageAsset = null;
-
-          updatedCount++;
-          if (updatedCount % this._primitiveBatchSize === 0) {
-            viewer.scene.requestRender();
-          } else {
-            scheduleRender();
-          }
-        } catch (error) {
-          imageAsset?.release();
-          console.warn("Failed to refresh tile material.", error);
-        }
-      }
-    );
-
-    if (updatedCount > 0 && updateToken === this._generationToken) {
-      viewer.scene.requestRender();
-    }
-  }
-
   private async getReprojectedTileImageAsset(
     tile: Pick<TilePrimitiveRecord, "tileXYL" | "clipAreas" | "coversFullTile">,
     provider: ImageryProvider
@@ -1405,12 +1337,6 @@ export class SimpleGeoReconstructManager {
     });
     primitive.show = visible;
     return primitive;
-  }
-
-  private applyImageMaterial(primitive: Primitive, image: string | HTMLCanvasElement) {
-    const applyStart = now();
-    primitive.appearance.material = this.createImageMaterial(image);
-    this.processer.recordMaterialApplyMs(now() - applyStart);
   }
 
   private createImageMaterial(image: string | HTMLCanvasElement) {
@@ -2064,19 +1990,6 @@ export class SimpleGeoReconstructManager {
         polygonItem.primitives = {};
       });
     });
-  }
-
-  private isSameTilingSchemeType(
-    previousProvider: ImageryProvider,
-    nextProvider: ImageryProvider
-  ) {
-    const previousTilingScheme = previousProvider.tilingScheme;
-    const nextTilingScheme = nextProvider.tilingScheme;
-    return (
-      previousTilingScheme.constructor === nextTilingScheme.constructor &&
-      getEllipsoidKey(previousTilingScheme.ellipsoid) ===
-        getEllipsoidKey(nextTilingScheme.ellipsoid)
-    );
   }
 
   private getTilingSchemeKey() {

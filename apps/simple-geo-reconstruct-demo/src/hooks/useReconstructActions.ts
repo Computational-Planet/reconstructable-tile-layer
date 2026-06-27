@@ -184,10 +184,10 @@ export function useReconstructActions({
     }
 
     setBusy(true);
-    setStatus("Refreshing loaded tile imagery...");
+    setStatus("Applying provider and clearing loaded tiles...");
     try {
       await manager.setProvider(viewer, provider);
-      setStatus("Provider applied.");
+      setStatus("Provider applied. Reload tiles for the new imagery source.");
       refreshStats();
     } catch (error) {
       console.error(error);
