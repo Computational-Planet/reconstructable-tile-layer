@@ -65,6 +65,7 @@ export function getExperimentProjection(
   if (
     providerKey === "arcgis-world-imagery" ||
     providerKey === "gmrt-topography-wms-3857" ||
+    providerKey === "nasa-gibs-blue-marble-3857" ||
     (providerKey === "custom-url-template" &&
       customProviderConfig.tilingSchemeKey === "web-mercator")
   ) {

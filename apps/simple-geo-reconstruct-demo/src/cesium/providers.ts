@@ -1,7 +1,9 @@
 import {
+  Cartesian2,
   Ellipsoid,
   GeographicTilingScheme,
   type ImageryProvider,
+  Rectangle,
   UrlTemplateImageryProvider,
   WebMapServiceImageryProvider,
   WebMapTileServiceImageryProvider,
@@ -13,6 +15,8 @@ export type ProviderKey =
   | "gplates-topography-3857"
   | "arcgis-world-imagery"
   | "gmrt-topography-wms-3857"
+  | "nasa-gibs-blue-marble-3857"
+  | "nasa-gibs-blue-marble-4326"
   | "mars-viking-4326"
   | "custom-url-template";
 
@@ -35,6 +39,13 @@ const GPLATES_TOPOGRAPHY_3857_URL =
   "/tiles/Gplates_Topography_3857/{z}/{x}/{y}.png";
 const GMRT_TOPOGRAPHY_WMS_URL =
   "https://www.gmrt.org/services/mapserver/wms_merc";
+const NASA_GIBS_BLUE_MARBLE_LAYER = "BlueMarble_ShadedRelief_Bathymetry";
+const NASA_GIBS_BLUE_MARBLE_3857_TILE_URL =
+  "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_ShadedRelief_Bathymetry/default/{TileMatrixSet}/{TileMatrix}/{TileRow}/{TileCol}.jpeg";
+const NASA_GIBS_BLUE_MARBLE_4326_TILE_URL =
+  "https://gibs.earthdata.nasa.gov/wmts/epsg4326/best/BlueMarble_ShadedRelief_Bathymetry/default/{TileMatrixSet}/{TileMatrix}/{TileRow}/{TileCol}.jpeg";
+const NASA_GIBS_4326_TILE_SIZE = 512;
+const NASA_GIBS_4326_BASE_DEGREES_PER_PIXEL = 0.5625;
 
 export const DEFAULT_CUSTOM_PROVIDER_CONFIG: UrlTemplateProviderConfig = {
   url: "",
@@ -51,6 +62,8 @@ export const PROVIDER_OPTIONS: Array<{
   { key: "gplates-topography-3857", label: "GPlates Topography (3857)" },
   { key: "arcgis-world-imagery", label: "ArcGIS World Imagery (3857)" },
   { key: "gmrt-topography-wms-3857", label: "GMRT Topography WMS (3857)" },
+  { key: "nasa-gibs-blue-marble-3857", label: "NASA GIBS Blue Marble (3857)" },
+  { key: "nasa-gibs-blue-marble-4326", label: "NASA GIBS Blue Marble (4326)" },
   { key: "mars-viking-4326", label: "Mars Viking Mosaic (4326)" },
   { key: "custom-url-template", label: "Custom URL Template" },
 ];
@@ -69,6 +82,85 @@ function createTilingScheme(
   }
 
   return new WebMercatorTilingScheme({ ellipsoid });
+}
+
+function getGibsGeographicResolution(level: number) {
+  return (NASA_GIBS_4326_BASE_DEGREES_PER_PIXEL * Math.PI) / (180 * 2 ** level);
+}
+
+function createGibsGeographicTilingScheme(ellipsoid: Ellipsoid) {
+  const tilingScheme = new GeographicTilingScheme({ ellipsoid });
+
+  // GIBS EPSG:4326 uses 512px tiles and non-power-of-two matrix widths
+  // such as 2, 3, 5, 10..., so the default GeographicTilingScheme does
+  // not match its tile row/column addressing.
+  tilingScheme.getNumberOfXTilesAtLevel = (level: number) =>
+    Math.ceil(
+      (Math.PI * 2) /
+        (NASA_GIBS_4326_TILE_SIZE * getGibsGeographicResolution(level)),
+    );
+  tilingScheme.getNumberOfYTilesAtLevel = (level: number) =>
+    Math.ceil(
+      Math.PI / (NASA_GIBS_4326_TILE_SIZE * getGibsGeographicResolution(level)),
+    );
+  tilingScheme.tileXYToRectangle = (
+    x: number,
+    y: number,
+    level: number,
+    result?: Rectangle,
+  ) => {
+    const tileRadians =
+      NASA_GIBS_4326_TILE_SIZE * getGibsGeographicResolution(level);
+    const west = -Math.PI + x * tileRadians;
+    const east = west + tileRadians;
+    const north = Math.PI / 2 - y * tileRadians;
+    const south = north - tileRadians;
+
+    if (!result) {
+      return new Rectangle(west, south, east, north);
+    }
+    result.west = west;
+    result.south = south;
+    result.east = east;
+    result.north = north;
+    return result;
+  };
+  tilingScheme.tileXYToNativeRectangle = (
+    x: number,
+    y: number,
+    level: number,
+    result?: Rectangle,
+  ) => {
+    const rectangle = tilingScheme.tileXYToRectangle(x, y, level, result);
+    rectangle.west = (rectangle.west * 180) / Math.PI;
+    rectangle.south = (rectangle.south * 180) / Math.PI;
+    rectangle.east = (rectangle.east * 180) / Math.PI;
+    rectangle.north = (rectangle.north * 180) / Math.PI;
+    return rectangle;
+  };
+  tilingScheme.positionToTileXY = (position, level, result?: Cartesian2) => {
+    const tileRadians =
+      NASA_GIBS_4326_TILE_SIZE * getGibsGeographicResolution(level);
+    const xTiles = tilingScheme.getNumberOfXTilesAtLevel(level);
+    const yTiles = tilingScheme.getNumberOfYTilesAtLevel(level);
+    const x = Math.min(
+      xTiles - 1,
+      Math.max(0, Math.floor((position.longitude + Math.PI) / tileRadians)),
+    );
+    const y = Math.min(
+      yTiles - 1,
+      Math.max(0, Math.floor((Math.PI / 2 - position.latitude) / tileRadians)),
+    );
+
+    if (!result) {
+      return new Cartesian2(x, y);
+    }
+    result.x = x;
+    result.y = y;
+    return result;
+  };
+
+  return tilingScheme;
 }
 
 export function validateUrlTemplateProviderConfig(
@@ -173,6 +265,34 @@ export function createImageryProvider(
       tilingScheme: new WebMercatorTilingScheme({ ellipsoid }),
       enablePickFeatures: false,
       credit: "GMRT",
+    });
+  }
+
+  if (key === "nasa-gibs-blue-marble-3857") {
+    return new WebMapTileServiceImageryProvider({
+      url: NASA_GIBS_BLUE_MARBLE_3857_TILE_URL,
+      layer: NASA_GIBS_BLUE_MARBLE_LAYER,
+      style: "default",
+      format: "image/jpeg",
+      tileMatrixSetID: "GoogleMapsCompatible_Level8",
+      maximumLevel: 8,
+      tilingScheme: new WebMercatorTilingScheme({ ellipsoid }),
+      credit: "NASA GIBS",
+    });
+  }
+
+  if (key === "nasa-gibs-blue-marble-4326") {
+    return new WebMapTileServiceImageryProvider({
+      url: NASA_GIBS_BLUE_MARBLE_4326_TILE_URL,
+      layer: NASA_GIBS_BLUE_MARBLE_LAYER,
+      style: "default",
+      format: "image/jpeg",
+      tileMatrixSetID: "500m",
+      tileWidth: NASA_GIBS_4326_TILE_SIZE,
+      tileHeight: NASA_GIBS_4326_TILE_SIZE,
+      maximumLevel: 7,
+      tilingScheme: createGibsGeographicTilingScheme(ellipsoid),
+      credit: "NASA GIBS",
     });
   }
 

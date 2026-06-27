@@ -56,6 +56,8 @@ const PROVIDER_KEYS: ProviderKey[] = [
   "gplates-topography-3857",
   "arcgis-world-imagery",
   "gmrt-topography-wms-3857",
+  "nasa-gibs-blue-marble-3857",
+  "nasa-gibs-blue-marble-4326",
   "mars-viking-4326",
   "custom-url-template",
 ];
