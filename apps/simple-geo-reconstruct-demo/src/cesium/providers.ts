@@ -3,6 +3,7 @@ import {
   GeographicTilingScheme,
   type ImageryProvider,
   UrlTemplateImageryProvider,
+  WebMapServiceImageryProvider,
   WebMapTileServiceImageryProvider,
   WebMercatorTilingScheme,
 } from "cesium";
@@ -11,6 +12,7 @@ export type ProviderKey =
   | "gplates-topography-4326"
   | "gplates-topography-3857"
   | "arcgis-world-imagery"
+  | "gmrt-topography-wms-3857"
   | "mars-viking-4326"
   | "custom-url-template";
 
@@ -31,6 +33,8 @@ export const DEFAULT_PROVIDER_KEY: ProviderKey = "gplates-topography-4326";
 const GPLATES_TOPOGRAPHY_TILE_URL = "/tiles/Gplates_Topography/{z}/{x}/{y}.png";
 const GPLATES_TOPOGRAPHY_3857_URL =
   "/tiles/Gplates_Topography_3857/{z}/{x}/{y}.png";
+const GMRT_TOPOGRAPHY_WMS_URL =
+  "https://www.gmrt.org/services/mapserver/wms_merc";
 
 export const DEFAULT_CUSTOM_PROVIDER_CONFIG: UrlTemplateProviderConfig = {
   url: "",
@@ -46,6 +50,7 @@ export const PROVIDER_OPTIONS: Array<{
   { key: "gplates-topography-4326", label: "GPlates Topography (4326)" },
   { key: "gplates-topography-3857", label: "GPlates Topography (3857)" },
   { key: "arcgis-world-imagery", label: "ArcGIS World Imagery (3857)" },
+  { key: "gmrt-topography-wms-3857", label: "GMRT Topography WMS (3857)" },
   { key: "mars-viking-4326", label: "Mars Viking Mosaic (4326)" },
   { key: "custom-url-template", label: "Custom URL Template" },
 ];
@@ -152,6 +157,22 @@ export function createImageryProvider(
     return new UrlTemplateImageryProvider({
       url: "https://trek.nasa.gov/tiles/Mars/EQ/Mars_Viking_MDIM21_ClrMosaic_global_232m/1.0.0//default/default028mm/{z}/{y}/{x}.jpg",
       tilingScheme: new GeographicTilingScheme({ ellipsoid }),
+    });
+  }
+
+  if (key === "gmrt-topography-wms-3857") {
+    return new WebMapServiceImageryProvider({
+      url: GMRT_TOPOGRAPHY_WMS_URL,
+      layers: "topo",
+      parameters: {
+        version: "1.3.0",
+        format: "image/png",
+        transparent: "false",
+      },
+      crs: "EPSG:3857",
+      tilingScheme: new WebMercatorTilingScheme({ ellipsoid }),
+      enablePickFeatures: false,
+      credit: "GMRT",
     });
   }
 

@@ -53,7 +53,9 @@ const GPLATES_REFERENCE_POLYGON_KEYS: GplatesReferencePolygonKey[] = [
 
 const PROVIDER_KEYS: ProviderKey[] = [
   "gplates-topography-4326",
+  "gplates-topography-3857",
   "arcgis-world-imagery",
+  "gmrt-topography-wms-3857",
   "mars-viking-4326",
   "custom-url-template",
 ];
