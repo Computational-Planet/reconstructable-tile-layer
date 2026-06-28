@@ -15,6 +15,7 @@ export type ProviderKey =
   | "gmrt-topography-wms-3857"
   | "nasa-gibs-blue-marble-3857"
   | "nasa-gibs-blue-marble-4326"
+  | "eox-terrain-4326"
   | "eox-terrain-light-4326"
   | "eox-s2-cloudless-2025-4326"
   | "eox-s2-cloudless-2025-3857"
@@ -45,6 +46,8 @@ const NASA_GIBS_BLUE_MARBLE_3857_WMS_URL =
   "https://gibs.earthdata.nasa.gov/wms/epsg3857/best/";
 const NASA_GIBS_BLUE_MARBLE_4326_WMS_URL =
   "https://gibs.earthdata.nasa.gov/wms/epsg4326/best/";
+const EOX_TERRAIN_4326_TILE_URL =
+  "https://tiles.maps.eox.at/wmts/1.0.0/terrain/default/{TileMatrixSet}/{TileMatrix}/{TileRow}/{TileCol}.jpg";
 const EOX_TERRAIN_LIGHT_4326_TILE_URL =
   "https://tiles.maps.eox.at/wmts/1.0.0/terrain-light/default/{TileMatrixSet}/{TileMatrix}/{TileRow}/{TileCol}.jpg";
 const EOX_S2_CLOUDLESS_2025_4326_TILE_URL =
@@ -71,6 +74,7 @@ export const PROVIDER_OPTIONS: Array<{
   { key: "gmrt-topography-wms-3857", label: "GMRT Topography WMS (3857)" },
   { key: "nasa-gibs-blue-marble-3857", label: "NASA GIBS Blue Marble (3857)" },
   { key: "nasa-gibs-blue-marble-4326", label: "NASA GIBS Blue Marble (4326)" },
+  { key: "eox-terrain-4326", label: "EOX Terrain (4326)" },
   { key: "eox-terrain-light-4326", label: "EOX Terrain Light (4326)" },
   {
     key: "eox-s2-cloudless-2025-4326",
@@ -236,6 +240,19 @@ export function createImageryProvider(
     return new WebMapTileServiceImageryProvider({
       url: EOX_TERRAIN_LIGHT_4326_TILE_URL,
       layer: "terrain-light",
+      style: "default",
+      format: "image/jpeg",
+      tileMatrixSetID: "WGS84",
+      maximumLevel: 17,
+      tilingScheme: new GeographicTilingScheme({ ellipsoid }),
+      credit: "EOX::Maps",
+    });
+  }
+
+  if (key === "eox-terrain-4326") {
+    return new WebMapTileServiceImageryProvider({
+      url: EOX_TERRAIN_4326_TILE_URL,
+      layer: "terrain",
       style: "default",
       format: "image/jpeg",
       tileMatrixSetID: "WGS84",
