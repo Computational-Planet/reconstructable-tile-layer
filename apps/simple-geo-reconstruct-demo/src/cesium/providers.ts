@@ -16,6 +16,9 @@ export type ProviderKey =
   | "nasa-gibs-blue-marble-3857"
   | "nasa-gibs-blue-marble-4326"
   | "eox-terrain-light-4326"
+  | "eox-s2-cloudless-2025-4326"
+  | "eox-s2-cloudless-2025-3857"
+  | "macrostrat-carto"
   | "custom-url-template";
 
 export type UrlTemplateTilingSchemeKey = "geographic" | "web-mercator";
@@ -44,6 +47,12 @@ const NASA_GIBS_BLUE_MARBLE_4326_WMS_URL =
   "https://gibs.earthdata.nasa.gov/wms/epsg4326/best/";
 const EOX_TERRAIN_LIGHT_4326_TILE_URL =
   "https://tiles.maps.eox.at/wmts/1.0.0/terrain-light/default/{TileMatrixSet}/{TileMatrix}/{TileRow}/{TileCol}.jpg";
+const EOX_S2_CLOUDLESS_2025_4326_TILE_URL =
+  "https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2025/default/{TileMatrixSet}/{TileMatrix}/{TileRow}/{TileCol}.jpg";
+const EOX_S2_CLOUDLESS_2025_3857_TILE_URL =
+  "https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2025_3857/default/{TileMatrixSet}/{TileMatrix}/{TileRow}/{TileCol}.jpg";
+const MACROSTRAT_CARTO_TILE_URL =
+  "https://tiles.macrostrat.org/carto/{z}/{x}/{y}.png";
 
 export const DEFAULT_CUSTOM_PROVIDER_CONFIG: UrlTemplateProviderConfig = {
   url: "",
@@ -63,6 +72,15 @@ export const PROVIDER_OPTIONS: Array<{
   { key: "nasa-gibs-blue-marble-3857", label: "NASA GIBS Blue Marble (3857)" },
   { key: "nasa-gibs-blue-marble-4326", label: "NASA GIBS Blue Marble (4326)" },
   { key: "eox-terrain-light-4326", label: "EOX Terrain Light (4326)" },
+  {
+    key: "eox-s2-cloudless-2025-4326",
+    label: "EOX Sentinel-2 Cloudless 2025 (4326)",
+  },
+  {
+    key: "eox-s2-cloudless-2025-3857",
+    label: "EOX Sentinel-2 Cloudless 2025 (3857)",
+  },
+  { key: "macrostrat-carto", label: "Macrostrat Carto (3857)" },
   { key: "custom-url-template", label: "Custom URL Template" },
 ];
 
@@ -224,6 +242,42 @@ export function createImageryProvider(
       maximumLevel: 17,
       tilingScheme: new GeographicTilingScheme({ ellipsoid }),
       credit: "EOX::Maps",
+    });
+  }
+
+  if (key === "eox-s2-cloudless-2025-4326") {
+    return new WebMapTileServiceImageryProvider({
+      url: EOX_S2_CLOUDLESS_2025_4326_TILE_URL,
+      layer: "s2cloudless-2025",
+      style: "default",
+      format: "image/jpeg",
+      tileMatrixSetID: "WGS84",
+      maximumLevel: 13,
+      tilingScheme: new GeographicTilingScheme({ ellipsoid }),
+      credit: "EOxCloudless 2025 by EOX",
+    });
+  }
+
+  if (key === "eox-s2-cloudless-2025-3857") {
+    return new WebMapTileServiceImageryProvider({
+      url: EOX_S2_CLOUDLESS_2025_3857_TILE_URL,
+      layer: "s2cloudless-2025_3857",
+      style: "default",
+      format: "image/jpeg",
+      tileMatrixSetID: "GoogleMapsCompatible",
+      maximumLevel: 14,
+      tilingScheme: new WebMercatorTilingScheme({ ellipsoid }),
+      credit: "EOxCloudless 2025 by EOX",
+    });
+  }
+
+  if (key === "macrostrat-carto") {
+    return new UrlTemplateImageryProvider({
+      url: MACROSTRAT_CARTO_TILE_URL,
+      tilingScheme: new WebMercatorTilingScheme({ ellipsoid }),
+      minimumLevel: 0,
+      maximumLevel: 12,
+      credit: "Macrostrat",
     });
   }
 

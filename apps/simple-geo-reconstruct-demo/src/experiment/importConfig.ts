@@ -59,6 +59,9 @@ const PROVIDER_KEYS: ProviderKey[] = [
   "nasa-gibs-blue-marble-3857",
   "nasa-gibs-blue-marble-4326",
   "eox-terrain-light-4326",
+  "eox-s2-cloudless-2025-4326",
+  "eox-s2-cloudless-2025-3857",
+  "macrostrat-carto",
   "custom-url-template",
 ];
 
