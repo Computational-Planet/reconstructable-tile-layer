@@ -25,13 +25,16 @@ import type {
 } from "./types";
 
 const FEATURE_PRESET_KEYS: FeaturePresetKey[] = [
+  "seton-2012-static-polygons-gpmlz",
   "earthbyte-static-polygons-gpmlz",
-  "zahirovic-2022-feature-geometries-gpml",
+  "merdith-2021-static-polygons-gpml",
   "custom",
 ];
 
 const ROTATION_PRESET_KEYS: RotationPresetKey[] = [
+  "seton-2012-rot",
   "zahirovic-2022-optimised-mantle-rot",
+  "merdith-2021-rot",
   "custom",
 ];
 
@@ -49,6 +52,9 @@ const GPLATES_REFERENCE_POLYGON_KEYS: GplatesReferencePolygonKey[] = [
   "reconstructed-120",
   "reconstructed-200",
   "reconstructed-400",
+  "seton-2012-120",
+  "zahirovic-2022-300",
+  "merdith-2021-750",
 ];
 
 const PROVIDER_KEYS: ProviderKey[] = [
