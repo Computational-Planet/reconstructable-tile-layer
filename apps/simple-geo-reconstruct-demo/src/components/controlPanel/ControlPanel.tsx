@@ -6,7 +6,6 @@ import { CustomProviderDialog } from "./CustomProviderDialog";
 import { DataSourcesSection } from "./DataSourcesSection";
 import { ExperimentExportSection } from "./ExperimentExportSection";
 import { ExperimentImportSection } from "./ExperimentImportSection";
-import { ManagerSection } from "./ManagerSection";
 import { RenderingSection } from "./RenderingSection";
 import { StatsSection } from "./StatsSection";
 import { TimeTilesSection } from "./TimeTilesSection";
@@ -30,45 +29,45 @@ export function ControlPanel(props: ControlPanelProps) {
         />
 
         <DataSourcesSection
+          busy={props.busy}
           featurePresetKey={props.featurePresetKey}
           featurePresets={props.featurePresets}
+          featureSourceLabel={props.featureSourceLabel}
           featureUrl={props.featureUrl}
           anchorPlateIdInput={props.anchorPlateIdInput}
-          rotationAnchorMode={props.rotationAnchorMode}
-          rotPresetKey={props.rotPresetKey}
-          rotPresets={props.rotPresets}
-          rotUrls={props.rotUrls}
-          onAnchorPlateIdInputChange={props.onAnchorPlateIdInputChange}
-          onFeaturePresetChange={props.onFeaturePresetChange}
-          onFeatureUpload={props.onFeatureUpload}
-          onFeatureUrlChange={props.onFeatureUrlChange}
-          onRotationAnchorModeChange={props.onRotationAnchorModeChange}
-          onRotPresetChange={props.onRotPresetChange}
-          onRotUpload={props.onRotUpload}
-          onRotUrlsChange={props.onRotUrlsChange}
-        />
-
-        <RenderingSection
-          debugEnabled={props.debugEnabled}
-          globeBaseColor={props.globeBaseColor}
+          initialized={props.initialized}
+          level={props.level}
           polygonRenderIntent={props.polygonRenderIntent}
-          primitiveTransformMode={props.primitiveTransformMode}
           providerKey={props.providerKey}
           referencePolygonColor={props.referencePolygonColor}
           referencePolygonKey={props.referencePolygonKey}
           referencePolygonSources={props.referencePolygonSources}
+          rotationAnchorMode={props.rotationAnchorMode}
+          rotPresetKey={props.rotPresetKey}
+          rotPresets={props.rotPresets}
+          rotSourceLabels={props.rotSourceLabels}
+          rotUrls={props.rotUrls}
           onConfigureCustomProvider={() => setCustomProviderDialogOpen(true)}
-          onDebugEnabledChange={props.onDebugEnabledChange}
-          onGlobeBaseColorChange={props.onGlobeBaseColorChange}
+          onApplyProvider={props.onApplyProvider}
+          onClear={props.onClear}
+          onAnchorPlateIdInputChange={props.onAnchorPlateIdInputChange}
+          onFeaturePresetChange={props.onFeaturePresetChange}
+          onFeatureUpload={props.onFeatureUpload}
+          onFeatureUrlChange={props.onFeatureUrlChange}
+          onInit={props.onInit}
+          onLevelChange={props.onLevelChange}
+          onLoadFineInView={props.onLoadFineInView}
+          onLoadLevel={props.onLoadLevel}
           onPolygonRenderIntentChange={props.onPolygonRenderIntentChange}
-          onPrimitiveTransformModeChange={
-            props.onPrimitiveTransformModeChange
-          }
           onProviderKeyChange={props.onProviderKeyChange}
           onReferencePolygonColorChange={
             props.onReferencePolygonColorChange
           }
           onReferencePolygonKeyChange={props.onReferencePolygonKeyChange}
+          onRotationAnchorModeChange={props.onRotationAnchorModeChange}
+          onRotPresetChange={props.onRotPresetChange}
+          onRotUpload={props.onRotUpload}
+          onRotUrlsChange={props.onRotUrlsChange}
         />
 
         <CameraOutputSection
@@ -81,25 +80,23 @@ export function ControlPanel(props: ControlPanelProps) {
           onExperimentViewConfigChange={props.onExperimentViewConfigChange}
         />
 
-        <ManagerSection
-          busy={props.busy}
-          initialized={props.initialized}
-          onApplyProvider={props.onApplyProvider}
-          onApplyTransformMode={props.onApplyTransformMode}
-          onInit={props.onInit}
-        />
-
         <TimeTilesSection
           age={props.age}
-          busy={props.busy}
-          initialized={props.initialized}
-          level={props.level}
           onAgeChange={props.onAgeChange}
-          onClear={props.onClear}
-          onLevelChange={props.onLevelChange}
-          onLoadFineInView={props.onLoadFineInView}
-          onLoadLevel={props.onLoadLevel}
-          onLoadRoot={props.onLoadRoot}
+        />
+
+        <RenderingSection
+          busy={props.busy}
+          debugEnabled={props.debugEnabled}
+          globeBaseColor={props.globeBaseColor}
+          initialized={props.initialized}
+          primitiveTransformMode={props.primitiveTransformMode}
+          onApplyTransformMode={props.onApplyTransformMode}
+          onDebugEnabledChange={props.onDebugEnabledChange}
+          onGlobeBaseColorChange={props.onGlobeBaseColorChange}
+          onPrimitiveTransformModeChange={
+            props.onPrimitiveTransformModeChange
+          }
         />
 
         <ExperimentExportSection

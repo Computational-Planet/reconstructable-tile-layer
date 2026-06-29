@@ -42,10 +42,12 @@ export function useDataSourceControls({
   const [featurePresetKey, setFeaturePresetKey] = useState<FeaturePresetKey>(
     DEFAULT_FEATURE_PRESET.key,
   );
+  const [featureSourceLabel, setFeatureSourceLabel] = useState("");
   const [featureUrl, setFeatureUrl] = useState(DEFAULT_FEATURE_PRESET.url);
   const [rotPresetKey, setRotPresetKey] = useState<RotationPresetKey>(
     DEFAULT_ROTATION_PRESET.key,
   );
+  const [rotSourceLabels, setRotSourceLabels] = useState<string[]>([]);
   const [rotUrls, setRotUrls] = useState(
     formatRotationUrls(DEFAULT_ROTATION_PRESET.urls),
   );
@@ -76,6 +78,7 @@ export function useDataSourceControls({
     const preset = FEATURE_PRESETS.find((item) => item.key === key);
     if (preset) {
       revokeUploadedFeatureUrl();
+      setFeatureSourceLabel("");
       setFeatureUrl(preset.url);
       onModelNameChange(preset.label);
     }
@@ -90,6 +93,7 @@ export function useDataSourceControls({
     const url = URL.createObjectURL(file);
     uploadedFeatureUrlRef.current = url;
     setFeaturePresetKey("custom");
+    setFeatureSourceLabel(file.name);
     setFeatureUrl(url);
     onModelNameChange(file.name);
     onStatusChange(`Feature upload selected: ${file.name}`);
@@ -98,6 +102,7 @@ export function useDataSourceControls({
   const handleFeatureUrlChange = (value: string) => {
     revokeUploadedFeatureUrl();
     setFeaturePresetKey("custom");
+    setFeatureSourceLabel("");
     setFeatureUrl(value);
   };
 
@@ -110,6 +115,7 @@ export function useDataSourceControls({
     const preset = ROTATION_PRESETS.find((item) => item.key === key);
     if (preset) {
       revokeUploadedRotUrls();
+      setRotSourceLabels([]);
       setRotUrls(formatRotationUrls(preset.urls));
     }
   };
@@ -124,6 +130,7 @@ export function useDataSourceControls({
     const urls = selectedFiles.map((file) => URL.createObjectURL(file));
     uploadedRotUrlsRef.current = urls;
     setRotPresetKey("custom");
+    setRotSourceLabels(selectedFiles.map((file) => file.name));
     setRotUrls(formatRotationUrls(urls));
     onStatusChange(
       `ROT uploads selected: ${selectedFiles
@@ -135,6 +142,7 @@ export function useDataSourceControls({
   const handleRotUrlsChange = (value: string) => {
     revokeUploadedRotUrls();
     setRotPresetKey("custom");
+    setRotSourceLabels([]);
     setRotUrls(value);
   };
 
@@ -147,6 +155,7 @@ export function useDataSourceControls({
         (preset) => preset.url === importedFeatureUrl,
       );
       revokeUploadedFeatureUrl();
+      setFeatureSourceLabel("");
       setFeatureUrl(importedFeatureUrl);
       setFeaturePresetKey(
         importedFeaturePresetKey ?? matchedFeaturePreset?.key ?? "custom",
@@ -165,6 +174,7 @@ export function useDataSourceControls({
         hasSameItems(preset.urls, importedRotUrls),
       );
       revokeUploadedRotUrls();
+      setRotSourceLabels([]);
       setRotUrls(formatRotationUrls(importedRotUrls));
       setRotPresetKey(
         importedRotPresetKey ?? matchedRotationPreset?.key ?? "custom",
@@ -178,6 +188,7 @@ export function useDataSourceControls({
     applyImportedFeatureSource,
     applyImportedRotationSources,
     featurePresetKey,
+    featureSourceLabel,
     featureUrl,
     handleFeaturePresetChange,
     handleFeatureUpload,
@@ -187,6 +198,7 @@ export function useDataSourceControls({
     handleRotUrlsChange,
     rotationSources: parseRotationUrls(rotUrls),
     rotPresetKey,
+    rotSourceLabels,
     rotUrls,
   };
 }

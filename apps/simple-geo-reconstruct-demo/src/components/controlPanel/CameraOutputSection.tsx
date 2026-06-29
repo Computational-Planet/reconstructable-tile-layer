@@ -28,7 +28,7 @@ export function CameraOutputSection({
   onExperimentSceneModeChange,
   onExperimentViewConfigChange,
 }: CameraOutputSectionProps) {
-  const [viewPanelOpen, setViewPanelOpen] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
 
   const updateExperimentViewConfig = (
     patch: Partial<ExperimentViewConfig>,
@@ -74,18 +74,36 @@ export function CameraOutputSection({
 
   return (
     <section className="panel-section">
-      <h2>Camera & Output</h2>
+      <div className="panel-section-heading">
+        <h2>Camera & Output</h2>
+        <button
+          aria-expanded={detailsOpen}
+          className="secondary-button source-detail-toggle"
+          type="button"
+          onClick={() => setDetailsOpen((open) => !open)}
+        >
+          Detailed
+        </button>
+      </div>
 
-      <button
-        className="secondary-button"
-        type="button"
-        onClick={() => setViewPanelOpen((open) => !open)}
-      >
-        Camera / View
-      </button>
+      <label>
+        Scene mode
+        <select
+          disabled={busy}
+          value={experimentViewConfig.viewMode}
+          onChange={(event) =>
+            onExperimentSceneModeChange(
+              event.target.value as ExperimentViewMode,
+            )
+          }
+        >
+          <option value="2D_RECTANGULAR">2D rectangular</option>
+          <option value="3D_GLOBE">3D globe</option>
+        </select>
+      </label>
 
-      {viewPanelOpen ? (
-        <div className="panel-subsection view-panel">
+      {detailsOpen ? (
+        <div className="source-detail-panel">
           <div className="grid-2">
             <label>
               Case ID
@@ -109,22 +127,6 @@ export function CameraOutputSection({
                   })
                 }
               />
-            </label>
-
-            <label>
-              Scene mode
-              <select
-                disabled={busy}
-                value={experimentViewConfig.viewMode}
-                onChange={(event) =>
-                  onExperimentSceneModeChange(
-                    event.target.value as ExperimentViewMode,
-                  )
-                }
-              >
-                <option value="2D_RECTANGULAR">2D rectangular</option>
-                <option value="3D_GLOBE">3D globe</option>
-              </select>
             </label>
           </div>
 

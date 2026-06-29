@@ -381,9 +381,11 @@ export function parseImportedExperimentConfig(
             ? "default"
             : "custom";
     }
+    const rotationFile = getString(value, "rotationFile");
     result.rotUrls =
       getStringArray(sources, "rotUrls") ??
-      getStringArray(value, "rotationFiles");
+      getStringArray(value, "rotationFiles") ??
+      (rotationFile ? [rotationFile] : undefined);
     result.providerKey = getEnumValue(sources, "providerKey", PROVIDER_KEYS);
 
     const customProviderConfig = getRecord(sources, "customProviderConfig");
@@ -395,7 +397,10 @@ export function parseImportedExperimentConfig(
     }
   } else {
     result.featureUrl = getString(value, "platePolygonFile");
-    result.rotUrls = getStringArray(value, "rotationFiles");
+    const rotationFile = getString(value, "rotationFile");
+    result.rotUrls =
+      getStringArray(value, "rotationFiles") ??
+      (rotationFile ? [rotationFile] : undefined);
   }
 
   if (render) {

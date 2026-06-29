@@ -26,6 +26,7 @@ export type ControlPanelProps = {
   debugEnabled: boolean;
   featurePresetKey: FeaturePresetKey;
   featurePresets: FeaturePreset[];
+  featureSourceLabel: string;
   featureUrl: string;
   globeBaseColor: string;
   referencePolygonColor: string;
@@ -43,6 +44,7 @@ export type ControlPanelProps = {
   anchorPlateIdInput: string;
   rotPresetKey: RotationPresetKey;
   rotPresets: RotationPreset[];
+  rotSourceLabels: string[];
   rotUrls: string;
   stats: GeoTileStats | null;
   status: string;

@@ -285,6 +285,7 @@ function App() {
         experimentViewConfig={experimentViewConfig}
         featurePresetKey={dataSourceControls.featurePresetKey}
         featurePresets={FEATURE_PRESETS}
+        featureSourceLabel={dataSourceControls.featureSourceLabel}
         featureUrl={dataSourceControls.featureUrl}
         globeBaseColor={globeBaseColor}
         anchorPlateIdInput={anchorPlateIdInput}
@@ -299,6 +300,7 @@ function App() {
         rotationAnchorMode={rotationAnchorMode}
         rotPresetKey={dataSourceControls.rotPresetKey}
         rotPresets={ROTATION_PRESETS}
+        rotSourceLabels={dataSourceControls.rotSourceLabels}
         rotUrls={dataSourceControls.rotUrls}
         stats={stats}
         status={status}

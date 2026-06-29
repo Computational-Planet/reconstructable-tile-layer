@@ -1,4 +1,7 @@
-import { readGplatesXmlFromUrl } from "./GplatesFileReader";
+import {
+  decodeGplatesArrayBuffer,
+  readGplatesXmlFromUrl,
+} from "./GplatesFileReader";
 import { parsedGpmlFeaturesToPaleoData } from "./GpmlFeatureAdapter";
 import { parseGpmlText } from "./GpmlParser";
 import type {
@@ -31,7 +34,9 @@ interface CustomPaleoItem {
 
 function getFeatureFileExtension(url: string) {
   const pathname = url.split(/[?#]/)[0].toLowerCase();
-  return pathname.slice(pathname.lastIndexOf(".") + 1);
+  const fileName = pathname.slice(pathname.lastIndexOf("/") + 1);
+  const dotIndex = fileName.lastIndexOf(".");
+  return dotIndex === -1 ? "" : fileName.slice(dotIndex + 1);
 }
 
 function createDiagnostics(items: FeaturePolygonData[]): FeatureImportDiagnostics {
@@ -60,14 +65,9 @@ function createDiagnostics(items: FeaturePolygonData[]): FeatureImportDiagnostic
   };
 }
 
-async function loadCustomJsonPaleoData(url: string): Promise<FeatureLoadResult> {
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch polygon JSON: ${url}`);
-  }
-
-  const polygons = (await response.json()) as CustomPaleoItem[];
-
+function parseCustomJsonPaleoData(
+  polygons: CustomPaleoItem[],
+): FeatureLoadResult {
   // Keep the old JSON behavior: consume only the first polygon per feature.
   const items = polygons.flatMap<FeaturePolygonData>((item) => {
     const polygon = item.Polygon[0];
@@ -106,6 +106,19 @@ async function loadCustomJsonPaleoData(url: string): Promise<FeatureLoadResult> 
   };
 }
 
+async function loadCustomJsonPaleoData(url: string): Promise<FeatureLoadResult> {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch polygon JSON: ${url}`);
+  }
+
+  return parseCustomJsonPaleoData((await response.json()) as CustomPaleoItem[]);
+}
+
+function parseCustomJsonPaleoDataText(text: string) {
+  return parseCustomJsonPaleoData(JSON.parse(text) as CustomPaleoItem[]);
+}
+
 function inferPolygonRenderIntent(url: string): PolygonRenderIntentMode {
   const pathname = decodeURIComponent(url.split(/[?#]/)[0]).toLowerCase();
   if (pathname.includes("static_polygons") || pathname.includes("static_plate")) {
@@ -121,13 +134,13 @@ function isDeepTimeGeoDebugEnabled() {
   );
 }
 
-async function loadGpmlPaleoData(
-  url: string,
+function parseGpmlPaleoData(
+  xmlText: string,
+  sourceName: string,
   options: FeatureLoadOptions = {},
 ) {
   const polygonRenderIntent =
-    options.polygonRenderIntent ?? inferPolygonRenderIntent(url);
-  const xmlText = await readGplatesXmlFromUrl(url);
+    options.polygonRenderIntent ?? inferPolygonRenderIntent(sourceName);
   const result = parsedGpmlFeaturesToPaleoData(
     parseGpmlText(xmlText, {
       coordinateOrder: options.coordinateOrder ?? "auto",
@@ -138,13 +151,45 @@ async function loadGpmlPaleoData(
 
   if (isDeepTimeGeoDebugEnabled()) {
     console.debug("[GPlates] feature import", {
-      url,
+      url: sourceName,
       polygonRenderIntent,
       diagnostics: result.diagnostics,
     });
   }
 
   return result;
+}
+
+async function loadGpmlPaleoData(
+  url: string,
+  options: FeatureLoadOptions = {},
+) {
+  const xmlText = await readGplatesXmlFromUrl(url);
+  return parseGpmlPaleoData(xmlText, url, options);
+}
+
+async function loadFeatureDataByContent(
+  url: string,
+  options: FeatureLoadOptions = {},
+) {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch feature file: ${url}`);
+  }
+
+  const text = decodeGplatesArrayBuffer(await response.arrayBuffer(), url);
+  const contentStart = text.trimStart();
+
+  // Uploaded object URLs do not preserve file extensions, so route by content.
+  if (contentStart.startsWith("{") || contentStart.startsWith("[")) {
+    return parseCustomJsonPaleoDataText(text);
+  }
+
+  if (contentStart.startsWith("<")) {
+    return parseGpmlPaleoData(text, url, options);
+  }
+
+  throw new Error(`Unsupported feature file content: ${url}`);
 }
 
 export async function loadFeaturePolygonDataWithDiagnostics(
@@ -159,6 +204,10 @@ export async function loadFeaturePolygonDataWithDiagnostics(
 
   if (extension === "gpml" || extension === "gpmlz" || extension === "xml") {
     return loadGpmlPaleoData(url, options);
+  }
+
+  if (url.startsWith("blob:")) {
+    return loadFeatureDataByContent(url, options);
   }
 
   throw new Error(`Unsupported feature file format: ${url}`);
