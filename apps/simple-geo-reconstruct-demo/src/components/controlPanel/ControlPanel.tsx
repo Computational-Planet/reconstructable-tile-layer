@@ -20,7 +20,7 @@ export function ControlPanel(props: ControlPanelProps) {
       <aside className="control-panel">
         <header>
           <p className="eyebrow">SimpleGeoReconstructManager</p>
-          <h1>Deep Time Tile Demo</h1>
+          <h1>Reconstruction Tile Layer Demo</h1>
         </header>
 
         <ExperimentImportSection

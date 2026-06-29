@@ -19,28 +19,30 @@ export function TimeTilesSection({
 
   return (
     <section className="panel-section">
-      <h2>Times</h2>
+      <h2>Reconstruction Age</h2>
 
-      <label>
-        Age Ma
-        <div className="range-row">
+      <div className="range-row">
+        <input
+          aria-label="Reconstruction age"
+          min={0}
+          max={1800}
+          type="range"
+          value={age}
+          style={ageRangeStyle}
+          onChange={(event) => onAgeChange(Number(event.target.value))}
+        />
+        <div className="age-number-control">
           <input
-            min={0}
-            max={1800}
-            type="range"
-            value={age}
-            style={ageRangeStyle}
-            onChange={(event) => onAgeChange(Number(event.target.value))}
-          />
-          <input
+            aria-label="Reconstruction age in Ma"
             min={0}
             max={1800}
             type="number"
             value={age}
             onChange={(event) => onAgeChange(Number(event.target.value))}
           />
+          <span>Ma</span>
         </div>
-      </label>
+      </div>
     </section>
   );
 }

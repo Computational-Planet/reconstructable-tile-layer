@@ -64,27 +64,84 @@ export const DEFAULT_CUSTOM_PROVIDER_CONFIG: UrlTemplateProviderConfig = {
   maximumLevel: 12,
 };
 
-export const PROVIDER_OPTIONS: Array<{
+export type ProviderOption = {
   key: ProviderKey;
   label: string;
-}> = [
-  { key: "gplates-topography-4326", label: "GPlates Topography (4326)" },
-  { key: "gplates-topography-3857", label: "GPlates Topography (3857)" },
-  { key: "arcgis-world-imagery", label: "ArcGIS World Imagery (3857)" },
-  { key: "gmrt-topography-wms-3857", label: "GMRT Topography WMS (3857)" },
-  { key: "nasa-gibs-blue-marble-3857", label: "NASA GIBS Blue Marble (3857)" },
-  { key: "nasa-gibs-blue-marble-4326", label: "NASA GIBS Blue Marble (4326)" },
-  { key: "eox-terrain-4326", label: "EOX Terrain (4326)" },
-  { key: "eox-terrain-light-4326", label: "EOX Terrain Light (4326)" },
+  citation?: string;
+};
+
+// Keep provider citation guidance close to the preset endpoints it describes.
+const GPLATES_TOPOGRAPHY_CITATION =
+  "Source raster: cite Amante and Eakins (2009), ETOPO1 1 Arc-Minute Global Relief Model, DOI: 10.7289/V5C8276M. If using the bundled colour raster from GPlates GeoData, also cite EarthByte (2024), GPlates 2.5 GeoData v1, DOI: 10.5281/zenodo.14194897.";
+const ARCGIS_WORLD_IMAGERY_CITATION =
+  "Basemap: cite/attribute Esri ArcGIS Online World Imagery following Esri basemap guidance. World Imagery sources include Esri, DigitalGlobe, GeoEye, i-cubed, USDA FSA, USGS, AEX, Getmapping, Aerogrid, IGN, IGP, swisstopo, and the GIS User Community.";
+const GMRT_TOPOGRAPHY_CITATION =
+  "Dataset/service: cite Ryan et al. (2009), Global Multi-Resolution Topography (GMRT) synthesis data set, Geochemistry, Geophysics, Geosystems, 10, Q03014, DOI: 10.1029/2008GC002332; data DOI: 10.1594/IEDA.100001.";
+const NASA_GIBS_BLUE_MARBLE_CITATION =
+  "Service/layer: cite NASA Earth Science Data and Information System, Global Imagery Browse Services (GIBS) API for Developers, layer BlueMarble_ShadedRelief_Bathymetry.";
+const EOX_TERRAIN_CITATION =
+  "Service/layer: cite EOX::Maps and the EOX::Maps WMTS capabilities for the terrain layer. Follow EOX::Maps layer attribution; Terrain/Terrain Light use open data sources listed by EOX and rendering by EOX.";
+const EOX_S2_CLOUDLESS_2025_CITATION =
+  "Layer: cite/attribute EOX Sentinel-2 cloudless 2025 by EOX IT Services GmbH. The layer uses Copernicus Sentinel-2 data and is served through EOX::Maps/WMTS.";
+const MACROSTRAT_CARTO_CITATION =
+  "Map/data platform: cite Peters et al. (2018), Macrostrat, DOI: 10.1029/2018GC007467. Tile service: cite Macrostrat Tile Services for the /carto/{z}/{x}/{y}.png endpoint.";
+
+export const PROVIDER_OPTIONS: ProviderOption[] = [
+  {
+    key: "gplates-topography-4326",
+    label: "GPlates Topography (4326)",
+    citation: GPLATES_TOPOGRAPHY_CITATION,
+  },
+  {
+    key: "gplates-topography-3857",
+    label: "GPlates Topography (3857)",
+    citation: GPLATES_TOPOGRAPHY_CITATION,
+  },
+  {
+    key: "arcgis-world-imagery",
+    label: "ArcGIS World Imagery (3857)",
+    citation: ARCGIS_WORLD_IMAGERY_CITATION,
+  },
+  {
+    key: "gmrt-topography-wms-3857",
+    label: "GMRT Topography WMS (3857)",
+    citation: GMRT_TOPOGRAPHY_CITATION,
+  },
+  {
+    key: "nasa-gibs-blue-marble-3857",
+    label: "NASA GIBS Blue Marble (3857)",
+    citation: NASA_GIBS_BLUE_MARBLE_CITATION,
+  },
+  {
+    key: "nasa-gibs-blue-marble-4326",
+    label: "NASA GIBS Blue Marble (4326)",
+    citation: NASA_GIBS_BLUE_MARBLE_CITATION,
+  },
+  {
+    key: "eox-terrain-4326",
+    label: "EOX Terrain (4326)",
+    citation: EOX_TERRAIN_CITATION,
+  },
+  {
+    key: "eox-terrain-light-4326",
+    label: "EOX Terrain Light (4326)",
+    citation: EOX_TERRAIN_CITATION,
+  },
   {
     key: "eox-s2-cloudless-2025-4326",
     label: "EOX Sentinel-2 Cloudless 2025 (4326)",
+    citation: EOX_S2_CLOUDLESS_2025_CITATION,
   },
   {
     key: "eox-s2-cloudless-2025-3857",
     label: "EOX Sentinel-2 Cloudless 2025 (3857)",
+    citation: EOX_S2_CLOUDLESS_2025_CITATION,
   },
-  { key: "macrostrat-carto", label: "Macrostrat Carto (3857)" },
+  {
+    key: "macrostrat-carto",
+    label: "Macrostrat Carto (3857)",
+    citation: MACROSTRAT_CARTO_CITATION,
+  },
   { key: "custom-url-template", label: "Custom URL Template" },
 ];
 

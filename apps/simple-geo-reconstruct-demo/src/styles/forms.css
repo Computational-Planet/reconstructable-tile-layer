@@ -185,8 +185,22 @@ button:disabled {
 
 .range-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 92px;
+  grid-template-columns: minmax(0, 1fr) 124px;
   gap: 10px;
+  align-items: center;
+}
+
+.age-number-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.age-number-control span {
+  color: #c5d1df;
+  font-size: 12px;
+  font-weight: 800;
 }
 
 .color-control {

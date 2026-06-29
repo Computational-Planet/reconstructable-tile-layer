@@ -166,13 +166,16 @@ export function DataSourcesSection({
 }: DataSourcesSectionProps) {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [openCitation, setOpenCitation] = useState<
-    "feature" | "rotation" | null
+    "feature" | "rotation" | "provider" | null
   >(null);
   const selectedFeaturePreset = featurePresets.find(
     (preset) => preset.key === featurePresetKey,
   );
   const selectedRotPreset = rotPresets.find(
     (preset) => preset.key === rotPresetKey,
+  );
+  const selectedProvider = PROVIDER_OPTIONS.find(
+    (provider) => provider.key === providerKey,
   );
   const rotSourceUrls = rotUrls
     .split(/\r?\n/)
@@ -280,23 +283,35 @@ export function DataSourcesSection({
               providerKey === "custom-url-template" ? " has-configure" : ""
             }`}
           >
-            <select
-              value={providerKey}
-              onChange={(event) => {
-                const nextProviderKey = event.target.value as ProviderKey;
-                if (nextProviderKey === "custom-url-template") {
-                  onConfigureCustomProvider();
-                  return;
+            <div className="provider-select-control">
+              <select
+                value={providerKey}
+                onChange={(event) => {
+                  const nextProviderKey = event.target.value as ProviderKey;
+                  if (nextProviderKey === "custom-url-template") {
+                    onConfigureCustomProvider();
+                    return;
+                  }
+                  onProviderKeyChange(nextProviderKey);
+                }}
+              >
+                {PROVIDER_OPTIONS.map((provider) => (
+                  <option key={provider.key} value={provider.key}>
+                    {provider.label}
+                  </option>
+                ))}
+              </select>
+              <CitationInfo
+                citation={selectedProvider?.citation}
+                isOpen={openCitation === "provider"}
+                onToggle={() =>
+                  setOpenCitation((current) =>
+                    current === "provider" ? null : "provider",
+                  )
                 }
-                onProviderKeyChange(nextProviderKey);
-              }}
-            >
-              {PROVIDER_OPTIONS.map((provider) => (
-                <option key={provider.key} value={provider.key}>
-                  {provider.label}
-                </option>
-              ))}
-            </select>
+                panelId="provider-preset-citation"
+              />
+            </div>
             <button
               className="secondary-button source-inline-button"
               disabled={busy || !initialized}
