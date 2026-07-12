@@ -1,6 +1,12 @@
 import { ImageryProvider, ImageryTypes } from "cesium";
 import earcut from "earcut";
-import { clipFS, defaultFS, defaultVS, maskFS, maskVS } from "./shader/defaultShaders";
+import {
+  clipFS,
+  defaultFS,
+  defaultVS,
+  maskFS,
+  maskVS,
+} from "./shader/defaultShaders";
 import {
   createEmptyTexture,
   drawScene,
@@ -16,7 +22,7 @@ import {
 } from "./glInitFunc";
 
 const EXPORT_CONCURRENCY = 4;
-const POOL_STATS_SCHEMA_VERSION = 2;
+const POOL_STATS_SCHEMA_VERSION = 3;
 const GEOMETRY_DEBUG_LOG_LIMIT = 40;
 let geometryDebugLogCount = 0;
 
@@ -45,6 +51,10 @@ class CachedPromise<T> {
   clear(): void {
     this.cacheMap.clear();
   }
+
+  get size() {
+    return this.cacheMap.size;
+  }
 }
 
 class LRUCache<T> {
@@ -52,7 +62,10 @@ class LRUCache<T> {
 
   constructor(
     private maxSize: number,
-    private onEvict?: (value: T) => void
+    private onEvict?: (
+      value: T,
+      reason: "capacity" | "replace" | "clear"
+    ) => void
   ) {}
 
   get(key: string) {
@@ -66,13 +79,13 @@ class LRUCache<T> {
 
   set(key: string, value: T) {
     if (this.maxSize <= 0) {
-      this.onEvict?.(value);
+      this.onEvict?.(value, "capacity");
       return;
     }
     const previousValue = this.cache.get(key);
     if (previousValue !== undefined) {
       this.cache.delete(key);
-      this.onEvict?.(previousValue);
+      this.onEvict?.(previousValue, "replace");
     }
     while (this.cache.size >= this.maxSize) {
       const oldestKey = this.cache.keys().next().value;
@@ -82,14 +95,14 @@ class LRUCache<T> {
       const oldestValue = this.cache.get(oldestKey);
       this.cache.delete(oldestKey);
       if (oldestValue !== undefined) {
-        this.onEvict?.(oldestValue);
+        this.onEvict?.(oldestValue, "capacity");
       }
     }
     this.cache.set(key, value);
   }
 
   clear() {
-    this.cache.forEach((value) => this.onEvict?.(value));
+    this.cache.forEach((value) => this.onEvict?.(value, "clear"));
     this.cache.clear();
   }
 
@@ -214,7 +227,9 @@ type ExportJob = {
 
 type RenderWorker = {
   busy: boolean;
-  render(job: Omit<RenderJob, "resolve" | "reject">): Promise<RenderResult | null>;
+  render(
+    job: Omit<RenderJob, "resolve" | "reject">
+  ): Promise<RenderResult | null>;
 };
 
 type TileProgramInfo = {
@@ -230,6 +245,67 @@ type RendererPoolStats = {
   contextLostCount: number;
 };
 
+export type WebGLContextInfo = {
+  webglVersion: string;
+  shadingLanguageVersion: string;
+  vendor: string;
+  renderer: string;
+};
+
+export type TileProcessorCumulativeStats = {
+  totalRequests: number;
+  imageCacheHits: number;
+  imageCacheMisses: number;
+  imagePromiseHits: number;
+  imageRequestAttempts: number;
+  imageRequestSuccesses: number;
+  imageRequestFailures: number;
+  imageRequestUndefined: number;
+  imageEvictions: number;
+  resultCacheHits: number;
+  resultCacheMisses: number;
+  resultPromiseHits: number;
+  resultEvictions: number;
+  maskPreparationCount: number;
+  maskPreparationMs: number;
+  maskPolygonCount: number;
+  maskInteriorRingCount: number;
+  maskTriangleCount: number;
+  maskSkippedPolygonCount: number;
+  renderedJobCount: number;
+  exportedAssetCount: number;
+  imageRequestMs: number;
+  queueWaitMs: number;
+  renderQueueWaitMs: number;
+  textureUploadMs: number;
+  drawMs: number;
+  copyToCanvasMs: number;
+  snapshotMs: number;
+  slotHoldMs: number;
+  exportMs: number;
+  encodeMs: number;
+  materialApplyMs: number;
+  maxBusySlotCount: number;
+  maxQueuedJobCount: number;
+  maxPendingExportCount: number;
+  maxPendingImagePromiseCount: number;
+  maxPendingResultPromiseCount: number;
+};
+
+export type CesiumTileProcesserStats = RendererPoolStats &
+  WebGLContextInfo &
+  TileProcessorCumulativeStats & {
+    statsSchemaVersion: number;
+    poolSize: number;
+    busyRendererCount: number;
+    queuedJobCount: number;
+    pendingExportCount: number;
+    pendingImagePromiseCount: number;
+    imageBufferSize: number;
+    resultBufferSize: number;
+    pendingResultPromiseCount: number;
+  };
+
 type RendererPool = {
   workers: RenderWorker[];
   width: number;
@@ -238,9 +314,11 @@ type RendererPool = {
   vertexRowNum: number;
   destroy(): void;
   getStats(): RendererPoolStats;
+  getContextInfo(): WebGLContextInfo;
 };
 
 type ClipMaskDebugStats = {
+  collectDeviation: boolean;
   polygonCount: number;
   interiorRingCount: number;
   skippedPolygonCount: number;
@@ -310,6 +388,12 @@ class LegacyCanvasTileRenderer implements RenderWorker {
     return this._contextLostCount;
   }
 
+  getContextInfo() {
+    return this._context
+      ? readWebGLContextInfo(this._context)
+      : EMPTY_WEBGL_CONTEXT_INFO;
+  }
+
   get currentTileXYZ() {
     return this._currentTileXYZ;
   }
@@ -323,8 +407,15 @@ class LegacyCanvasTileRenderer implements RenderWorker {
       return null;
     }
 
-    const { x, y, level, provider, image, polygonVerticesList, clipMaskVertices } =
-      job;
+    const {
+      x,
+      y,
+      level,
+      provider,
+      image,
+      polygonVerticesList,
+      clipMaskVertices,
+    } = job;
     const gl = this._context;
     this._currentTileXYZ = { x, y, z: level };
 
@@ -439,7 +530,9 @@ class LegacyCanvasRendererPool implements RendererPool {
 
     for (let i = 0; i < poolSize; i++) {
       const canvas =
-        i === 0 && externalCanvas ? externalCanvas : createInternalCanvas(options);
+        i === 0 && externalCanvas
+          ? externalCanvas
+          : createInternalCanvas(options);
       this.workers.push(new LegacyCanvasTileRenderer(canvas, options));
     }
   }
@@ -476,6 +569,10 @@ class LegacyCanvasRendererPool implements RendererPool {
       ),
     };
   }
+
+  getContextInfo() {
+    return this.workers[0]?.getContextInfo() ?? EMPTY_WEBGL_CONTEXT_INFO;
+  }
 }
 
 class SingleContextRenderSlot implements RenderWorker {
@@ -492,7 +589,11 @@ class SingleContextRenderSlot implements RenderWorker {
   ) {
     const gl = renderer.context;
     this.inputTexture = createEmptyTexture(gl, renderer.width, renderer.height);
-    this.outputTexture = createEmptyTexture(gl, renderer.width, renderer.height);
+    this.outputTexture = createEmptyTexture(
+      gl,
+      renderer.width,
+      renderer.height
+    );
     this.framebuffer = gl.createFramebuffer();
     this.depthStencilBuffer = gl.createRenderbuffer();
     this.textureCoordBuffer = gl.createBuffer();
@@ -593,7 +694,9 @@ class SingleContextTileRenderer implements RendererPool {
       textureCoord: screenTextureCoord,
     };
 
-    const slotCount = normalizeSlotCount(options.slotCount ?? options.poolSize ?? 4);
+    const slotCount = normalizeSlotCount(
+      options.slotCount ?? options.poolSize ?? 4
+    );
     for (let i = 0; i < slotCount; i++) {
       this.workers.push(new SingleContextRenderSlot(this, i));
     }
@@ -627,8 +730,15 @@ class SingleContextTileRenderer implements RendererPool {
       return null;
     }
 
-    const { x, y, level, provider, image, polygonVerticesList, clipMaskVertices } =
-      job;
+    const {
+      x,
+      y,
+      level,
+      provider,
+      image,
+      polygonVerticesList,
+      clipMaskVertices,
+    } = job;
     const gl = this._context;
 
     const slotStart = now();
@@ -742,6 +852,10 @@ class SingleContextTileRenderer implements RendererPool {
       contextLostCount: this._contextLostCount,
     };
   }
+
+  getContextInfo() {
+    return readWebGLContextInfo(this._context);
+  }
 }
 
 /**
@@ -760,20 +874,35 @@ export class CesiumTileProcesser {
   private _imageCachePromise = new CachedPromise<ImageryTypes>();
   private _imageBuffer: LRUCache<ImageryTypes>;
   private _resultBuffer: LRUCache<RetainedTileImageAsset>;
-  private _resultPromises = new Map<string, Promise<RetainedTileImageAsset | null>>();
+  private _resultPromises = new Map<
+    string,
+    Promise<RetainedTileImageAsset | null>
+  >();
   private _currentTileXYZ: TileXYZ | undefined = undefined;
   private _currentResult: TileImageAsset | null = null;
   private _cacheToken = 0;
   private _destroyed = false;
   private _outputType: TileImageOutputType;
-  private _stats = {
+  private _stats: TileProcessorCumulativeStats = {
     totalRequests: 0,
     imageCacheHits: 0,
     imageCacheMisses: 0,
     imagePromiseHits: 0,
+    imageRequestAttempts: 0,
+    imageRequestSuccesses: 0,
+    imageRequestFailures: 0,
+    imageRequestUndefined: 0,
+    imageEvictions: 0,
     resultCacheHits: 0,
     resultCacheMisses: 0,
     resultPromiseHits: 0,
+    resultEvictions: 0,
+    maskPreparationCount: 0,
+    maskPreparationMs: 0,
+    maskPolygonCount: 0,
+    maskInteriorRingCount: 0,
+    maskTriangleCount: 0,
+    maskSkippedPolygonCount: 0,
     renderedJobCount: 0,
     exportedAssetCount: 0,
     imageRequestMs: 0,
@@ -788,6 +917,10 @@ export class CesiumTileProcesser {
     encodeMs: 0,
     materialApplyMs: 0,
     maxBusySlotCount: 0,
+    maxQueuedJobCount: 0,
+    maxPendingExportCount: 0,
+    maxPendingImagePromiseCount: 0,
+    maxPendingResultPromiseCount: 0,
   };
 
   constructor(options?: CesiumTileProcesserOptions);
@@ -805,11 +938,21 @@ export class CesiumTileProcesser {
 
     this._outputType = resolvedOptions.outputType ?? "blobUrl";
     this._imageBuffer = new LRUCache<ImageryTypes>(
-      resolvedOptions.maxImageCacheSize ?? 256
+      resolvedOptions.maxImageCacheSize ?? 256,
+      (_image, reason) => {
+        if (reason === "capacity") {
+          this._stats.imageEvictions++;
+        }
+      }
     );
     this._resultBuffer = new LRUCache<RetainedTileImageAsset>(
       resolvedOptions.maxResultCacheSize ?? 512,
-      (asset) => asset.release()
+      (asset, reason) => {
+        if (reason === "capacity") {
+          this._stats.resultEvictions++;
+        }
+        asset.release();
+      }
     );
 
     this._rendererPool =
@@ -872,7 +1015,12 @@ export class CesiumTileProcesser {
     outputType: TileImageOutputType,
     clipKey = "full"
   ) {
-    return `${this.getRawTileKey(provider, x, y, level)}:${clipKey}:${outputType}`;
+    return `${this.getRawTileKey(
+      provider,
+      x,
+      y,
+      level
+    )}:${clipKey}:${outputType}`;
   }
 
   private getPolygonHash(polygonVertices: Array<number>) {
@@ -950,21 +1098,37 @@ export class CesiumTileProcesser {
       this._stats.imageCacheMisses++;
     }
 
-    const image = await this._imageCachePromise.getOrCreate(
+    const imagePromise = this._imageCachePromise.getOrCreate(
       tileKey,
       async () => {
         const requestStart = now();
+        this._stats.imageRequestAttempts++;
         try {
-          const requestedImage = await provider.requestImage(x, y, level);
-          if (!requestedImage) {
+          const request = provider.requestImage(x, y, level);
+          if (!request) {
+            this._stats.imageRequestUndefined++;
             throw new Error("图像获取失败");
           }
+          const requestedImage = await request;
+          if (!requestedImage) {
+            this._stats.imageRequestUndefined++;
+            throw new Error("图像获取失败");
+          }
+          this._stats.imageRequestSuccesses++;
           return requestedImage;
+        } catch (error) {
+          this._stats.imageRequestFailures++;
+          throw error;
         } finally {
           this._stats.imageRequestMs += now() - requestStart;
         }
       }
     );
+    this._stats.maxPendingImagePromiseCount = Math.max(
+      this._stats.maxPendingImagePromiseCount,
+      this._imageCachePromise.size
+    );
+    const image = await imagePromise;
 
     if (cacheToken === this._cacheToken) {
       this._imageBuffer.set(tileKey, image);
@@ -980,6 +1144,10 @@ export class CesiumTileProcesser {
 
     return new Promise<RenderResult | null>((resolve, reject) => {
       this._jobQueue.push({ ...job, resolve, reject });
+      this._stats.maxQueuedJobCount = Math.max(
+        this._stats.maxQueuedJobCount,
+        this._jobQueue.length
+      );
       this.processJobQueue();
     });
   }
@@ -1043,6 +1211,10 @@ export class CesiumTileProcesser {
         resolve,
         reject,
       });
+      this._stats.maxPendingExportCount = Math.max(
+        this._stats.maxPendingExportCount,
+        this._exportQueue.length + this._activeExportCount
+      );
       this.processExportQueue();
     });
   }
@@ -1166,6 +1338,10 @@ export class CesiumTileProcesser {
       });
 
     this._resultPromises.set(resultKey, resultPromise);
+    this._stats.maxPendingResultPromiseCount = Math.max(
+      this._stats.maxPendingResultPromiseCount,
+      this._resultPromises.size
+    );
     return resultPromise.then((asset) => asset?.retain() ?? null);
   }
 
@@ -1176,12 +1352,20 @@ export class CesiumTileProcesser {
     level: number,
     provider: ImageryProvider
   ) {
-    const asset = await this.reprojectInternal(x, y, level, provider, "dataUrl");
+    const asset = await this.reprojectInternal(
+      x,
+      y,
+      level,
+      provider,
+      "dataUrl"
+    );
     if (!asset) {
       return null;
     }
     try {
-      return typeof asset.source === "string" ? asset.source : asset.source.toDataURL();
+      return typeof asset.source === "string"
+        ? asset.source
+        : asset.source.toDataURL();
     } finally {
       asset.release();
     }
@@ -1207,7 +1391,9 @@ export class CesiumTileProcesser {
       return null;
     }
     try {
-      return typeof asset.source === "string" ? asset.source : asset.source.toDataURL();
+      return typeof asset.source === "string"
+        ? asset.source
+        : asset.source.toDataURL();
     } finally {
       asset.release();
     }
@@ -1271,10 +1457,22 @@ export class CesiumTileProcesser {
       return this.reprojectTileImage(x, y, level, provider, outputType);
     }
 
+    const maskPreparationStart = now();
     const clipKey = `area-${this.getTileClipAreaListHash(clipAreas)}`;
     const debugStats = createClipMaskDebugStats();
     const clipMaskVertices = createClipMaskVertices(clipAreas, debugStats);
-    logClipMaskDebug({ x, y, z: level }, clipAreas, clipMaskVertices, debugStats);
+    this._stats.maskPreparationCount++;
+    this._stats.maskPreparationMs += now() - maskPreparationStart;
+    this._stats.maskPolygonCount += debugStats.polygonCount;
+    this._stats.maskInteriorRingCount += debugStats.interiorRingCount;
+    this._stats.maskTriangleCount += debugStats.triangleCount;
+    this._stats.maskSkippedPolygonCount += debugStats.skippedPolygonCount;
+    logClipMaskDebug(
+      { x, y, z: level },
+      clipAreas,
+      clipMaskVertices,
+      debugStats
+    );
     if (clipMaskVertices.length === 0) {
       return null;
     }
@@ -1305,7 +1503,7 @@ export class CesiumTileProcesser {
     this.resolveQueuedExportsAsNull();
   }
 
-  getPoolStats() {
+  getPoolStats(): CesiumTileProcesserStats {
     const rendererStats = this._rendererPool.getStats();
     return {
       statsSchemaVersion: POOL_STATS_SCHEMA_VERSION,
@@ -1313,10 +1511,12 @@ export class CesiumTileProcesser {
       busyRendererCount: rendererStats.busySlotCount,
       queuedJobCount: this._jobQueue.length,
       pendingExportCount: this._exportQueue.length + this._activeExportCount,
+      pendingImagePromiseCount: this._imageCachePromise.size,
       imageBufferSize: this._imageBuffer.size,
       resultBufferSize: this._resultBuffer.size,
       pendingResultPromiseCount: this._resultPromises.size,
       ...rendererStats,
+      ...this._rendererPool.getContextInfo(),
       ...this._stats,
     };
   }
@@ -1387,7 +1587,10 @@ function createProgramInfo(
           defaultShaderProgram,
           "aVertexPosition"
         ),
-        textureCoord: gl.getAttribLocation(defaultShaderProgram, "aTextureCoord"),
+        textureCoord: gl.getAttribLocation(
+          defaultShaderProgram,
+          "aTextureCoord"
+        ),
       },
       uniformLocations: {
         projectionMatrix: gl.getUniformLocation(
@@ -1465,12 +1668,7 @@ async function createAssetFromSnapshot(
     const source = snapshotCanvas.toDataURL();
     const encodeMs = now() - encodeStart;
     return {
-      asset: new RetainedTileImageAsset(
-        source,
-        width,
-        height,
-        "dataUrl"
-      ),
+      asset: new RetainedTileImageAsset(source, width, height, "dataUrl"),
       timing: {
         exportMs: now() - exportStart,
         encodeMs,
@@ -1478,17 +1676,15 @@ async function createAssetFromSnapshot(
     };
   }
 
-  if (typeof URL === "undefined" || typeof snapshotCanvas.toBlob !== "function") {
+  if (
+    typeof URL === "undefined" ||
+    typeof snapshotCanvas.toBlob !== "function"
+  ) {
     const encodeStart = now();
     const source = snapshotCanvas.toDataURL();
     const encodeMs = now() - encodeStart;
     return {
-      asset: new RetainedTileImageAsset(
-        source,
-        width,
-        height,
-        "dataUrl"
-      ),
+      asset: new RetainedTileImageAsset(source, width, height, "dataUrl"),
       timing: {
         exportMs: now() - exportStart,
         encodeMs,
@@ -1522,7 +1718,9 @@ function createCanvasAssetFromSnapshot(snapshotCanvas: HTMLCanvasElement) {
   );
 }
 
-function createTileClipAreaFromFlatPolygon(polygonVertices: Array<number>): TileClipArea {
+function createTileClipAreaFromFlatPolygon(
+  polygonVertices: Array<number>
+): TileClipArea {
   return {
     polygons: [
       {
@@ -1532,12 +1730,9 @@ function createTileClipAreaFromFlatPolygon(polygonVertices: Array<number>): Tile
   };
 }
 
-function createClipMaskDebugStats(): ClipMaskDebugStats | undefined {
-  if (!isDeepTimeGeoDebugEnabled()) {
-    return undefined;
-  }
-
+function createClipMaskDebugStats(): ClipMaskDebugStats {
   return {
+    collectDeviation: isDeepTimeGeoDebugEnabled(),
     polygonCount: 0,
     interiorRingCount: 0,
     skippedPolygonCount: 0,
@@ -1570,7 +1765,10 @@ function appendPolygonMaskVertices(
     debugStats.interiorRingCount += polygon.interiors?.length ?? 0;
   }
 
-  const exterior = orientEarcutRing(prepareEarcutRing(polygon.exterior), "exterior");
+  const exterior = orientEarcutRing(
+    prepareEarcutRing(polygon.exterior),
+    "exterior"
+  );
   if (!exterior) {
     debugStats && debugStats.skippedPolygonCount++;
     return;
@@ -1589,8 +1787,13 @@ function appendPolygonMaskVertices(
 
   const indices = earcut(flatVertices, holeIndices, 2);
   if (debugStats) {
-    const deviation = getEarcutAreaDeviation(flatVertices, holeIndices, indices);
     debugStats.triangleCount += indices.length / 3;
+    if (debugStats.collectDeviation) {
+      const deviation = getEarcutAreaDeviation(
+        flatVertices,
+        holeIndices,
+        indices
+      );
     debugStats.maxTriangleDeviation = Math.max(
       debugStats.maxTriangleDeviation,
       deviation
@@ -1598,6 +1801,7 @@ function appendPolygonMaskVertices(
     if (deviation > 0.01) {
       debugStats.highDeviationPolygonCount++;
     }
+  }
   }
 
   indices.forEach((vertexIndex) => {
@@ -1612,7 +1816,11 @@ function logClipMaskDebug(
   maskVertices: Float32Array,
   debugStats?: ClipMaskDebugStats
 ) {
-  if (!debugStats || geometryDebugLogCount >= GEOMETRY_DEBUG_LOG_LIMIT) {
+  if (
+    !isDeepTimeGeoDebugEnabled() ||
+    !debugStats ||
+    geometryDebugLogCount >= GEOMETRY_DEBUG_LOG_LIMIT
+  ) {
     return;
   }
 
@@ -1686,8 +1894,7 @@ function orientEarcutRing(
   }
 
   const area = openRingArea(ring);
-  const shouldReverse =
-    ringRole === "exterior" ? area > 0 : area < 0;
+  const shouldReverse = ringRole === "exterior" ? area > 0 : area < 0;
   return shouldReverse ? reverseFlatRing(ring) : ring;
 }
 
@@ -1720,9 +1927,7 @@ function openRingArea(ring: Array<number>) {
   const pointCount = Math.floor(ring.length / 2);
   for (let i = 0; i < pointCount; i++) {
     const next = (i + 1) % pointCount;
-    area +=
-      ring[i * 2] * ring[next * 2 + 1] -
-      ring[next * 2] * ring[i * 2 + 1];
+    area += ring[i * 2] * ring[next * 2 + 1] - ring[next * 2] * ring[i * 2 + 1];
   }
   return area / 2;
 }
@@ -1737,7 +1942,10 @@ function getEarcutAreaDeviation(
     return 0;
   }
 
-  return Math.abs(getTriangleIndicesArea(vertices, triangleIndices) - polygonArea) / polygonArea;
+  return (
+    Math.abs(getTriangleIndicesArea(vertices, triangleIndices) - polygonArea) /
+    polygonArea
+  );
 }
 
 function getPreparedPolygonArea(
@@ -1783,11 +1991,10 @@ function getTriangleIndicesArea(
     const b = triangleIndices[i + 1] * 2;
     const c = triangleIndices[i + 2] * 2;
     area += Math.abs(
-      (
-        vertices[a] * (vertices[b + 1] - vertices[c + 1]) +
+      (vertices[a] * (vertices[b + 1] - vertices[c + 1]) +
         vertices[b] * (vertices[c + 1] - vertices[a + 1]) +
-        vertices[c] * (vertices[a + 1] - vertices[b + 1])
-      ) / 2
+        vertices[c] * (vertices[a + 1] - vertices[b + 1])) /
+        2
     );
   }
   return area;
@@ -1882,6 +2089,33 @@ function normalizeLegacyPoolSize(poolSize: number) {
 
 function normalizeSlotCount(slotCount: number) {
   return Math.min(8, Math.max(1, Math.floor(slotCount)));
+}
+
+const EMPTY_WEBGL_CONTEXT_INFO: WebGLContextInfo = {
+  webglVersion: "unavailable",
+  shadingLanguageVersion: "unavailable",
+  vendor: "unavailable",
+  renderer: "unavailable",
+};
+
+function readWebGLContextInfo(gl: WebGLRenderingContext): WebGLContextInfo {
+  const debugInfo = gl.getExtension("WEBGL_debug_renderer_info") as {
+    UNMASKED_VENDOR_WEBGL: number;
+    UNMASKED_RENDERER_WEBGL: number;
+  } | null;
+
+  return {
+    webglVersion: String(gl.getParameter(gl.VERSION)),
+    shadingLanguageVersion: String(
+      gl.getParameter(gl.SHADING_LANGUAGE_VERSION)
+    ),
+    vendor: String(
+      gl.getParameter(debugInfo?.UNMASKED_VENDOR_WEBGL ?? gl.VENDOR)
+    ),
+    renderer: String(
+      gl.getParameter(debugInfo?.UNMASKED_RENDERER_WEBGL ?? gl.RENDERER)
+    ),
+  };
 }
 
 function now() {

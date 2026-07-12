@@ -2,6 +2,18 @@
 
 这个 demo 用于在 Cesium Viewer 中加载板块多边形、旋转文件和瓦片影像，并支持为对照实验导出截图和系统信息。
 
+## 浏览器性能基准
+
+在初始化交互式 manager 之前，可以从浏览器控制台运行论文使用的版本化基准：
+
+```js
+const result = await window.__rtlPerformanceBenchmark.run();
+window.__rtlPerformanceBenchmark.downloadLastResult();
+```
+
+指标定义、缓存边界、有效性断言以及短程 smoke run 示例见
+`packages/simple-geo-reconstruct/docs/browser-performance-benchmark.md`。基准首次运行时会释放交互式瓦片处理器，以保证每次重复只存在一个离屏处理 context；基准结束后应刷新页面再继续交互操作。
+
 ## 基本流程
 
 1. 在 `Experiment Import` 中导入已有实验 JSON，或从默认配置开始。

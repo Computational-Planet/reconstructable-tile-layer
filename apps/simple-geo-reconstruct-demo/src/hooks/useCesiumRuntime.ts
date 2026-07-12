@@ -2,7 +2,10 @@
 import { useEffect, useRef } from "react";
 import type { Viewer } from "cesium";
 import type { GeoTileStats } from "simple-geo-reconstruct";
-import { CesiumTileProcesser, type TileImageOutputType } from "tile-processer-webgl";
+import {
+  CesiumTileProcesser,
+  type TileImageOutputType,
+} from "tile-processer-webgl";
 import type { SimpleGeoReconstructManager } from "simple-geo-reconstruct";
 
 import {
@@ -11,6 +14,7 @@ import {
   DEMO_ELLIPSOID_CONFIG,
 } from "../cesium/createViewer";
 import type { ExperimentOutputConfig } from "../experiment";
+import { installPerformanceBenchmark } from "../benchmark/performanceBenchmark";
 
 const TILE_OUTPUT_TYPE: TileImageOutputType = "canvas";
 
@@ -53,9 +57,21 @@ export function useCesiumRuntime({
     viewerRef.current = viewer;
     tileProcesserRef.current = processer;
     window.__tileProcesserStats = () => processer.getPoolStats();
+    const removePerformanceBenchmark = installPerformanceBenchmark({
+      viewer,
+      getActiveManager: () => managerRef.current,
+      prepareExclusiveRuntime: () => {
+        processer.destroy();
+        if (tileProcesserRef.current === processer) {
+          tileProcesserRef.current = null;
+        }
+        delete window.__tileProcesserStats;
+      },
+    });
     onStatusChange("Viewer ready. Initialize the manager to load data.");
 
     return () => {
+      removePerformanceBenchmark();
       sceneModeCleanupRef.current?.();
       managerRef.current?.destroy(viewer);
       processer.destroy();
