@@ -37,6 +37,7 @@ export default {
   plugins: [
     ts({
       tsconfig: "tsconfig.json",
+      clean: true,
     }),
     commonjs({
       include: /node_modules/,

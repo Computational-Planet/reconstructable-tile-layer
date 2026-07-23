@@ -3,6 +3,7 @@ import cesiumPackage from "cesium/package.json";
 import {
   SimpleGeoReconstructManager,
   type PrimitiveTransformMode,
+  type RenderRectangleSubdivision,
 } from "simple-geo-reconstruct";
 import {
   CesiumTileProcesser,
@@ -18,6 +19,7 @@ import type {
   AgeBenchmarkRecord,
   AgeTransitionRecord,
   BenchmarkAssertion,
+  BenchmarkCheckpointName,
   BenchmarkConditionId,
   BenchmarkEnvironment,
   BenchmarkReplicateRecord,
@@ -25,10 +27,14 @@ import type {
   BenchmarkSuiteResult,
   InitializationBenchmarkRecord,
   LoadBenchmarkRecord,
+  MetricValue,
   PerformanceBenchmarkConfig,
   PerformanceBenchmarkController,
+  ResourceCheckpoint,
   RunBenchmarkOptions,
 } from "./performanceBenchmarkTypes";
+import { measureNextRenderedFrame } from "./gpuFrameTimer";
+import { PerformanceStageCollector } from "./performanceStageCollector";
 
 type BenchmarkRuntime = {
   processer: CesiumTileProcesser;
@@ -41,6 +47,11 @@ type RuntimeConstruction = BenchmarkRuntime & {
   managerConstructorMs: number;
   managerInitMs: number;
   totalReadyMs: number;
+};
+
+type RuntimeBenchmarkControls = {
+  stageCollector?: PerformanceStageCollector;
+  renderRectangleSubdivision?: RenderRectangleSubdivision;
 };
 
 type InstallPerformanceBenchmarkOptions = {
@@ -57,6 +68,8 @@ const DEFAULT_CONDITIONS: BenchmarkConditionId[] = [
   "level-2",
   "level-3",
   "level-4",
+  "level-0-split-l2-extent",
+  "level-1-split-l2-extent",
   "view-w1-level-4",
   "age-dynamic-3d",
   "age-baked-2d",
@@ -123,6 +136,7 @@ async function runBenchmarkSuite(
   options: RunBenchmarkOptions,
 ): Promise<BenchmarkSuiteResult> {
   const config = resolveConfig(baseConfig, options);
+  const profile = options.profile ?? "paper";
   const conditions = resolveConditions(options.conditions);
   const startedAt = new Date().toISOString();
   const records: BenchmarkReplicateRecord[] = [];
@@ -136,7 +150,15 @@ async function runBenchmarkSuite(
     for (let index = 0; index < config.warmupRuns; index++) {
       executionOrder.push(conditionId);
       records.push(
-        await runCondition(viewer, config, conditionId, true, null, index),
+        await runCondition(
+          viewer,
+          config,
+          options,
+          conditionId,
+          true,
+          null,
+          index,
+        ),
       );
     }
   }
@@ -153,6 +175,7 @@ async function runBenchmarkSuite(
         await runCondition(
           viewer,
           config,
+          options,
           conditionId,
           false,
           blockIndex,
@@ -164,7 +187,8 @@ async function runBenchmarkSuite(
 
   const firstProcessorStats = findFirstProcessorStats(records);
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
+    profile,
     startedAt,
     completedAt: new Date().toISOString(),
     config,
@@ -177,6 +201,7 @@ async function runBenchmarkSuite(
 async function runCondition(
   viewer: Viewer,
   config: PerformanceBenchmarkConfig,
+  options: RunBenchmarkOptions,
   conditionId: BenchmarkConditionId,
   warmup: boolean,
   blockIndex: number | null,
@@ -186,6 +211,7 @@ async function runCondition(
     return runInitializationCondition(
       viewer,
       config,
+      options,
       warmup,
       blockIndex,
       replicateIndex,
@@ -195,6 +221,7 @@ async function runCondition(
     return runAgeCondition(
       viewer,
       config,
+      options,
       "dynamic3D",
       warmup,
       blockIndex,
@@ -205,6 +232,7 @@ async function runCondition(
     return runAgeCondition(
       viewer,
       config,
+      options,
       "bakedInstance",
       warmup,
       blockIndex,
@@ -212,11 +240,20 @@ async function runCondition(
     );
   }
 
-  const viewAware = conditionId === "view-w1-level-4";
-  const level = viewAware ? 4 : Number(conditionId.slice("level-".length));
+  const viewAware =
+    conditionId === "view-w1-level-4" ||
+    conditionId === "network-macrostrat-w1-level-4";
+  const level = viewAware
+    ? 4
+    : conditionId.startsWith("level-0")
+      ? 0
+      : conditionId.startsWith("level-1")
+        ? 1
+        : Number(conditionId.slice("level-".length));
   return runLoadCondition(
     viewer,
     config,
+    options,
     conditionId,
     level,
     viewAware,
@@ -229,13 +266,30 @@ async function runCondition(
 async function runInitializationCondition(
   viewer: Viewer,
   config: PerformanceBenchmarkConfig,
+  options: RunBenchmarkOptions,
   warmup: boolean,
   blockIndex: number | null,
   replicateIndex: number,
 ): Promise<InitializationBenchmarkRecord> {
+  const profile = options.profile ?? "paper";
+  const recordId = createRecordId(
+    profile,
+    "initialization",
+    warmup,
+    blockIndex,
+    replicateIndex,
+  );
+  const resourceCheckpoints: ResourceCheckpoint[] = [];
   await setBenchmarkSceneMode(viewer, "dynamic3D", config);
-  const runtime = await createRuntime(config, "dynamic3D");
+  await appendCheckpoint(
+    resourceCheckpoints,
+    recordId,
+    "beforeCondition",
+    profile,
+  );
+  const runtime = await createRuntime(config, "dynamic3D", options);
   const finalSnapshot = snapshot(runtime);
+  await appendCheckpoint(resourceCheckpoints, recordId, "atIdle", profile);
   const assertions = [
     assertion("manager-ready", runtime.manager.ready, true),
     assertion(
@@ -257,12 +311,23 @@ async function runInitializationCondition(
   ];
 
   destroyRuntime(viewer, runtime);
+  await waitForAnimationFrame();
+  await appendCheckpoint(
+    resourceCheckpoints,
+    recordId,
+    "afterDestroySettled",
+    profile,
+  );
   return {
     kind: "initialization",
+    recordId,
+    profile,
     conditionId: "initialization",
     warmup,
     blockIndex,
     replicateIndex,
+    performanceTimeOriginMs: performance.timeOrigin,
+    resourceCheckpoints,
     providerConstructorMs: runtime.providerConstructorMs,
     processorConstructorMs: runtime.processorConstructorMs,
     managerConstructorMs: runtime.managerConstructorMs,
@@ -276,6 +341,7 @@ async function runInitializationCondition(
 async function runLoadCondition(
   viewer: Viewer,
   config: PerformanceBenchmarkConfig,
+  options: RunBenchmarkOptions,
   conditionId: LoadBenchmarkRecord["conditionId"],
   level: number,
   viewAware: boolean,
@@ -283,14 +349,34 @@ async function runLoadCondition(
   blockIndex: number | null,
   replicateIndex: number,
 ): Promise<LoadBenchmarkRecord> {
+  const profile = options.profile ?? "paper";
+  const recordId = createRecordId(
+    profile,
+    conditionId,
+    warmup,
+    blockIndex,
+    replicateIndex,
+  );
   await setBenchmarkSceneMode(
     viewer,
     "dynamic3D",
     config,
     viewAware ? "w1" : "global",
   );
-  const runtime = await createRuntime(config, "dynamic3D");
+  const stageCollector = new PerformanceStageCollector();
+  const split = conditionId.endsWith("split-l2-extent");
+  const runtime = await createRuntime(config, "dynamic3D", options, {
+    stageCollector,
+    renderRectangleSubdivision: split
+      ? {
+          mode: "max-angular-extent",
+          radians: config.splitMaximumAngularExtentRadians,
+        }
+      : { mode: "none" },
+  });
+  const resourceCheckpoints: ResourceCheckpoint[] = [];
   const before = snapshot(runtime);
+  await appendCheckpoint(resourceCheckpoints, recordId, "beforeCondition", profile);
   const operationStart = now();
 
   if (viewAware) {
@@ -308,29 +394,68 @@ async function runLoadCondition(
 
   const returnMs = now() - operationStart;
   const atReturn = snapshot(runtime);
-  await waitForRenderedFrames(viewer, 2, config.idleTimeoutMs);
+  stageCollector.freeze(["task-gen", "provider", "masking"]);
+  await appendCheckpoint(resourceCheckpoints, recordId, "atReturn", profile);
+  const firstFrame = await measureNextRenderedFrame(
+    viewer,
+    config.idleTimeoutMs,
+    profile === "diagnostic",
+  );
+  stageCollector.onStageOperation(
+    "first-frame",
+    firstFrame.startTimeMs,
+    firstFrame.endTimeMs,
+  );
+  await appendCheckpoint(
+    resourceCheckpoints,
+    recordId,
+    "afterFirstFrame",
+    profile,
+  );
+  await waitForRenderedFrames(viewer, 1, config.idleTimeoutMs);
   const presentMs = now() - operationStart;
   const atPresent = snapshot(runtime);
+  stageCollector.freeze(["geometry-creation", "first-frame"]);
+  await appendCheckpoint(resourceCheckpoints, recordId, "atPresent", profile);
   await waitForRuntimeIdle(runtime, config);
   await waitForRenderedFrames(viewer, 1, config.idleTimeoutMs);
   const idleMs = now() - operationStart;
   const atIdle = snapshot(runtime);
+  await appendCheckpoint(resourceCheckpoints, recordId, "atIdle", profile);
   const foregroundProcessorSnapshot =
     atIdle.generationReport?.foregroundProcessorStats ?? null;
-  const assertions = buildLoadAssertions(atIdle);
+  const assertions = buildLoadAssertions(atIdle, split ? (level === 0 ? 16 : 4) : 1);
+  const firstFrameGpu = await firstFrame.gpu;
+  const stageTimings = stageCollector.finalize(recordId);
 
   destroyRuntime(viewer, runtime);
+  await waitForAnimationFrame();
+  await appendCheckpoint(
+    resourceCheckpoints,
+    recordId,
+    "afterDestroySettled",
+    profile,
+  );
   return {
     kind: "load",
+    recordId,
+    profile,
     conditionId,
     warmup,
     blockIndex,
     replicateIndex,
+    performanceTimeOriginMs: performance.timeOrigin,
+    resourceCheckpoints,
     level,
     viewRectangleDegrees: viewAware ? { ...config.w1RectangleDegrees } : null,
+    renderRectangleMode: split ? "split-l2-extent" : "original",
+    renderRectanglePartCount: atIdle.manager.renderRectanglePartCount,
     returnMs,
+    firstFrameMs: firstFrame.wallMs,
     presentMs,
     idleMs,
+    stageTimings,
+    firstFrameGpu,
     before,
     atReturn,
     atPresent,
@@ -343,13 +468,31 @@ async function runLoadCondition(
 async function runAgeCondition(
   viewer: Viewer,
   config: PerformanceBenchmarkConfig,
+  options: RunBenchmarkOptions,
   transformMode: PrimitiveTransformMode,
   warmup: boolean,
   blockIndex: number | null,
   replicateIndex: number,
 ): Promise<AgeBenchmarkRecord> {
+  const profile = options.profile ?? "paper";
+  const conditionId =
+    transformMode === "dynamic3D" ? "age-dynamic-3d" : "age-baked-2d";
+  const recordId = createRecordId(
+    profile,
+    conditionId,
+    warmup,
+    blockIndex,
+    replicateIndex,
+  );
+  const resourceCheckpoints: ResourceCheckpoint[] = [];
   await setBenchmarkSceneMode(viewer, transformMode, config);
-  const runtime = await createRuntime(config, transformMode);
+  await appendCheckpoint(
+    resourceCheckpoints,
+    recordId,
+    "beforeCondition",
+    profile,
+  );
+  const runtime = await createRuntime(config, transformMode, options);
 
   // Age timing starts only after every Level-4 visible and prewarm task has
   // settled, so no background image work can leak into a transition.
@@ -358,6 +501,7 @@ async function runAgeCondition(
   await waitForRuntimeIdle(runtime, config);
   await waitForRenderedFrames(viewer, 1, config.idleTimeoutMs);
   const preparationIdleMs = now() - preparationStart;
+  await appendCheckpoint(resourceCheckpoints, recordId, "atIdle", profile);
 
   const transitions: AgeTransitionRecord[] = [];
   const visitCounts = new Map<number, number>();
@@ -396,14 +540,25 @@ async function runAgeCondition(
   }
 
   const assertions = buildIdleAssertions(snapshot(runtime));
+  await appendCheckpoint(resourceCheckpoints, recordId, "atPresent", profile);
   destroyRuntime(viewer, runtime);
+  await waitForAnimationFrame();
+  await appendCheckpoint(
+    resourceCheckpoints,
+    recordId,
+    "afterDestroySettled",
+    profile,
+  );
   return {
     kind: "age",
-    conditionId:
-      transformMode === "dynamic3D" ? "age-dynamic-3d" : "age-baked-2d",
+    recordId,
+    profile,
+    conditionId,
     warmup,
     blockIndex,
     replicateIndex,
+    performanceTimeOriginMs: performance.timeOrigin,
+    resourceCheckpoints,
     transformMode,
     sceneMode: transformMode === "dynamic3D" ? "SCENE3D" : "SCENE2D",
     preparationIdleMs,
@@ -415,12 +570,21 @@ async function runAgeCondition(
 async function createRuntime(
   config: PerformanceBenchmarkConfig,
   transformMode: PrimitiveTransformMode,
+  options: RunBenchmarkOptions,
+  controls: RuntimeBenchmarkControls = {},
 ): Promise<RuntimeConstruction> {
   const totalStart = now();
   const providerStart = now();
-  const provider = createImageryProvider(config.providerKey, undefined, {
+  const providerSelection = options.providerOverride ?? {
+    key: config.providerKey,
+  };
+  const provider = createImageryProvider(
+    providerSelection.key,
+    providerSelection.customConfig,
+    {
     ellipsoid: DEMO_ELLIPSOID_CONFIG.ellipsoid,
-  });
+    },
+  );
   const providerConstructorMs = now() - providerStart;
 
   const processorStart = now();
@@ -429,6 +593,7 @@ async function createRuntime(
     outputType: config.outputType,
     maxImageCacheSize: config.maxImageCacheSize,
     maxResultCacheSize: config.maxResultCacheSize,
+    benchmarkObserver: controls.stageCollector,
   });
   const processorConstructorMs = now() - processorStart;
 
@@ -444,6 +609,8 @@ async function createRuntime(
     referenceEllipsoid: DEMO_ELLIPSOID_CONFIG.ellipsoid,
     tileRequestConcurrency: config.tileRequestConcurrency,
     primitiveBatchSize: config.primitiveBatchSize,
+    renderRectangleSubdivision: controls.renderRectangleSubdivision,
+    benchmarkObserver: controls.stageCollector,
   });
   const managerConstructorMs = now() - managerStart;
 
@@ -473,6 +640,7 @@ function snapshot(runtime: BenchmarkRuntime): BenchmarkStatsSnapshot {
     manager: runtime.manager.getStats(),
     processor: runtime.processer.getPoolStats(),
     generationReport: runtime.manager.getLastGenerationReport(),
+    jsHeap: captureJsHeap(),
   };
 }
 
@@ -553,6 +721,7 @@ async function setBenchmarkSceneMode(
 
 function buildLoadAssertions(
   state: BenchmarkStatsSnapshot,
+  expectedPartsPerComposite: number,
 ): BenchmarkAssertion[] {
   const report = state.generationReport;
   const completed = report
@@ -585,6 +754,22 @@ function buildLoadAssertions(
       "primitive-ready",
       state.manager.readyPrimitiveCount,
       state.manager.primitiveCount,
+    ),
+    assertion(
+      "retained-image-count",
+      state.manager.retainedImageAssetCount,
+      state.manager.loadedCompositeTileCount,
+    ),
+    assertion(
+      "render-rectangle-parts",
+      state.manager.renderRectanglePartCount,
+      state.manager.loadedCompositeTileCount * expectedPartsPerComposite,
+    ),
+    assertion(
+      "texture-estimate-present",
+      state.manager.loadedCompositeTileCount === 0 ||
+        state.manager.estimatedTextureRgbaBytes > 0,
+      true,
     ),
     assertion(
       "source-composite-order",
@@ -768,6 +953,83 @@ function waitForAnimationFrame() {
   return new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 }
 
+function createRecordId(
+  profile: string,
+  conditionId: string,
+  warmup: boolean,
+  blockIndex: number | null,
+  replicateIndex: number,
+) {
+  const phase = warmup ? "warmup" : `block-${blockIndex ?? "none"}`;
+  return `${profile}:${conditionId}:${phase}:replicate-${replicateIndex}`;
+}
+
+function captureJsHeap() {
+  const memory = (
+    performance as Performance & {
+      memory?: {
+        usedJSHeapSize: number;
+        totalJSHeapSize: number;
+        jsHeapSizeLimit: number;
+      };
+    }
+  ).memory;
+  if (!memory) {
+    const unsupported: MetricValue<number> = {
+      status: "unsupported",
+      reason: "performance.memory is unavailable in this browser.",
+    };
+    return {
+      usedJSHeapSize: unsupported,
+      totalJSHeapSize: unsupported,
+      jsHeapSizeLimit: unsupported,
+    };
+  }
+  return {
+    usedJSHeapSize: measured(memory.usedJSHeapSize, "bytes"),
+    totalJSHeapSize: measured(memory.totalJSHeapSize, "bytes"),
+    jsHeapSizeLimit: measured(memory.jsHeapSizeLimit, "bytes"),
+  };
+}
+
+async function appendCheckpoint(
+  checkpoints: ResourceCheckpoint[],
+  recordId: string,
+  checkpoint: BenchmarkCheckpointName,
+  profile: "paper" | "diagnostic",
+) {
+  if (profile !== "diagnostic") {
+    return;
+  }
+  const pageTimeMs = performance.now();
+  const request = {
+    recordId,
+    checkpoint,
+    pageTimeMs,
+    epochMs: performance.timeOrigin + pageTimeMs,
+    jsHeap: captureJsHeap(),
+  };
+  let external: unknown = {
+    status: "unsupported",
+    reason: "The benchmark runner checkpoint binding is unavailable.",
+  };
+  if (window.__rtlBenchmarkCheckpoint) {
+    try {
+      external = await window.__rtlBenchmarkCheckpoint(request);
+    } catch (error) {
+      external = {
+        status: "error",
+        message: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+  checkpoints.push({ ...request, external });
+}
+
+function measured<T>(value: T, unit: string): MetricValue<T> {
+  return { status: "measured", value, unit };
+}
+
 function now() {
   return performance.now();
 }
@@ -775,5 +1037,12 @@ function now() {
 declare global {
   interface Window {
     __rtlPerformanceBenchmark?: PerformanceBenchmarkController;
+    __rtlBenchmarkCheckpoint?: (request: {
+      recordId: string;
+      checkpoint: BenchmarkCheckpointName;
+      epochMs: number;
+      pageTimeMs: number;
+      jsHeap: ReturnType<typeof captureJsHeap>;
+    }) => Promise<unknown>;
   }
 }

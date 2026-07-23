@@ -10,7 +10,7 @@ import type { PerformanceBenchmarkConfig } from "./performanceBenchmarkTypes";
  */
 export const DEFAULT_PERFORMANCE_BENCHMARK_CONFIG: PerformanceBenchmarkConfig =
   {
-    schemaVersion: 1,
+    schemaVersion: 2,
     warmupRuns: 3,
     measuredBlocks: 10,
     randomSeed: 20260710,
@@ -32,6 +32,7 @@ export const DEFAULT_PERFORMANCE_BENCHMARK_CONFIG: PerformanceBenchmarkConfig =
     outputType: "canvas",
     maxImageCacheSize: 256,
     maxResultCacheSize: 512,
+    splitMaximumAngularExtentRadians: Math.PI / 4,
     // Benchmark W1: northern-to-central South Atlantic at 120 Ma.
     w1RectangleDegrees: {
       west: -50,

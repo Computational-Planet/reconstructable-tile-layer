@@ -252,6 +252,17 @@ export type WebGLContextInfo = {
   renderer: string;
 };
 
+export type TileProcesserBenchmarkStage = "provider" | "masking";
+
+/** Optional, low-level timing hook used by the browser benchmark. */
+export type TileProcesserBenchmarkObserver = {
+  onStageOperation(
+    stage: TileProcesserBenchmarkStage,
+    startTimeMs: number,
+    endTimeMs: number
+  ): void;
+};
+
 export type TileProcessorCumulativeStats = {
   totalRequests: number;
   imageCacheHits: number;
@@ -883,6 +894,7 @@ export class CesiumTileProcesser {
   private _cacheToken = 0;
   private _destroyed = false;
   private _outputType: TileImageOutputType;
+  private _benchmarkObserver?: TileProcesserBenchmarkObserver;
   private _stats: TileProcessorCumulativeStats = {
     totalRequests: 0,
     imageCacheHits: 0,
@@ -937,6 +949,7 @@ export class CesiumTileProcesser {
       : (canvasOrOptions as CesiumTileProcesserOptions | undefined) ?? {};
 
     this._outputType = resolvedOptions.outputType ?? "blobUrl";
+    this._benchmarkObserver = resolvedOptions.benchmarkObserver;
     this._imageBuffer = new LRUCache<ImageryTypes>(
       resolvedOptions.maxImageCacheSize ?? 256,
       (_image, reason) => {
@@ -1120,7 +1133,13 @@ export class CesiumTileProcesser {
           this._stats.imageRequestFailures++;
           throw error;
         } finally {
-          this._stats.imageRequestMs += now() - requestStart;
+          const requestEnd = now();
+          this._stats.imageRequestMs += requestEnd - requestStart;
+          this._benchmarkObserver?.onStageOperation(
+            "provider",
+            requestStart,
+            requestEnd
+          );
         }
       }
     );
@@ -1292,9 +1311,11 @@ export class CesiumTileProcesser {
 
     this._stats.resultCacheMisses++;
     const cacheToken = this._cacheToken;
+    let processingStart: number | null = null;
     const resultPromise = this.getImage(x, y, level, provider, cacheToken)
-      .then((image) =>
-        this.enqueueRender({
+      .then((image) => {
+        processingStart = now();
+        return this.enqueueRender({
           x,
           y,
           level,
@@ -1304,8 +1325,8 @@ export class CesiumTileProcesser {
           queuedAt: now(),
           polygonVerticesList,
           clipMaskVertices,
-        })
-      )
+        });
+      })
       .then((result) => {
         if (!result) {
           return null;
@@ -1334,6 +1355,13 @@ export class CesiumTileProcesser {
         return null;
       })
       .finally(() => {
+        if (processingStart !== null) {
+          this._benchmarkObserver?.onStageOperation(
+            "masking",
+            processingStart,
+            now()
+          );
+        }
         this._resultPromises.delete(resultKey);
       });
 
@@ -1461,8 +1489,15 @@ export class CesiumTileProcesser {
     const clipKey = `area-${this.getTileClipAreaListHash(clipAreas)}`;
     const debugStats = createClipMaskDebugStats();
     const clipMaskVertices = createClipMaskVertices(clipAreas, debugStats);
+    const maskPreparationEnd = now();
     this._stats.maskPreparationCount++;
-    this._stats.maskPreparationMs += now() - maskPreparationStart;
+    this._stats.maskPreparationMs +=
+      maskPreparationEnd - maskPreparationStart;
+    this._benchmarkObserver?.onStageOperation(
+      "masking",
+      maskPreparationStart,
+      maskPreparationEnd
+    );
     this._stats.maskPolygonCount += debugStats.polygonCount;
     this._stats.maskInteriorRingCount += debugStats.interiorRingCount;
     this._stats.maskTriangleCount += debugStats.triangleCount;
@@ -2142,6 +2177,7 @@ export type CesiumTileProcesserOptions = {
   legacyCanvasPool?: boolean; // 显式启用旧版多 canvas/context 池
   maxImageCacheSize?: number; // 原始影像缓存上限
   maxResultCacheSize?: number; // 重投影结果缓存上限
+  benchmarkObserver?: TileProcesserBenchmarkObserver; // 可选论文基准观测器
 };
 
 // TS中需要定义该变量的类型（没有预定义）

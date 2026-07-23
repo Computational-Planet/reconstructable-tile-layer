@@ -32,6 +32,12 @@ import {
   type PolygonRenderIntentMode,
   type RenderIntent,
 } from "./gplates";
+import {
+  MeasuredRectangleGeometry,
+  subdivideRenderRectangle,
+  type RenderRectangleSubdivision,
+  type SimpleGeoReconstructBenchmarkObserver,
+} from "./renderRectangleSubdivision";
 
 const DEFAULT_TILE_REQUEST_CONCURRENCY = 64;
 const DEFAULT_PRIMITIVE_BATCH_SIZE = 32;
@@ -39,7 +45,7 @@ const DEFAULT_VIEW_TARGET_TILE_SCREEN_SIZE = 256;
 const DEFAULT_VIEW_MAX_RAW_TILE_COUNT = 128;
 const DEFAULT_VIEW_MAX_LEVEL = 18;
 const RECTANGLE_SAMPLE_EPSILON = 1e-10;
-const GEO_TILE_STATS_SCHEMA_VERSION = 2;
+const GEO_TILE_STATS_SCHEMA_VERSION = 3;
 const TILE_GENERATION_REPORT_SCHEMA_VERSION = 1;
 const IDENTITY_MODEL_MATRIX = Matrix4.clone(Matrix4.IDENTITY);
 
@@ -166,7 +172,7 @@ export interface PaleoData {
 type TilePrimitiveRecord = {
   tileId: string;
   imageAsset: TileImageAsset;
-  primitive: Primitive | null;
+  primitives: Primitive[];
   tileXYL: NodeInfo["tileXYL"];
   clipAreas: TileClipArea[];
   coversFullTile: boolean;
@@ -228,6 +234,9 @@ export type GeoTileStats = {
   shownPrimitiveCount: number;
   primitiveCreatedCount: number;
   primitiveRemovedCount: number;
+  retainedImageAssetCount: number;
+  estimatedTextureRgbaBytes: number;
+  renderRectanglePartCount: number;
   lastTaskCollectionMs: number;
   importDiagnostics?: FeatureImportDiagnostics;
 };
@@ -282,6 +291,8 @@ export interface SimpleGeoReconstructManagerConstructorOptions {
   referenceEllipsoid?: Ellipsoid;
   tileRequestConcurrency?: number;
   primitiveBatchSize?: number;
+  renderRectangleSubdivision?: RenderRectangleSubdivision;
+  benchmarkObserver?: SimpleGeoReconstructBenchmarkObserver;
 }
 
 export interface ViewFineTileLoadOptions {
@@ -373,6 +384,9 @@ export class SimpleGeoReconstructManager {
     shownPrimitiveCount: 0,
     primitiveCreatedCount: 0,
     primitiveRemovedCount: 0,
+    retainedImageAssetCount: 0,
+    estimatedTextureRgbaBytes: 0,
+    renderRectanglePartCount: 0,
     lastTaskCollectionMs: 0,
     importDiagnostics: undefined,
   };
@@ -391,6 +405,10 @@ export class SimpleGeoReconstructManager {
   private _primitiveBatchSize = DEFAULT_PRIMITIVE_BATCH_SIZE;
   private _tileRootPrimitiveCollection: PrimitiveCollection | null = null;
   private _platePrimitiveCollections = new Map<string, PrimitiveCollection>();
+  private _renderRectangleSubdivision: RenderRectangleSubdivision = {
+    mode: "none",
+  };
+  private _benchmarkObserver?: SimpleGeoReconstructBenchmarkObserver;
 
   constructor(data: SimpleGeoReconstructManagerConstructorOptions) {
     this._provider = data.provider;
@@ -408,6 +426,10 @@ export class SimpleGeoReconstructManager {
       data.tileRequestConcurrency ?? DEFAULT_TILE_REQUEST_CONCURRENCY;
     this._primitiveBatchSize =
       data.primitiveBatchSize ?? DEFAULT_PRIMITIVE_BATCH_SIZE;
+    this._renderRectangleSubdivision = data.renderRectangleSubdivision ?? {
+      mode: "none",
+    };
+    this._benchmarkObserver = data.benchmarkObserver;
   }
 
   get ready() {
@@ -419,9 +441,13 @@ export class SimpleGeoReconstructManager {
   }
 
   getGeoTileStats(): GeoTileStats {
-    const primitives = Array.from(this._compositeTileRecords.values())
-      .map((record) => record.primitive)
-      .filter((primitive): primitive is Primitive => primitive !== null);
+    const records = Array.from(this._compositeTileRecords.values());
+    const primitives = records.flatMap((record) => record.primitives);
+    const retainedAssets = new Set(records.map((record) => record.imageAsset));
+    const estimatedTextureRgbaBytes = Array.from(retainedAssets).reduce(
+      (total, asset) => total + asset.width * asset.height * 4,
+      0
+    );
 
     return {
       ...this._geoTileStats,
@@ -434,6 +460,9 @@ export class SimpleGeoReconstructManager {
         .length,
       primitiveCreatedCount: this._primitiveCreatedCount,
       primitiveRemovedCount: this._primitiveRemovedCount,
+      retainedImageAssetCount: retainedAssets.size,
+      estimatedTextureRgbaBytes,
+      renderRectanglePartCount: primitives.length,
     };
   }
 
@@ -809,6 +838,16 @@ export class SimpleGeoReconstructManager {
     ) as Primitive;
   }
 
+  private addTilePrimitivesToScene(
+    viewer: Viewer,
+    plateId: string,
+    primitives: Primitive[]
+  ) {
+    return primitives.map((primitive) =>
+      this.addTilePrimitiveToScene(viewer, plateId, primitive)
+    );
+  }
+
   private removeTilePrimitiveCollections(viewer: Viewer) {
     const rootCollection = this._tileRootPrimitiveCollection;
     if (
@@ -839,18 +878,23 @@ export class SimpleGeoReconstructManager {
     age: number
   ) {
     this._compositeTileRecords.forEach((tileRecord) => {
-      if (!tileRecord.primitive) {
+      if (tileRecord.primitives.length === 0) {
         return;
       }
 
       if (!this.isVisibleAtTime(tileRecord.time, age)) {
-        tileRecord.primitive.show = false;
+        tileRecord.primitives.forEach((primitive) => {
+          primitive.show = false;
+        });
         return;
       }
 
-      tileRecord.primitive.modelMatrix =
+      const modelMatrix =
         matrixByPlate.get(tileRecord.plateId) ?? IDENTITY_MODEL_MATRIX;
-      tileRecord.primitive.show = true;
+      tileRecord.primitives.forEach((primitive) => {
+        primitive.modelMatrix = modelMatrix;
+        primitive.show = true;
+      });
     });
   }
 
@@ -872,7 +916,7 @@ export class SimpleGeoReconstructManager {
   ) {
     const revealStart = now();
     const visibleRecords = this.getVisibleRecordsAtAge(age).filter(
-      (tileRecord) => tileRecord.primitive
+      (tileRecord) => tileRecord.primitives.length > 0
     );
     const matrixByPlate =
       this._transformMode === "dynamic3D"
@@ -888,12 +932,10 @@ export class SimpleGeoReconstructManager {
       this.applyDynamicVisibilityAndMatrices(matrixByPlate, age);
     } else {
       this._compositeTileRecords.forEach((tileRecord) => {
-        if (tileRecord.primitive) {
-          tileRecord.primitive.show = this.isVisibleAtTime(
-            tileRecord.time,
-            age
-          );
-        }
+        const visible = this.isVisibleAtTime(tileRecord.time, age);
+        tileRecord.primitives.forEach((primitive) => {
+          primitive.show = visible;
+        });
       });
     }
 
@@ -992,6 +1034,11 @@ export class SimpleGeoReconstructManager {
       uniqueRawTileIds.size,
       now() - collectionStart
     );
+    this._benchmarkObserver?.onStageOperation(
+      "task-gen",
+      collectionStart,
+      now()
+    );
     return tasks;
   }
 
@@ -1053,6 +1100,11 @@ export class SimpleGeoReconstructManager {
       sourceTaskCount,
       uniqueRawTileIds.size,
       now() - collectionStart
+    );
+    this._benchmarkObserver?.onStageOperation(
+      "task-gen",
+      collectionStart,
+      now()
     );
     return tasks;
   }
@@ -1236,7 +1288,7 @@ export class SimpleGeoReconstructManager {
 
             const shouldCreatePrimitive =
               this._transformMode === "dynamic3D" || createAgeSpecificPrimitive;
-            let primitive: Primitive | null = null;
+            let primitives: Primitive[] = [];
 
             if (shouldCreatePrimitive) {
               const modelMatrix = createAgeSpecificPrimitive
@@ -1249,10 +1301,10 @@ export class SimpleGeoReconstructManager {
                 return;
               }
 
-              primitive = this.addTilePrimitiveToScene(
+              primitives = this.addTilePrimitivesToScene(
                 viewer,
                 task.plateId,
-                this.createTilePrimitive(
+                this.createTilePrimitives(
                   task.tileId,
                   task,
                   imageAsset.source,
@@ -1262,7 +1314,7 @@ export class SimpleGeoReconstructManager {
                 )
               );
 
-              addedPrimitiveCount++;
+              addedPrimitiveCount += primitives.length;
               if (addedPrimitiveCount % this._primitiveBatchSize === 0) {
                 viewer.scene.requestRender();
               } else {
@@ -1273,7 +1325,7 @@ export class SimpleGeoReconstructManager {
             this._compositeTileRecords.set(task.tileId, {
               tileId: task.tileId,
               imageAsset,
-              primitive,
+              primitives,
               tileXYL: task.tileXYL,
               clipAreas: task.clipAreas,
               coversFullTile: task.coversFullTile,
@@ -1497,7 +1549,7 @@ export class SimpleGeoReconstructManager {
     };
   }
 
-  private createTilePrimitive(
+  private createTilePrimitives(
     tileId: string,
     tileInfo: Pick<NodeInfo, "tileXYL">,
     image: string | HTMLCanvasElement,
@@ -1505,41 +1557,59 @@ export class SimpleGeoReconstructManager {
     visible = true,
     transformMode = this._transformMode
   ) {
-    const primitive = new Primitive({
-      geometryInstances: new GeometryInstance({
-        id: tileId,
-        modelMatrix:
-          transformMode === "bakedInstance"
-            ? modelMatrix
-            : IDENTITY_MODEL_MATRIX,
-        geometry: new RectangleGeometry({
-          ellipsoid: this._provider.tilingScheme.ellipsoid,
-          rectangle: this._provider.tilingScheme.tileXYToRectangle(
-            tileInfo.tileXYL.x,
-            tileInfo.tileXYL.y,
-            tileInfo.tileXYL.l
-          ),
-        }),
-      }),
-      modelMatrix:
-        transformMode === "dynamic3D" ? modelMatrix : IDENTITY_MODEL_MATRIX,
-      // Keep primitive creation synchronous so hidden tiles can warm GPU
-      // resources during request-render updates before a reveal pass.
-      asynchronous: false,
-      appearance: new EllipsoidSurfaceAppearance({
-        flat: true,
-        material: this.createImageMaterial(image),
-        renderState: {
-          depthTest: {
-            // Tile rectangles are composited as overlays and do not need depth.
-            enabled: false,
-          },
+    const parentRectangle = this._provider.tilingScheme.tileXYToRectangle(
+      tileInfo.tileXYL.x,
+      tileInfo.tileXYL.y,
+      tileInfo.tileXYL.l
+    );
+    const parts = subdivideRenderRectangle(
+      parentRectangle,
+      this._renderRectangleSubdivision
+    );
+    // All parts share one material, so the controlled experiment changes only
+    // rectangle extent and Primitive topology, not retained image resources.
+    const appearance = new EllipsoidSurfaceAppearance({
+      flat: true,
+      material: this.createImageMaterial(image),
+      renderState: {
+        depthTest: {
+          enabled: false,
         },
-      }),
+      },
     });
-    primitive.show = visible;
-    this._primitiveCreatedCount++;
-    return primitive;
+
+    return parts.map((part, partIndex) => {
+      const geometry =
+        this._benchmarkObserver ||
+        this._renderRectangleSubdivision.mode !== "none"
+          ? new MeasuredRectangleGeometry({
+              ellipsoid: this._provider.tilingScheme.ellipsoid,
+              part,
+              observer: this._benchmarkObserver,
+            })
+          : new RectangleGeometry({
+              ellipsoid: this._provider.tilingScheme.ellipsoid,
+              rectangle: part.rectangle,
+            });
+      const primitive = new Primitive({
+        geometryInstances: new GeometryInstance({
+          id: parts.length === 1 ? tileId : `${tileId}:part-${partIndex}`,
+          modelMatrix:
+            transformMode === "bakedInstance"
+              ? modelMatrix
+              : IDENTITY_MODEL_MATRIX,
+          geometry,
+        }),
+        modelMatrix:
+          transformMode === "dynamic3D" ? modelMatrix : IDENTITY_MODEL_MATRIX,
+        // Synchronous creation is the behavior under test in Action 2.
+        asynchronous: false,
+        appearance,
+      });
+      primitive.show = visible;
+      this._primitiveCreatedCount++;
+      return primitive;
+    });
   }
 
   private createImageMaterial(image: string | HTMLCanvasElement) {
@@ -2047,7 +2117,7 @@ export class SimpleGeoReconstructManager {
         return;
       }
 
-      const primitive = this.createTilePrimitive(
+      const primitives = this.createTilePrimitives(
         tileRecord.tileId,
         tileRecord,
         tileRecord.imageAsset.source,
@@ -2055,13 +2125,13 @@ export class SimpleGeoReconstructManager {
         visible,
         mode
       );
-      tileRecord.primitive = this.addTilePrimitiveToScene(
+      tileRecord.primitives = this.addTilePrimitivesToScene(
         viewer,
         tileRecord.plateId,
-        primitive
+        primitives
       );
 
-      addedCount++;
+      addedCount += primitives.length;
       if (addedCount % this._primitiveBatchSize === 0) {
         viewer.scene.requestRender();
         await waitForNextFrame();
@@ -2096,7 +2166,7 @@ export class SimpleGeoReconstructManager {
     // not get geometry rebuilt for an age where they cannot be displayed.
     this._compositeTileRecords.forEach((tileRecord) => {
       if (!visibleRecordIds.has(tileRecord.tileId)) {
-        tileRecord.primitive = null;
+        tileRecord.primitives = [];
       }
     });
 
@@ -2112,7 +2182,7 @@ export class SimpleGeoReconstructManager {
         return;
       }
 
-      const primitive = this.createTilePrimitive(
+      const primitives = this.createTilePrimitives(
         tileRecord.tileId,
         tileRecord,
         tileRecord.imageAsset.source,
@@ -2120,13 +2190,13 @@ export class SimpleGeoReconstructManager {
         false,
         options.mode
       );
-      tileRecord.primitive = this.addTilePrimitiveToScene(
+      tileRecord.primitives = this.addTilePrimitivesToScene(
         viewer,
         tileRecord.plateId,
-        primitive
+        primitives
       );
 
-      addedCount++;
+      addedCount += primitives.length;
       if (addedCount % this._primitiveBatchSize === 0) {
         await waitForNextFrame();
       }
@@ -2134,9 +2204,9 @@ export class SimpleGeoReconstructManager {
 
     const revealStart = now();
     visibleRecords.forEach((tileRecord) => {
-      if (tileRecord.primitive) {
-        tileRecord.primitive.show = true;
-      }
+      tileRecord.primitives.forEach((primitive) => {
+        primitive.show = true;
+      });
     });
     this.patchGeoTileStats({
       lastRevealMs: now() - revealStart,
@@ -2155,13 +2225,13 @@ export class SimpleGeoReconstructManager {
     }
 
     this.getAllTilePrimitiveRecords().forEach((tileRecord) => {
-      if (tileRecord.primitive) {
-        this._primitiveRemovedCount++;
-        if (viewer.scene.primitives.contains(tileRecord.primitive)) {
-          viewer.scene.primitives.remove(tileRecord.primitive);
+      this._primitiveRemovedCount += tileRecord.primitives.length;
+      tileRecord.primitives.forEach((primitive) => {
+        if (viewer.scene.primitives.contains(primitive)) {
+          viewer.scene.primitives.remove(primitive);
         }
-        tileRecord.primitive = null;
-      }
+      });
+      tileRecord.primitives = [];
     });
   }
 
@@ -2176,10 +2246,8 @@ export class SimpleGeoReconstructManager {
   private removeAllPrimitives(viewer: Viewer) {
     this.removeTilePrimitiveCollections(viewer);
     this._compositeTileRecords.forEach((tileRecord) => {
-      if (tileRecord.primitive) {
-        this._primitiveRemovedCount++;
-      }
-      tileRecord.primitive = null;
+      this._primitiveRemovedCount += tileRecord.primitives.length;
+      tileRecord.primitives = [];
       tileRecord.imageAsset.release();
     });
     this._compositeTileRecords.clear();
@@ -2193,7 +2261,7 @@ export class SimpleGeoReconstructManager {
   private releaseAllTileAssets() {
     this.clearTilePrimitiveCollectionReferences();
     this._compositeTileRecords.forEach((tileRecord) => {
-      tileRecord.primitive = null;
+      tileRecord.primitives = [];
       tileRecord.imageAsset.release();
     });
     this._compositeTileRecords.clear();

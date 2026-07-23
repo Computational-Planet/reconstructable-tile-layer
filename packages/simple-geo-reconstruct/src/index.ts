@@ -13,6 +13,14 @@ export {
 } from "./SimpleGeoReconstructManager";
 
 export {
+  subdivideRenderRectangle,
+  type RenderRectanglePart,
+  type RenderRectangleSubdivision,
+  type SimpleGeoReconstructBenchmarkObserver,
+  type SimpleGeoReconstructBenchmarkStage,
+} from "./renderRectangleSubdivision";
+
+export {
   decodeGplatesArrayBuffer,
   loadFeaturePolygonData,
   loadFeaturePolygonDataWithDiagnostics,

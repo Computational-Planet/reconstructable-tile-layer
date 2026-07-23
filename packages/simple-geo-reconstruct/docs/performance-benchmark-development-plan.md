@@ -1,5 +1,7 @@
 # R2 性能基准实施与一键采集方案
 
+> 实现状态（2026-07-23）：本方案对应的核心观测、extent split、paper/diagnostic profiles、Macrostrat 配对网络条件、Windows/CDP/GPU 采集和 artifact writer 已实现。工程烟雾测试覆盖 paper L2、diagnostic initialization、diagnostic L0/L1 split、Macrostrat cold/warm 与完整一键自举；这些烟雾值只用于验证程序，不替代正式 10-block 论文结果。
+
 ## 1. 目标与方案边界
 
 本方案同时满足两个目标：
@@ -80,11 +82,14 @@ output/benchmark/r2/<timestamp>-<device-label>/
   figure8-input.csv
   assertions.json
   run.log
+  windows-samples.jsonl          # diagnostic: CPU/process memory, target 200 ms
+  windows-gpu-samples.jsonl      # diagnostic: GPU engine/process memory, about 1-2 s
+  visual-smoke-level-{0,1}-split.png
 ```
 
 所有 artifact 使用 UTF-8。`manifest.json` 保存 git commit/dirty state、配置、seed、浏览器、设备、profile 顺序和文件哈希，保证结果可以追溯。
 
-## 3. 当前实现基础
+## 3. 实施前的代码基础
 
 - 页面已有 `window.__rtlPerformanceBenchmark` controller，可由自动化脚本直接调用。
 - 九个核心条件已经定义：initialization、L0-L4、W1 L4、dynamic3D age、baked2D age。
@@ -247,7 +252,7 @@ CDP snapshot 只在 diagnostic profile 使用。它提供 condition 总 CPU，�
 
 `BrowserServer.process().pid` 作为根 PID，PowerShell 通过 `Win32_Process.ParentProcessId` 递归得到隔离 Edge process tree，并按 command line/CDP type 分类 browser、renderer、GPU、utility。
 
-sampler 每 200 ms 保存 UTC timestamp、PID、type，以及 `Get-Process` 的 `TotalProcessorTime`、`PrivateMemorySize64` 和 `WorkingSet64`。相邻样本的标准化 CPU utilization 为：
+process sampler 以 200 ms 为目标保存 UTC timestamp、PID、type，以及 `Get-Process` 的 `TotalProcessorTime`、`PrivateMemorySize64` 和 `WorkingSet64`；runner 同时报告实测 median interval。进程树 CIM 查询每 5 秒刷新，避免枚举操作阻塞每个样本。相邻样本的标准化 CPU utilization 为：
 
 ```text
 100 * deltaCpuSeconds / (deltaWallSeconds * logicalProcessorCount)
@@ -272,11 +277,10 @@ diagnostic profile 在 Cesium 主场景使用的同一个 WebGL context 上：
 
 ### 8.2 Windows GPU utilization
 
-PowerShell sampler读取：
+独立 PowerShell GPU sampler 读取下列 formatted counter classes，实测间隔通常约 1–2 秒，并与 process sampler 用 epoch/PID 对齐：
 
-- `\GPU Engine(*)\Utilization Percentage`；
-- `\GPU Process Memory(*)\Dedicated Usage`；
-- `\GPU Process Memory(*)\Shared Usage`。
+- `Win32_PerfFormattedData_GPUPerformanceCounters_GPUEngine`；
+- `Win32_PerfFormattedData_GPUPerformanceCounters_GPUProcessMemory`。
 
 只保留 instance 名中 PID 属于隔离 Edge process tree 的样本。按 adapter LUID 和 engine type 分组；同一 adapter 的多个 3D engine 取每个 timestamp 的最大值，不把 engine 百分比相加到超过 100%。Copy engine 单独保存。
 
@@ -403,23 +407,27 @@ CDP `Network.clearBrowserCache` 控制状态，`requestServedFromCache`/response
 ### 13.1 新增文件
 
 ```text
-apps/simple-geo-reconstruct-demo/benchmark-harness/
-  run-r2.mjs
-  static-benchmark-server.mjs
-  edge-session.mjs
-  collect-cdp.mjs
-  artifact-writer.mjs
-  collect-windows-metrics.ps1
+apps/simple-geo-reconstruct-demo/benchmark/r2/
+  run-r2-benchmark.mjs
+  staticBenchmarkServer.mjs
+  cdpMetrics.mjs
+  windowsSampler.mjs
+  windows-sampler.ps1
+  windows-gpu-sampler.ps1
+  summarizeWindowsMetrics.mjs
+  writeArtifacts.mjs
+  validateCore.mjs
 ```
 
 职责：
 
-- `run-r2.mjs`：CLI、profile 顺序、seed、condition schedule、退出清理；
-- `static-benchmark-server.mjs`：dist 静态文件与 Macrostrat relay；
-- `edge-session.mjs`：Playwright `msedge` launchServer、临时 profile、CDP session 和 root PID；
-- `collect-cdp.mjs`：Performance/SystemInfo/Network snapshots；
-- `artifact-writer.mjs`：JSON/CSV/manifest，原子写入；
-- `collect-windows-metrics.ps1`：Edge process tree、CPU、private/working-set、GPU engine/memory samples。
+- `run-r2-benchmark.mjs`：CLI、构建、Edge profile、seed、condition schedule、preflight 和退出清理；
+- `staticBenchmarkServer.mjs`：dist 静态文件，以及带上游限流/重试但不带 server cache 的 Macrostrat relay；
+- `cdpMetrics.mjs`：Performance/SystemInfo/Network snapshots；
+- `windowsSampler.mjs` 与两个 PowerShell 脚本：隔离 Edge process tree 的 CPU/private/working-set 与独立 GPU engine/memory 流；
+- `summarizeWindowsMetrics.mjs`：按 condition/stage 积分 mean/peak CPU、GPU 和内存；
+- `writeArtifacts.mjs`：JSON/CSV/manifest 与哈希；
+- `validateCore.mjs`：运行前验证 L0/L1 part 数、extent、aggregate triangles 和 L4 纹理公式。
 
 ### 13.2 package scripts/dependency
 
@@ -428,12 +436,12 @@ app 增加 `playwright-core` dev dependency，复用系统 Edge，不下载浏�
 ```json
 {
   "scripts": {
-    "benchmark:r2": "pnpm run build && node ./benchmark-harness/run-r2.mjs"
+    "benchmark:r2": "node ./benchmark/r2/run-r2-benchmark.mjs"
   }
 }
 ```
 
-runner 在 Windows resource counters 不可用时 fail-fast；GPU timer extension 缺失属于可记录 capability，输出 `unsupported`，不伪造数值。
+runner 自己按 workspace 依赖顺序构建三个包。Windows process sampler 启动失败时 fail-fast；GPU counter/timer extension 缺失属于可记录 capability，输出 `unsupported`/`invalid`，不伪造数值。任何 benchmark assertion 失败时先写完整 artifacts，再以非零状态退出。
 
 ## 14. 页面和核心代码改动
 

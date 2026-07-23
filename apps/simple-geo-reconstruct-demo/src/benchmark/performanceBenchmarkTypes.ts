@@ -4,6 +4,12 @@ import type {
   TileGenerationReport,
 } from "simple-geo-reconstruct";
 import type { CesiumTileProcesserStats } from "tile-processer-webgl";
+import type {
+  ProviderKey,
+  UrlTemplateProviderConfig,
+} from "../cesium/providers";
+
+export type BenchmarkProfile = "paper" | "diagnostic";
 
 export type BenchmarkConditionId =
   | "initialization"
@@ -12,9 +18,68 @@ export type BenchmarkConditionId =
   | "level-2"
   | "level-3"
   | "level-4"
+  | "level-0-split-l2-extent"
+  | "level-1-split-l2-extent"
   | "view-w1-level-4"
+  | "network-macrostrat-w1-level-4"
   | "age-dynamic-3d"
   | "age-baked-2d";
+
+export type LoadBenchmarkConditionId = Exclude<
+  BenchmarkConditionId,
+  "initialization" | "age-dynamic-3d" | "age-baked-2d"
+>;
+
+export type BenchmarkStageName =
+  | "task-gen"
+  | "provider"
+  | "masking"
+  | "geometry-creation"
+  | "first-frame";
+
+export type BenchmarkStageTiming = {
+  stage: BenchmarkStageName;
+  startTimeMs: number;
+  endTimeMs: number;
+  windowMs: number;
+  operationSumMs: number;
+  operationCount: number;
+};
+
+export type MetricValue<T> =
+  | { status: "measured"; value: T; unit: string }
+  | { status: "unsupported"; reason: string }
+  | { status: "invalid"; reason: string }
+  | { status: "error"; message: string };
+
+export type JsHeapSnapshot = {
+  usedJSHeapSize: MetricValue<number>;
+  totalJSHeapSize: MetricValue<number>;
+  jsHeapSizeLimit: MetricValue<number>;
+};
+
+export type GpuFrameTiming = {
+  extension: string | null;
+  elapsedNanoseconds: MetricValue<number>;
+  disjoint: boolean | null;
+};
+
+export type BenchmarkCheckpointName =
+  | "beforeCondition"
+  | "atReturn"
+  | "afterFirstFrame"
+  | "atPresent"
+  | "atIdle"
+  | "afterDestroySettled";
+
+export type ResourceCheckpoint = {
+  recordId: string;
+  checkpoint: BenchmarkCheckpointName;
+  epochMs: number;
+  pageTimeMs: number;
+  jsHeap: JsHeapSnapshot;
+  external: unknown;
+};
 
 export type BenchmarkRectangleDegrees = {
   west: number;
@@ -24,7 +89,7 @@ export type BenchmarkRectangleDegrees = {
 };
 
 export type PerformanceBenchmarkConfig = {
-  schemaVersion: 1;
+  schemaVersion: 2;
   warmupRuns: number;
   measuredBlocks: number;
   randomSeed: number;
@@ -43,6 +108,7 @@ export type PerformanceBenchmarkConfig = {
   outputType: "canvas";
   maxImageCacheSize: number;
   maxResultCacheSize: number;
+  splitMaximumAngularExtentRadians: number;
   w1RectangleDegrees: BenchmarkRectangleDegrees;
   globalCamera: BenchmarkCamera3D;
   w1Camera: BenchmarkCamera3D;
@@ -63,6 +129,7 @@ export type BenchmarkStatsSnapshot = {
   manager: GeoTileStats;
   processor: CesiumTileProcesserStats;
   generationReport: TileGenerationReport | null;
+  jsHeap: JsHeapSnapshot;
 };
 
 export type BenchmarkAssertion = {
@@ -72,12 +139,19 @@ export type BenchmarkAssertion = {
   expected: number | string | boolean;
 };
 
-export type InitializationBenchmarkRecord = {
-  kind: "initialization";
-  conditionId: "initialization";
+type BaseBenchmarkRecord = {
+  recordId: string;
+  profile: BenchmarkProfile;
   warmup: boolean;
   blockIndex: number | null;
   replicateIndex: number;
+  performanceTimeOriginMs: number;
+  resourceCheckpoints: ResourceCheckpoint[];
+};
+
+export type InitializationBenchmarkRecord = BaseBenchmarkRecord & {
+  kind: "initialization";
+  conditionId: "initialization";
   providerConstructorMs: number;
   processorConstructorMs: number;
   managerConstructorMs: number;
@@ -87,20 +161,19 @@ export type InitializationBenchmarkRecord = {
   assertions: BenchmarkAssertion[];
 };
 
-export type LoadBenchmarkRecord = {
+export type LoadBenchmarkRecord = BaseBenchmarkRecord & {
   kind: "load";
-  conditionId: Extract<
-    BenchmarkConditionId,
-    `level-${number}` | "view-w1-level-4"
-  >;
-  warmup: boolean;
-  blockIndex: number | null;
-  replicateIndex: number;
+  conditionId: LoadBenchmarkConditionId;
   level: number;
   viewRectangleDegrees: BenchmarkRectangleDegrees | null;
+  renderRectangleMode: "original" | "split-l2-extent";
+  renderRectanglePartCount: number;
   returnMs: number;
+  firstFrameMs: number;
   presentMs: number;
   idleMs: number;
+  stageTimings: BenchmarkStageTiming[];
+  firstFrameGpu: GpuFrameTiming;
   before: BenchmarkStatsSnapshot;
   atReturn: BenchmarkStatsSnapshot;
   atPresent: BenchmarkStatsSnapshot;
@@ -121,12 +194,9 @@ export type AgeTransitionRecord = {
   assertions: BenchmarkAssertion[];
 };
 
-export type AgeBenchmarkRecord = {
+export type AgeBenchmarkRecord = BaseBenchmarkRecord & {
   kind: "age";
   conditionId: "age-dynamic-3d" | "age-baked-2d";
-  warmup: boolean;
-  blockIndex: number | null;
-  replicateIndex: number;
   transformMode: PrimitiveTransformMode;
   sceneMode: "SCENE3D" | "SCENE2D";
   preparationIdleMs: number;
@@ -149,18 +219,17 @@ export type BenchmarkEnvironment = {
   viewportCssHeight: number;
   devicePixelRatio: number;
   cesiumVersion: string;
-  webgl: CesiumTileProcesserStats extends infer _Stats
-    ? {
-        webglVersion: string;
-        shadingLanguageVersion: string;
-        vendor: string;
-        renderer: string;
-      }
-    : never;
+  webgl: {
+    webglVersion: string;
+    shadingLanguageVersion: string;
+    vendor: string;
+    renderer: string;
+  };
 };
 
 export type BenchmarkSuiteResult = {
-  schemaVersion: 1;
+  schemaVersion: 2;
+  profile: BenchmarkProfile;
   startedAt: string;
   completedAt: string;
   config: PerformanceBenchmarkConfig;
@@ -169,12 +238,24 @@ export type BenchmarkSuiteResult = {
   records: BenchmarkReplicateRecord[];
 };
 
+export type BenchmarkProviderOverride = {
+  key: ProviderKey;
+  customConfig?: UrlTemplateProviderConfig;
+};
+
 export type RunBenchmarkOptions = {
+  profile?: BenchmarkProfile;
   conditions?: BenchmarkConditionId[];
   warmupRuns?: number;
   measuredBlocks?: number;
   randomSeed?: number;
+  providerOverride?: BenchmarkProviderOverride;
 };
+
+export type BenchmarkCheckpointRequest = Omit<
+  ResourceCheckpoint,
+  "external"
+>;
 
 export type PerformanceBenchmarkController = {
   getConfig: () => PerformanceBenchmarkConfig;
