@@ -449,7 +449,7 @@ runner 自己按 workspace 依赖顺序构建三个包。Windows process sampler
 |---|---|
 | `SimpleGeoReconstructManager.ts` | task-gen/geometry marks；extent split；Primitive 数组/共享 Material；retained texture estimate |
 | `simple-geo-reconstruct/src/index.ts` | 导出新增配置与 stats 类型 |
-| `cesiumTIleProcesser.ts` | benchmark-only provider/masking stage tracker |
+| `cesium-tile-processer.ts` | benchmark-only provider/masking stage tracker |
 | `performanceBenchmarkTypes.ts` | schema v2；stage、heap、GPU availability、resource checkpoint、condition ids |
 | `performanceBenchmarkConfig.ts` | 45° split、provider override、profile flags |
 | `performanceBenchmark.ts` | first-frame、GPU query、heap、checkpoint binding、split/network conditions |

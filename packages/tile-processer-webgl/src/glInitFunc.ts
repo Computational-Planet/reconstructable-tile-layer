@@ -6,7 +6,7 @@ import {
   WebMercatorTilingScheme,
 } from "cesium";
 import { isPowerOf2 } from "./utils/math";
-import { Buffers, WebGLProgramInfo } from "./cesiumTIleProcesser";
+import { Buffers, WebGLProgramInfo } from "./cesium-tile-processer";
 import { mat4 } from "gl-matrix";
 
 // 加载、编译着色器程序（顶点着色器和片段着色器根据type区分）

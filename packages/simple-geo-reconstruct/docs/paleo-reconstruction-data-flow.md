@@ -215,22 +215,22 @@ plateId:time.begin:time.end:x/y/level
 
 每个任务的核心仍然是 [`getReprojectedTileImageAsset`](../src/SimpleGeoReconstructManager.ts#L1172)：
 
-- 如果 `clipAreas.length > 0` 且不是完整瓦片，调用 [`reprojectMultiClippedTileAreaImage`](../../tile-processer-webgl/src/cesiumTIleProcesser.ts#L1262)。
-- 如果无需裁剪，调用 [`reprojectTileImage`](../../tile-processer-webgl/src/cesiumTIleProcesser.ts#L1216)。
+- 如果 `clipAreas.length > 0` 且不是完整瓦片，调用 [`reprojectMultiClippedTileAreaImage`](../../tile-processer-webgl/src/cesium-tile-processer.ts#L1262)。
+- 如果无需裁剪，调用 [`reprojectTileImage`](../../tile-processer-webgl/src/cesium-tile-processer.ts#L1216)。
 
-`CesiumTileProcesser` 内部先用 [`getImage`](../../tile-processer-webgl/src/cesiumTIleProcesser.ts#L933) 请求原始瓦片。这里直接调用 `provider.requestImage(x, y, level)`，并用两层缓存减少重复工作：
+`CesiumTileProcesser` 内部先用 [`getImage`](../../tile-processer-webgl/src/cesium-tile-processer.ts#L933) 请求原始瓦片。这里直接调用 `provider.requestImage(x, y, level)`，并用两层缓存减少重复工作：
 
 - `_imageBuffer`：缓存原始 `ImageryTypes`。
 - `_imageCachePromise`：合并并发中的相同原始瓦片请求。
 
-如果需要裁剪，`reprojectMultiClippedTileAreaImage` 会先为 `clipAreas` 生成缓存 key，然后调用 [`createClipMaskVertices`](../../tile-processer-webgl/src/cesiumTIleProcesser.ts#L1550)。这个函数会遍历所有 `TileClipArea.polygons`，由 [`appendPolygonMaskVertices`](../../tile-processer-webgl/src/cesiumTIleProcesser.ts#L1563) 做三角化：
+如果需要裁剪，`reprojectMultiClippedTileAreaImage` 会先为 `clipAreas` 生成缓存 key，然后调用 [`createClipMaskVertices`](../../tile-processer-webgl/src/cesium-tile-processer.ts#L1550)。这个函数会遍历所有 `TileClipArea.polygons`，由 [`appendPolygonMaskVertices`](../../tile-processer-webgl/src/cesium-tile-processer.ts#L1563) 做三角化：
 
 - 外环和洞先经 `prepareEarcutRing` 去掉重复点、去掉闭合重复尾点、过滤非法或面积过小的 ring。
 - `orientEarcutRing` 调整外环和洞的方向，保证 `earcut` 输入稳定。
 - `earcut(flatVertices, holeIndices, 2)` 把带洞 polygon 三角化。
 - 所有三角形顶点被写入 `Float32Array`，这些顶点已经是 tile 局部 `[0, 1]` 坐标。
 
-真正的 WebGL 绘制由 [`reprojectInternal`](../../tile-processer-webgl/src/cesiumTIleProcesser.ts#L1081) 入队，渲染 worker 默认来自单 WebGL context + 多 slot 池 [`SingleContextTileRenderer`](../../tile-processer-webgl/src/cesiumTIleProcesser.ts#L543)。单个 slot 的渲染流程在 [`renderSlot`](../../tile-processer-webgl/src/cesiumTIleProcesser.ts#L619) 中完成：
+真正的 WebGL 绘制由 [`reprojectInternal`](../../tile-processer-webgl/src/cesium-tile-processer.ts#L1081) 入队，渲染 worker 默认来自单 WebGL context + 多 slot 池 [`SingleContextTileRenderer`](../../tile-processer-webgl/src/cesium-tile-processer.ts#L543)。单个 slot 的渲染流程在 [`renderSlot`](../../tile-processer-webgl/src/cesium-tile-processer.ts#L619) 中完成：
 
 1. [`updateTextureCoordBuffer`](../../tile-processer-webgl/src/glInitFunc.ts#L104) 根据 provider、`x/y/level` 更新纹理坐标。
 2. [`uploadImageToTexture`](../../tile-processer-webgl/src/glInitFunc.ts#L204) 把 `provider.requestImage` 得到的影像上传到 WebGL texture。

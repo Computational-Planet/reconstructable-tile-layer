@@ -1,4 +1,4 @@
-//import { CesiumTileProcesser } from "./cesiumTIleProcesser";
-export * from "./cesiumTIleProcesser";
+//import { CesiumTileProcesser } from "./cesium-tile-processer";
+export * from "./cesium-tile-processer";
 
 //export { CesiumTileProcesser };

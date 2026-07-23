@@ -73,11 +73,11 @@ new QuadTreeTileProcesser(this._provider.tilingScheme, item.clipArea)
 
 `tile-processer-webgl` 仍保留多个旧接口：
 
-- [`reprojectClippedTile`](../../tile-processer-webgl/src/cesiumTIleProcesser.ts#L1191)：返回旧版 data URL 字符串。
-- [`reprojectClippedTileImage`](../../tile-processer-webgl/src/cesiumTIleProcesser.ts#L1226)：输入单个 flat polygon，返回 `TileImageAsset`。
-- [`reprojectMultiClippedTileImage`](../../tile-processer-webgl/src/cesiumTIleProcesser.ts#L1244)：输入多个 flat polygon，内部转换成 `TileClipArea[]`。
+- [`reprojectClippedTile`](../../tile-processer-webgl/src/cesium-tile-processer.ts#L1191)：返回旧版 data URL 字符串。
+- [`reprojectClippedTileImage`](../../tile-processer-webgl/src/cesium-tile-processer.ts#L1226)：输入单个 flat polygon，返回 `TileImageAsset`。
+- [`reprojectMultiClippedTileImage`](../../tile-processer-webgl/src/cesium-tile-processer.ts#L1244)：输入多个 flat polygon，内部转换成 `TileClipArea[]`。
 
-这些接口最终会通过 [`createTileClipAreaFromFlatPolygon`](../../tile-processer-webgl/src/cesiumTIleProcesser.ts#L1525) 转成 `TileClipArea`，再进入当前主裁剪实现 [`reprojectMultiClippedTileAreaImage`](../../tile-processer-webgl/src/cesiumTIleProcesser.ts#L1262)。
+这些接口最终会通过 [`createTileClipAreaFromFlatPolygon`](../../tile-processer-webgl/src/cesium-tile-processer.ts#L1525) 转成 `TileClipArea`，再进入当前主裁剪实现 [`reprojectMultiClippedTileAreaImage`](../../tile-processer-webgl/src/cesium-tile-processer.ts#L1262)。
 
 当前 `SimpleGeoReconstructManager` 的主流程不会调用这些 flat-polygon 入口，而是在 [`getReprojectedTileImageAsset`](../src/SimpleGeoReconstructManager.ts#L996) 中直接调用 `reprojectMultiClippedTileAreaImage`。
 
@@ -98,7 +98,7 @@ new QuadTreeTileProcesser(this._provider.tilingScheme, item.clipArea)
 
 ## 7. 旧版多 Canvas / 多 WebGL Context 渲染池
 
-`tile-processer-webgl` 默认使用 [`SingleContextTileRenderer`](../../tile-processer-webgl/src/cesiumTIleProcesser.ts#L543)，也就是一个 WebGL context 配多个 texture/FBO slot。这个默认路径在 [`CesiumTileProcesser` 构造函数](../../tile-processer-webgl/src/cesiumTIleProcesser.ts#L795) 中选择：
+`tile-processer-webgl` 默认使用 [`SingleContextTileRenderer`](../../tile-processer-webgl/src/cesium-tile-processer.ts#L543)，也就是一个 WebGL context 配多个 texture/FBO slot。这个默认路径在 [`CesiumTileProcesser` 构造函数](../../tile-processer-webgl/src/cesium-tile-processer.ts#L795) 中选择：
 
 ```ts
 resolvedOptions.legacyCanvasPool === true
@@ -106,9 +106,9 @@ resolvedOptions.legacyCanvasPool === true
   : new SingleContextTileRenderer(...)
 ```
 
-因此 [`LegacyCanvasTileRenderer`](../../tile-processer-webgl/src/cesiumTIleProcesser.ts#L252) 和 [`LegacyCanvasRendererPool`](../../tile-processer-webgl/src/cesiumTIleProcesser.ts#L429) 是显式兼容模式。只有传入 `legacyCanvasPool: true` 时才使用旧版多 canvas / 多 WebGL context 行为。
+因此 [`LegacyCanvasTileRenderer`](../../tile-processer-webgl/src/cesium-tile-processer.ts#L252) 和 [`LegacyCanvasRendererPool`](../../tile-processer-webgl/src/cesium-tile-processer.ts#L429) 是显式兼容模式。只有传入 `legacyCanvasPool: true` 时才使用旧版多 canvas / 多 WebGL context 行为。
 
-`poolSize` 也带有兼容含义：在默认单 context 模式下，它只是 `slotCount` 的兼容别名；在 legacy 模式下，它表示 canvas/context 数量。这个说明也写在 [`CesiumTileProcesserOptions`](../../tile-processer-webgl/src/cesiumTIleProcesser.ts#L1894)。
+`poolSize` 也带有兼容含义：在默认单 context 模式下，它只是 `slotCount` 的兼容别名；在 legacy 模式下，它表示 canvas/context 数量。这个说明也写在 [`CesiumTileProcesserOptions`](../../tile-processer-webgl/src/cesium-tile-processer.ts#L1894)。
 
 ## 8. `allPaleoData` 与非 area 要素
 
