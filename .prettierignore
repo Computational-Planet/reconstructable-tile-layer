@@ -4,10 +4,10 @@
 **/dist/
 **/node_modules/
 **/public/
-apps/simple-geo-reconstruct-demo/benchmark/
-apps/simple-geo-reconstruct-demo/index.html
-apps/simple-geo-reconstruct-demo/src/
-packages/polygon-tile-quadtree/src/AreaQuadTreeTileNode.spec.ts
+apps/reconstructable-tile-layer-demo/benchmark/
+apps/reconstructable-tile-layer-demo/index.html
+apps/reconstructable-tile-layer-demo/src/
+packages/rtl-tile-plate-quadtree/src/AreaQuadTreeTileNode.spec.ts
 coverage/
 output/
 tmp/

@@ -1,0 +1,72 @@
+export {
+  SimpleGeoReconstructManager,
+  SimpleGeoReconstructManager as ReconstructableTileLayer,
+  type CompositeTileTask,
+  type FeatureSourceConfig,
+  type GeoTileStats,
+  type LegacyPaleoPolygon,
+  type LegacyPaleoPosition,
+  type LegacyPaleoValidTime,
+  type PaleoData,
+  type PaleoItem,
+  type PlateDomainFeature,
+  type PlateDomainQuadtreeGroup,
+  type PlateDomainQuadtreeRecord,
+  type PlateDomainSourceConfig,
+  type PlateQuadTreeGroup,
+  type PolygonQuadTreeRecord,
+  type ProcessedTileRecord,
+  type PrimitiveTransformMode,
+  type ReconstructableTileLayerOptions,
+  type ReconstructableTileLayerStats,
+  type ReconstructionTaskReport,
+  type ResolvedFeatureFiles,
+  type SetPrimitiveTransformModeOptions,
+  type SimpleGeoReconstructManagerConstructorOptions,
+  type SimpleGeoReconstructManagerOptions,
+  type SimpleGeoReconstructManagerProcessorOptions,
+  type TileGenerationReport,
+  type TilePrimitiveRecord,
+  type ViewFineTileLoadOptions,
+  type ViewFineTileLoadResult,
+  type ViewFineTileLoadSkipReason,
+  type ViewAwareTileLoadOptions,
+  type ViewAwareTileLoadResult,
+  type ViewAwareTileLoadSkipReason,
+} from "./SimpleGeoReconstructManager.js";
+
+export {
+  subdivideRenderRectangle,
+  type RenderRectanglePart,
+  type RenderRectangleSubdivision,
+  type SimpleGeoReconstructBenchmarkObserver,
+  type SimpleGeoReconstructBenchmarkStage,
+} from "./renderRectangleSubdivision.js";
+
+export {
+  decodeGplatesArrayBuffer,
+  loadFeaturePolygonData,
+  loadFeaturePolygonDataWithDiagnostics,
+  parsedGpmlFeaturesToPaleoData,
+  parseGpmlText,
+  readGplatesXmlFromUrl,
+} from "./gplates/index.js";
+
+export type {
+  CoordinateOrder,
+  FeatureImportDiagnostics,
+  FeatureLoadOptions,
+  FeatureLoadResult,
+  FeaturePolygonData,
+  GpmlFeatureAdapterOptions,
+  GpmlParserOptions,
+  ParsedGpmlFeature,
+  ParsedGpmlGeometry,
+  ParsedGpmlPolygon,
+  ParsedGpmlTime,
+  PolygonRenderIntentMode,
+  Position,
+  RenderIntent,
+} from "./gplates/index.js";
+
+export type { AnchorPlateId } from "rtl-finite-rotation";

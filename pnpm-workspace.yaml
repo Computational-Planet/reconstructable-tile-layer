@@ -1,3 +1,3 @@
 packages:
-  - "apps/simple-geo-reconstruct-demo"
+  - "apps/reconstructable-tile-layer-demo"
   - "packages/*"

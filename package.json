@@ -1,5 +1,5 @@
 {
-  "name": "tile-processer-turborepo",
+  "name": "reconstructable-tile-layer-monorepo",
   "private": true,
   "version": "0.0.0",
   "scripts": {
@@ -12,7 +12,7 @@
     "format:check": "prettier --check .",
     "lint": "pnpm lint:root && pnpm --recursive --sort --if-present lint",
     "lint:root": "eslint .eslintrc.cjs rollup.config.mjs --ext .cjs --ext .mjs --report-unused-disable-directives --max-warnings 0",
-    "test": "pnpm --filter polygon-tile-quadtree test",
+    "test": "pnpm --filter rtl-tile-plate-quadtree test",
     "typecheck": "pnpm build:packages && pnpm typecheck:workspace",
     "typecheck:workspace": "pnpm --recursive --sort --if-present typecheck"
   },

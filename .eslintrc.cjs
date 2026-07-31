@@ -54,14 +54,14 @@ module.exports = {
       },
     },
     {
-      files: ["apps/simple-geo-reconstruct-demo/src/benchmark/**/*.ts"],
+      files: ["apps/reconstructable-tile-layer-demo/src/benchmark/**/*.ts"],
       rules: {
         // The benchmark intentionally polls until its explicit idle condition is met.
         "no-constant-condition": "off",
       },
     },
     {
-      files: ["packages/polygon-tile-quadtree/src/QuadTreeTileProcesser.ts"],
+      files: ["packages/rtl-tile-plate-quadtree/src/QuadTreeTileProcesser.ts"],
       rules: {
         // Preserve the legacy diagnostics because runtime behavior must remain unchanged.
         "no-console": "off",
