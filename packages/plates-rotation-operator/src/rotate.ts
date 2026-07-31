@@ -7,10 +7,11 @@ import {
   Quaternion,
 } from "cesium";
 
-import { getQuaternionAtAge, type AnchorPlateId } from "./getQuaternionAtAge";
+import { getQuaternionAtAge, type AnchorPlateId } from "./getQuaternionAtAge.js";
 
-import type { RotItem, RotSplineItem } from "./handleRot";
+import type { RotItem, RotSplineItem } from "./types.js";
 
+/** Rotates one Cartesian point around an axis by an angle in degrees. */
 export function rotateCartensianPoint(
   originPosition: Cartesian3,
   rotatePosition: Cartesian3,
@@ -36,6 +37,7 @@ function rotatePositionsWithQuaternion(
   return result;
 }
 
+/** Rotates Cartesian points from the modern frame to their position at `age`. */
 export async function rotatePoints(
   points: Cartesian3[],
   plateId: string,
@@ -51,6 +53,7 @@ export async function rotatePoints(
   return rotatePositionsWithQuaternion(points, quat);
 }
 
+/** Returns a plate's forward rotation matrix at `age`. */
 export async function getRotateMatirxAtAge(
   plateId: string,
   rotData: Map<string, RotSplineItem>,
@@ -65,26 +68,23 @@ export async function getRotateMatirxAtAge(
   return rotationMatrix;
 }
 
+/** Returns a plate's inverse rotation matrix at `age`. */
 export async function getInverseRotateMatrixAtAge(
   plateId: string,
   rotData: Map<string, RotSplineItem>,
   age: number,
   anchorPlateId: AnchorPlateId = "0",
 ) {
-  const rotationMatrix = await getRotateMatirxAtAge(
-    plateId,
-    rotData,
-    age,
-    anchorPlateId,
-  );
+  const rotationMatrix = await getRotateMatirxAtAge(plateId, rotData, age, anchorPlateId);
   if (!rotationMatrix) {
     return undefined;
   }
 
-  // 旋转矩阵是正交矩阵，逆矩阵等于转置矩阵。
+  // A rotation matrix is orthogonal, so its inverse is its transpose.
   return Matrix3.transpose(rotationMatrix, new Matrix3());
 }
 
+/** Rotates a reconstructed Cartesian point into its modern position. */
 export async function rotatePointToModern(
   point: Cartesian3,
   plateId: string,
@@ -102,13 +102,10 @@ export async function rotatePointToModern(
     return null;
   }
 
-  return Matrix3.multiplyByVector(
-    inverseRotationMatrix,
-    point,
-    new Cartesian3(),
-  );
+  return Matrix3.multiplyByVector(inverseRotationMatrix, point, new Cartesian3());
 }
 
+/** Rotates positions using the finite-rotation interval selected for `age`. */
 export function getPositionsAtAge(
   positions: Cartesian3[],
   intervals: RotItem[],

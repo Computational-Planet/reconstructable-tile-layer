@@ -1,19 +1,14 @@
-import { Math as CMath, Cartesian3, Ellipsoid, Quaternion } from "cesium";
+import { Cartesian3, Ellipsoid, Math as CMath, Quaternion } from "cesium";
 
-import type { QuaternionSpline } from "cesium";
+import type { RotItem } from "./types.js";
 
-export type RotItem = {
-  plateId: string;
-  age: number;
-  rotation: {
-    latitude: number;
-    longitude: number;
-    angle: number;
-  };
-  relatedId: string;
-};
+export type { RotItem, RotSplineItem } from "./types.js";
 
-export function convertFileContentToJson(content: string) {
+/**
+ * Parses GPlates rotation text into records grouped by moving plate ID.
+ * Blank lines, comments beginning with `!`, and malformed records are ignored.
+ */
+export function convertFileContentToJson(content: string): Record<string, RotItem[]> {
   const lines = content.trim().split("\n");
   const res: Record<string, RotItem[]> = {};
 
@@ -34,30 +29,28 @@ export function convertFileContentToJson(content: string) {
       !Number.isFinite(parsedLatitude) ||
       !Number.isFinite(parsedLongitude) ||
       !Number.isFinite(parsedAngle)
-    )
+    ) {
       return;
+    }
 
     if (!res[plateId]) {
       res[plateId] = [];
     }
-    const data = {
-      plateId: plateId,
+    const data: RotItem = {
+      plateId,
       age: parsedAge,
       rotation: {
         latitude: parsedLatitude,
         longitude: parsedLongitude,
         angle: parsedAngle,
       },
-      relatedId: relatedId,
+      relatedId,
     };
     const lastItem = res[plateId][res[plateId].length - 1];
 
-    if (
-      lastItem &&
-      data.age === lastItem.age &&
-      data.relatedId === lastItem.relatedId
-    )
+    if (lastItem && data.age === lastItem.age && data.relatedId === lastItem.relatedId) {
       return;
+    }
 
     if (lastItem?.age === data.age) {
       lastItem.age -= 0.01;
@@ -68,22 +61,13 @@ export function convertFileContentToJson(content: string) {
   return res;
 }
 
-export type RotSplineItem = {
-  spline?: QuaternionSpline;
-  items: RotItem[];
-};
-
+/** Converts one finite rotation record to a Cesium quaternion. */
 export function createQuaternionFromRotation(
   item: RotItem,
   referenceEllipsoid: Ellipsoid = Ellipsoid.default,
 ): Quaternion {
   return Quaternion.fromAxisAngle(
-    Cartesian3.fromDegrees(
-      item.rotation.longitude,
-      item.rotation.latitude,
-      0,
-      referenceEllipsoid,
-    ),
+    Cartesian3.fromDegrees(item.rotation.longitude, item.rotation.latitude, 0, referenceEllipsoid),
     CMath.toRadians(item.rotation.angle),
   );
 }

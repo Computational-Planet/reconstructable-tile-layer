@@ -7,7 +7,7 @@ import type {
   PrimitiveTransformMode,
   SimpleGeoReconstructManager,
 } from "simple-geo-reconstruct";
-import type { CesiumTileProcesser } from "tile-processer-webgl";
+import type { CesiumTileProcessor } from "tile-processer-webgl";
 
 import {
   applyExperimentView,
@@ -18,13 +18,13 @@ import type {
   ProviderKey,
   UrlTemplateProviderConfig,
 } from "../cesium/providers";
-import type {
-  FeaturePresetKey,
-  GplatesReferencePolygonKey,
-  RotationAnchorMode,
-  RotationPresetKey,
+import {
+  DEFAULT_ANCHOR_PLATE_ID,
+  type FeaturePresetKey,
+  type GplatesReferencePolygonKey,
+  type RotationAnchorMode,
+  type RotationPresetKey,
 } from "../dataSources";
-import { DEFAULT_ANCHOR_PLATE_ID } from "../dataSources";
 import {
   createExperimentExportInfo,
   createExportBaseName,
@@ -85,7 +85,7 @@ type UseExperimentIOOptions = {
   setStatus: (value: string) => void;
   stats: GeoTileStats | null;
   status: string;
-  tileProcesserRef: MutableRefObject<CesiumTileProcesser | null>;
+  tileProcesserRef: MutableRefObject<CesiumTileProcessor | null>;
   viewerRef: MutableRefObject<Viewer | null>;
 };
 

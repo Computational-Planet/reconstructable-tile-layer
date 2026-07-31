@@ -1,19 +1,19 @@
-import {
-  decodeGplatesArrayBuffer,
-  readGplatesXmlFromUrl,
-} from "./GplatesFileReader";
-import { parsedGpmlFeaturesToPaleoData } from "./GpmlFeatureAdapter";
-import { parseGpmlText } from "./GpmlParser";
+import { decodeGplatesArrayBuffer, readGplatesXmlFromUrl } from "./GplatesFileReader.js";
+import { parsedGpmlFeaturesToPaleoData } from "./GpmlFeatureAdapter.js";
+import { parseGpmlText } from "./GpmlParser.js";
 import type {
   CoordinateOrder,
   FeatureImportDiagnostics,
   FeatureLoadResult,
   FeaturePolygonData,
   PolygonRenderIntentMode,
-} from "./types";
+} from "./types.js";
 
+/** Options shared by GPML and custom feature-source loaders. */
 export interface FeatureLoadOptions {
+  /** Position-list order; `auto` infers the order from coordinate ranges. */
   coordinateOrder?: CoordinateOrder;
+  /** Whether parsed polygons follow classification or are always filled. */
   polygonRenderIntent?: PolygonRenderIntentMode;
 }
 
@@ -46,15 +46,10 @@ function createDiagnostics(items: FeaturePolygonData[]): FeatureImportDiagnostic
     areaFeatureCount: items.length,
     lineLikeFeatureCount: 0,
     unknownFeatureCount: 0,
-    polygonCount: items.reduce(
-      (count, item) => count + item.clipArea.polygons.length,
-      0,
-    ),
+    polygonCount: items.reduce((count, item) => count + item.clipArea.polygons.length, 0),
     polygonsWithHoles: 0,
     interiorRingCount: 0,
-    multiPolygonFeatureCount: items.filter(
-      (item) => item.clipArea.polygons.length > 1,
-    ).length,
+    multiPolygonFeatureCount: items.filter((item) => item.clipArea.polygons.length > 1).length,
     skippedFromFillFeatureCount: 0,
     polygonRenderIntent: "classified",
     skippedPolygonFeatureTypes: {},
@@ -65,9 +60,7 @@ function createDiagnostics(items: FeaturePolygonData[]): FeatureImportDiagnostic
   };
 }
 
-function parseCustomJsonPaleoData(
-  polygons: CustomPaleoItem[],
-): FeatureLoadResult {
+function parseCustomJsonPaleoData(polygons: CustomPaleoItem[]): FeatureLoadResult {
   // Keep the old JSON behavior: consume only the first polygon per feature.
   const items = polygons.flatMap<FeaturePolygonData>((item) => {
     const polygon = item.Polygon[0];
@@ -75,10 +68,7 @@ function parseCustomJsonPaleoData(
       return [];
     }
 
-    const exterior = polygon.PosList.flatMap((pos) => [
-      pos.Longitude,
-      pos.Latitude,
-    ]);
+    const exterior = polygon.PosList.flatMap((pos) => [pos.Longitude, pos.Latitude]);
     return [
       {
         featureId: item.FeatureID,
@@ -128,19 +118,11 @@ function inferPolygonRenderIntent(url: string): PolygonRenderIntentMode {
 }
 
 function isDeepTimeGeoDebugEnabled() {
-  return (
-    typeof localStorage !== "undefined" &&
-    localStorage.getItem("deepTimeGeoDebug") === "1"
-  );
+  return typeof localStorage !== "undefined" && localStorage.getItem("deepTimeGeoDebug") === "1";
 }
 
-function parseGpmlPaleoData(
-  xmlText: string,
-  sourceName: string,
-  options: FeatureLoadOptions = {},
-) {
-  const polygonRenderIntent =
-    options.polygonRenderIntent ?? inferPolygonRenderIntent(sourceName);
+function parseGpmlPaleoData(xmlText: string, sourceName: string, options: FeatureLoadOptions = {}) {
+  const polygonRenderIntent = options.polygonRenderIntent ?? inferPolygonRenderIntent(sourceName);
   const result = parsedGpmlFeaturesToPaleoData(
     parseGpmlText(xmlText, {
       coordinateOrder: options.coordinateOrder ?? "auto",
@@ -150,6 +132,7 @@ function parseGpmlPaleoData(
   );
 
   if (isDeepTimeGeoDebugEnabled()) {
+    // eslint-disable-next-line no-console -- Explicitly enabled import diagnostics.
     console.debug("[GPlates] feature import", {
       url: sourceName,
       polygonRenderIntent,
@@ -160,18 +143,12 @@ function parseGpmlPaleoData(
   return result;
 }
 
-async function loadGpmlPaleoData(
-  url: string,
-  options: FeatureLoadOptions = {},
-) {
+async function loadGpmlPaleoData(url: string, options: FeatureLoadOptions = {}) {
   const xmlText = await readGplatesXmlFromUrl(url);
   return parseGpmlPaleoData(xmlText, url, options);
 }
 
-async function loadFeatureDataByContent(
-  url: string,
-  options: FeatureLoadOptions = {},
-) {
+async function loadFeatureDataByContent(url: string, options: FeatureLoadOptions = {}) {
   const response = await fetch(url);
   if (!response.ok) {
     throw new Error(`Failed to fetch feature file: ${url}`);
@@ -192,6 +169,10 @@ async function loadFeatureDataByContent(
   throw new Error(`Unsupported feature file content: ${url}`);
 }
 
+/**
+ * Loads GPML, GPMLZ, XML, custom JSON, or uploaded blob content and returns
+ * normalized features together with import diagnostics.
+ */
 export async function loadFeaturePolygonDataWithDiagnostics(
   url: string,
   options: FeatureLoadOptions = {},
@@ -213,16 +194,10 @@ export async function loadFeaturePolygonDataWithDiagnostics(
   throw new Error(`Unsupported feature file format: ${url}`);
 }
 
-export async function loadFeaturePolygonData(
-  url: string,
-  options: FeatureLoadOptions = {},
-) {
+/** Loads a supported feature source and returns only normalized features. */
+export async function loadFeaturePolygonData(url: string, options: FeatureLoadOptions = {}) {
   const result = await loadFeaturePolygonDataWithDiagnostics(url, options);
   return result.items;
 }
 
-export type {
-  FeatureImportDiagnostics,
-  FeatureLoadResult,
-  FeaturePolygonData,
-} from "./types";
+export type { FeatureImportDiagnostics, FeatureLoadResult, FeaturePolygonData } from "./types.js";

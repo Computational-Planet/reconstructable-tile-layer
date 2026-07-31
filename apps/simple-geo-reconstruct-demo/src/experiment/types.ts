@@ -4,7 +4,7 @@ import type {
   PolygonRenderIntentMode,
   PrimitiveTransformMode,
 } from "simple-geo-reconstruct";
-import type { CesiumTileProcesser } from "tile-processer-webgl";
+import type { CesiumTileProcessor } from "tile-processer-webgl";
 
 import type {
   ProviderKey,
@@ -127,7 +127,7 @@ export type ExperimentExportInfo = {
   };
   stats: {
     geoTileStats: GeoTileStats | null;
-    tileProcesserStats: ReturnType<CesiumTileProcesser["getPoolStats"]> | null;
+    tileProcesserStats: ReturnType<CesiumTileProcessor["getPoolStats"]> | null;
   };
 };
 

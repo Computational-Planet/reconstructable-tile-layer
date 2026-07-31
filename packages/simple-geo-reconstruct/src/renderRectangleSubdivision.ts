@@ -1,38 +1,49 @@
-import {
-  Ellipsoid,
-  Math as CesiumMath,
-  Rectangle,
-  RectangleGeometry,
-  type Geometry,
-} from "cesium";
+import { Ellipsoid, Math as CesiumMath, Rectangle, RectangleGeometry, type Geometry } from "cesium";
 
+/** Controls optional geographic subdivision of one rendered rectangle. */
 export type RenderRectangleSubdivision =
-  | { mode: "none" }
-  | { mode: "max-angular-extent"; radians: number };
+  | {
+      /** Keeps each source tile as one geographic rectangle. */
+      mode: "none";
+    }
+  | {
+      /** Splits each axis so no part exceeds the configured angular extent. */
+      mode: "max-angular-extent";
+      /** Maximum longitude or latitude span per part, in radians. */
+      radians: number;
+    };
 
-export type SimpleGeoReconstructBenchmarkStage =
-  | "task-gen"
-  | "geometry-creation";
+/** Low-level stages reported by the optional benchmark observer. */
+export type SimpleGeoReconstructBenchmarkStage = "task-gen" | "geometry-creation";
 
+/** Optional timing observer used for diagnostics and controlled benchmarks. */
 export type SimpleGeoReconstructBenchmarkObserver = {
+  /** Records one completed stage interval in milliseconds. */
   onStageOperation(
     stage: SimpleGeoReconstructBenchmarkStage,
     startTimeMs: number,
-    endTimeMs: number
+    endTimeMs: number,
   ): void;
 };
 
+/** One geographic sub-rectangle and its texture-coordinate extent. */
 export type RenderRectanglePart = {
+  /** Geographic extent of this part. */
   rectangle: Rectangle;
+  /** Minimum horizontal texture coordinate in the parent image. */
   uMinimum: number;
+  /** Maximum horizontal texture coordinate in the parent image. */
   uMaximum: number;
+  /** Minimum vertical texture coordinate in the parent image. */
   vMinimum: number;
+  /** Maximum vertical texture coordinate in the parent image. */
   vMaximum: number;
 };
 
+/** Splits a rectangle into texture-aligned parts using the requested policy. */
 export function subdivideRenderRectangle(
   rectangle: Rectangle,
-  subdivision: RenderRectangleSubdivision
+  subdivision: RenderRectangleSubdivision,
 ): RenderRectanglePart[] {
   if (subdivision.mode === "none") {
     return [createPart(rectangle, 0, 1, 0, 1)];
@@ -44,10 +55,7 @@ export function subdivideRenderRectangle(
 
   const longitudeSpan = Rectangle.computeWidth(rectangle);
   const latitudeSpan = Rectangle.computeHeight(rectangle);
-  const columnCount = Math.max(
-    1,
-    Math.ceil(longitudeSpan / subdivision.radians)
-  );
+  const columnCount = Math.max(1, Math.ceil(longitudeSpan / subdivision.radians));
   const rowCount = Math.max(1, Math.ceil(latitudeSpan / subdivision.radians));
   const parts: RenderRectanglePart[] = [];
 
@@ -57,22 +65,12 @@ export function subdivideRenderRectangle(
     for (let column = 0; column < columnCount; column++) {
       const uMinimum = column / columnCount;
       const uMaximum = (column + 1) / columnCount;
-      const west = normalizeLongitude(
-        rectangle.west + longitudeSpan * uMinimum
-      );
-      const east = normalizeLongitude(
-        rectangle.west + longitudeSpan * uMaximum
-      );
+      const west = normalizeLongitude(rectangle.west + longitudeSpan * uMinimum);
+      const east = normalizeLongitude(rectangle.west + longitudeSpan * uMaximum);
       const south = rectangle.south + latitudeSpan * vMinimum;
       const north = rectangle.south + latitudeSpan * vMaximum;
       parts.push(
-        createPart(
-          new Rectangle(west, south, east, north),
-          uMinimum,
-          uMaximum,
-          vMinimum,
-          vMaximum
-        )
+        createPart(new Rectangle(west, south, east, north), uMinimum, uMaximum, vMinimum, vMaximum),
       );
     }
   }
@@ -101,33 +99,22 @@ export class MeasuredRectangleGeometry extends RectangleGeometry {
     this.benchmarkObserver = options.observer;
   }
 
-  static createGeometry(
-    rectangleGeometry: MeasuredRectangleGeometry
-  ): Geometry | undefined {
+  static createGeometry(rectangleGeometry: MeasuredRectangleGeometry): Geometry | undefined {
     const startTimeMs = now();
     const geometry = RectangleGeometry.createGeometry(rectangleGeometry);
     const textureCoordinates = geometry?.attributes.st?.values;
     const part = rectangleGeometry.benchmarkPart;
     const needsTextureRemap =
-      part.uMinimum !== 0 ||
-      part.uMaximum !== 1 ||
-      part.vMinimum !== 0 ||
-      part.vMaximum !== 1;
+      part.uMinimum !== 0 || part.uMaximum !== 1 || part.vMinimum !== 0 || part.vMaximum !== 1;
     if (textureCoordinates && needsTextureRemap) {
       for (let index = 0; index < textureCoordinates.length; index += 2) {
         textureCoordinates[index] =
-          part.uMinimum +
-          textureCoordinates[index] * (part.uMaximum - part.uMinimum);
+          part.uMinimum + textureCoordinates[index] * (part.uMaximum - part.uMinimum);
         textureCoordinates[index + 1] =
-          part.vMinimum +
-          textureCoordinates[index + 1] * (part.vMaximum - part.vMinimum);
+          part.vMinimum + textureCoordinates[index + 1] * (part.vMaximum - part.vMinimum);
       }
     }
-    rectangleGeometry.benchmarkObserver?.onStageOperation(
-      "geometry-creation",
-      startTimeMs,
-      now()
-    );
+    rectangleGeometry.benchmarkObserver?.onStageOperation("geometry-creation", startTimeMs, now());
     return geometry;
   }
 }
@@ -137,7 +124,7 @@ function createPart(
   uMinimum: number,
   uMaximum: number,
   vMinimum: number,
-  vMaximum: number
+  vMaximum: number,
 ): RenderRectanglePart {
   return { rectangle, uMinimum, uMaximum, vMinimum, vMaximum };
 }
@@ -147,7 +134,5 @@ function normalizeLongitude(longitude: number) {
 }
 
 function now() {
-  return typeof performance !== "undefined" && performance.now
-    ? performance.now()
-    : Date.now();
+  return typeof performance !== "undefined" && performance.now ? performance.now() : Date.now();
 }

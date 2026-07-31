@@ -18,8 +18,7 @@ function getZipGpmlEntry(entries: Record<string, Uint8Array>, sourceName: string
   const entry = Object.entries(entries).find(
     ([name]) =>
       !name.endsWith("/") &&
-      (name.toLowerCase().endsWith(".gpml") ||
-        name.toLowerCase().endsWith(".xml")),
+      (name.toLowerCase().endsWith(".gpml") || name.toLowerCase().endsWith(".xml")),
   );
 
   if (entry) {
@@ -33,10 +32,8 @@ function getZipGpmlEntry(entries: Record<string, Uint8Array>, sourceName: string
   return firstFile[1];
 }
 
-export function decodeGplatesArrayBuffer(
-  buffer: ArrayBuffer,
-  sourceName = "unknown",
-) {
+/** Decodes plain UTF-8, gzip, or zip-contained GPML bytes. */
+export function decodeGplatesArrayBuffer(buffer: ArrayBuffer, sourceName = "unknown") {
   const bytes = new Uint8Array(buffer);
 
   if (isGzip(bytes)) {
@@ -50,6 +47,7 @@ export function decodeGplatesArrayBuffer(
   return decodeUtf8(bytes);
 }
 
+/** Fetches and decodes a GPML, GPMLZ, XML, gzip, or zip source URL. */
 export async function readGplatesXmlFromUrl(url: string) {
   const response = await fetch(url);
   if (!response.ok) {
@@ -58,4 +56,3 @@ export async function readGplatesXmlFromUrl(url: string) {
 
   return decodeGplatesArrayBuffer(await response.arrayBuffer(), url);
 }
-

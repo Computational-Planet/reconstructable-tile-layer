@@ -1,40 +1,65 @@
 {
   "name": "tile-processer-webgl",
   "version": "1.0.0",
-  "private": true,
+  "description": "Reproject and clip Cesium imagery tiles with a reusable WebGL renderer.",
   "type": "module",
-  "main": "./dist/lib/index.js",
+  "main": "./dist/cjs/index.cjs",
   "module": "./dist/es/index.js",
-  "types": "./dist/typings/index.d.ts",
+  "types": "./dist/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/es/index.js",
+      "require": "./dist/cjs/index.cjs",
+      "default": "./dist/es/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md"
+  ],
+  "sideEffects": false,
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "cross-env NODE_ENV=production rimraf dist && rollup -c",
-    "dev": "cross-env NODE_ENV=development rollup -wc"
+    "build": "pnpm run clean && rollup --config",
+    "clean": "rimraf dist",
+    "dev": "rollup --config --watch",
+    "lint": "eslint src --ext .ts --report-unused-disable-directives --max-warnings 0",
+    "typecheck": "tsc --noEmit"
   },
   "keywords": [
+    "cesium",
+    "gis",
+    "tiles",
     "webgl",
-    "cesium"
+    "reprojection"
   ],
   "author": "Qiuhan Wang",
   "license": "ISC",
-  "devDependencies": {
-    "@rollup/plugin-alias": "^5.1.0",
-    "@rollup/plugin-commonjs": "^26.0.1",
-    "@rollup/plugin-json": "^6.1.0",
-    "@rollup/plugin-node-resolve": "^15.2.3",
-    "@types/earcut": "^3.0.0",
-    "cross-env": "^7.0.3",
-    "rimraf": "^6.0.1",
-    "rollup": "^4.18.1",
-    "rollup-plugin-livereload": "^2.0.5",
-    "rollup-plugin-terser": "^7.0.2",
-    "rollup-plugin-typescript2": "^0.36.0",
-    "tslib": "^2.6.3",
-    "typescript": "^5.5.3"
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RogerWQH2023/tile-processer-turborepo.git",
+    "directory": "packages/tile-processer-webgl"
+  },
+  "bugs": {
+    "url": "https://github.com/RogerWQH2023/tile-processer-turborepo/issues"
+  },
+  "homepage": "https://github.com/RogerWQH2023/tile-processer-turborepo#readme",
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   },
   "dependencies": {
-    "cesium": "^1.119.0",
-    "earcut": "3.0.1",
     "gl-matrix": "^3.4.3"
+  },
+  "devDependencies": {
+    "earcut": "3.0.1"
+  },
+  "peerDependencies": {
+    "cesium": "^1.119.0"
   }
 }

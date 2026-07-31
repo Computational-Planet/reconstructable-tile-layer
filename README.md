@@ -1,81 +1,87 @@
-# Turborepo starter
+# Tile Processing and Paleogeographic Reconstruction
 
-This is an official starter Turborepo.
+This monorepo contains four TypeScript libraries for Cesium-based imagery tile
+processing and plate reconstruction, plus the original interactive React demo.
+The code is organized for reuse without changing the reconstruction, geometry,
+caching, rendering, benchmark, or demo behavior used by the project.
 
-## Using this example
+## Packages
 
-Run the following command:
+| Package                                                           | Purpose                                                                               |
+| ----------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| [`plates-rotation-operator`](packages/plates-rotation-operator)   | Parse GPlates rotation files and calculate plate rotations at a geological age.       |
+| [`polygon-tile-quadtree`](packages/polygon-tile-quadtree)         | Index geographic polygons in a Cesium quadtree and clip them to tile bounds.          |
+| [`tile-processer-webgl`](packages/tile-processer-webgl)           | Reproject and mask Cesium imagery tiles with a reusable WebGL renderer.               |
+| [`simple-geo-reconstruct`](packages/simple-geo-reconstruct)       | Coordinate GPlates loading, plate rotation, quadtree selection, and Cesium rendering. |
+| [`simple-geo-reconstruct-demo`](apps/simple-geo-reconstruct-demo) | Show the supported packages in an interactive Cesium application.                     |
+
+Each package has a focused README with installation, a minimal example, and
+resource-cleanup notes. Historic `Processer` spellings remain available for
+compatibility; correctly spelled `Processor` aliases are also exported.
+
+## Requirements
+
+- Node.js 18 or newer
+- pnpm 9.x (the repository is pinned to pnpm 9.0.5)
+- A browser with WebGL support for the rendering packages and demo
+
+Cesium is a peer dependency of every publishable package that uses its runtime
+or types. Applications should install a compatible Cesium 1.x release.
+
+## Setup
 
 ```sh
-npx create-turbo@latest
-```
-
-## What's inside?
-
-This Turborepo includes the following packages/apps:
-
-### Apps and Packages
-
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
-
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
-
-### Utilities
-
-This Turborepo has some additional tools already setup for you:
-
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
-
-### Build
-
-To build all apps and packages, run the following command:
-
-```
-cd my-turborepo
+corepack enable
+corepack prepare pnpm@9.0.5 --activate
+pnpm install --frozen-lockfile
 pnpm build
 ```
 
-### Develop
+Useful checks:
 
-To develop all apps and packages, run the following command:
-
-```
-cd my-turborepo
-pnpm dev
-```
-
-### Remote Caching
-
-Turborepo can use a technique known as [Remote Caching](https://turbo.build/repo/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
-
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup), then enter the following commands:
-
-```
-cd my-turborepo
-npx turbo login
+```sh
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm check
 ```
 
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
+`pnpm test` runs the repository's original quadtree tests. `pnpm check` combines
+format checking, linting, builds, type checking, and those existing tests.
 
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
+To work on a package that depends on other workspace libraries, build its
+dependencies first:
 
+```sh
+pnpm --filter "simple-geo-reconstruct^..." build
+pnpm --filter simple-geo-reconstruct typecheck
+pnpm --filter simple-geo-reconstruct build
 ```
-npx turbo link
+
+## Repository layout
+
+```text
+apps/
+  simple-geo-reconstruct-demo/   Interactive integration example
+packages/
+  plates-rotation-operator/      Rotation parsing and interpolation
+  polygon-tile-quadtree/         Polygon-aware tile quadtree
+  tile-processer-webgl/          WebGL tile processing
+  simple-geo-reconstruct/        High-level reconstruction manager
 ```
 
-## Useful Links
+Run the demo with `pnpm --filter simple-geo-reconstruct-demo dev`. Its existing
+benchmark tools, reference polygon overlays, bundled datasets, controls, and
+configuration schema are unchanged.
 
-Learn more about the power of Turborepo:
+The shared Rollup configuration emits three trees for each library:
+`dist/es` for ESM, `dist/cjs` for CommonJS, and `dist/types` for declarations.
+Cesium remains a peer dependency, so builds do not include a second Cesium copy.
 
-- [Tasks](https://turbo.build/repo/docs/core-concepts/monorepos/running-tasks)
-- [Caching](https://turbo.build/repo/docs/core-concepts/caching)
-- [Remote Caching](https://turbo.build/repo/docs/core-concepts/remote-caching)
-- [Filtering](https://turbo.build/repo/docs/core-concepts/monorepos/filtering)
-- [Configuration Options](https://turbo.build/repo/docs/reference/configuration)
-- [CLI Usage](https://turbo.build/repo/docs/reference/command-line-reference)
+The repository ISC license covers the source code only. Bundled geological and
+imagery data retain the citations and terms shown by the demo and their original
+providers.
+
+## License
+
+Source code is licensed under the ISC License. See [`LICENSE`](LICENSE).

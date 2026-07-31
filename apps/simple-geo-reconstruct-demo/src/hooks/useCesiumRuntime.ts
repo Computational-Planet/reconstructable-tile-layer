@@ -1,12 +1,11 @@
 /** Coordinates Cesium viewer and tile processor lifecycle for the demo app. */
 import { useEffect, useRef } from "react";
 import type { Viewer } from "cesium";
-import type { GeoTileStats } from "simple-geo-reconstruct";
+import type { GeoTileStats, SimpleGeoReconstructManager } from "simple-geo-reconstruct";
 import {
-  CesiumTileProcesser,
+  CesiumTileProcessor,
   type TileImageOutputType,
 } from "tile-processer-webgl";
-import type { SimpleGeoReconstructManager } from "simple-geo-reconstruct";
 
 import {
   applyGlobeBaseColor,
@@ -22,7 +21,7 @@ declare global {
   interface Window {
     __simpleGeoReconstructStats?: () => GeoTileStats;
     __tileProcesserStats?: () => ReturnType<
-      CesiumTileProcesser["getPoolStats"]
+      CesiumTileProcessor["getPoolStats"]
     >;
   }
 }
@@ -40,7 +39,7 @@ export function useCesiumRuntime({
 }: UseCesiumRuntimeOptions) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const viewerRef = useRef<Viewer | null>(null);
-  const tileProcesserRef = useRef<CesiumTileProcesser | null>(null);
+  const tileProcesserRef = useRef<CesiumTileProcessor | null>(null);
   const managerRef = useRef<SimpleGeoReconstructManager | null>(null);
   const sceneModeCleanupRef = useRef<(() => void) | null>(null);
 
@@ -50,7 +49,7 @@ export function useCesiumRuntime({
     }
 
     const viewer = createViewer(containerRef.current, DEMO_ELLIPSOID_CONFIG);
-    const processer = new CesiumTileProcesser({
+    const processer = new CesiumTileProcessor({
       slotCount: 4,
       outputType: TILE_OUTPUT_TYPE,
     });

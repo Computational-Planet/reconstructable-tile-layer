@@ -1,11 +1,14 @@
-export { decodeGplatesArrayBuffer, readGplatesXmlFromUrl } from "./GplatesFileReader";
-export { parsedGpmlFeaturesToPaleoData } from "./GpmlFeatureAdapter";
-export { parseGpmlText } from "./GpmlParser";
+export { decodeGplatesArrayBuffer, readGplatesXmlFromUrl } from "./GplatesFileReader.js";
+export {
+  parsedGpmlFeaturesToPaleoData,
+  type GpmlFeatureAdapterOptions,
+} from "./GpmlFeatureAdapter.js";
+export { parseGpmlText, type GpmlParserOptions } from "./GpmlParser.js";
 export {
   loadFeaturePolygonData,
   loadFeaturePolygonDataWithDiagnostics,
-} from "./paleoDataLoader";
-export type { FeatureLoadOptions } from "./paleoDataLoader";
+} from "./paleoDataLoader.js";
+export type { FeatureLoadOptions } from "./paleoDataLoader.js";
 export type {
   CoordinateOrder,
   FeatureImportDiagnostics,
@@ -14,6 +17,8 @@ export type {
   ParsedGpmlFeature,
   ParsedGpmlGeometry,
   ParsedGpmlPolygon,
+  ParsedGpmlTime,
   PolygonRenderIntentMode,
+  Position,
   RenderIntent,
-} from "./types";
+} from "./types.js";

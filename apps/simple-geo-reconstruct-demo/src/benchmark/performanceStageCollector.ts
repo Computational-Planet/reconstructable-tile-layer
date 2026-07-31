@@ -3,8 +3,8 @@ import type {
   SimpleGeoReconstructBenchmarkStage,
 } from "simple-geo-reconstruct";
 import type {
-  TileProcesserBenchmarkObserver,
-  TileProcesserBenchmarkStage,
+  TileProcessorBenchmarkObserver,
+  TileProcessorBenchmarkStage,
 } from "tile-processer-webgl";
 import type {
   BenchmarkStageName,
@@ -22,14 +22,14 @@ type StageAccumulator = {
 export class PerformanceStageCollector
   implements
     SimpleGeoReconstructBenchmarkObserver,
-    TileProcesserBenchmarkObserver
+    TileProcessorBenchmarkObserver
 {
   private readonly stages = new Map<BenchmarkStageName, StageAccumulator>();
 
   onStageOperation(
     stage:
       | SimpleGeoReconstructBenchmarkStage
-      | TileProcesserBenchmarkStage
+      | TileProcessorBenchmarkStage
       | "first-frame",
     startTimeMs: number,
     endTimeMs: number,

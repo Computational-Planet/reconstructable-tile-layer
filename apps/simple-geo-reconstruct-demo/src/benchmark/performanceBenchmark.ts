@@ -6,8 +6,8 @@ import {
   type RenderRectangleSubdivision,
 } from "simple-geo-reconstruct";
 import {
-  CesiumTileProcesser,
-  type CesiumTileProcesserStats,
+  CesiumTileProcessor,
+  type CesiumTileProcessorStats,
 } from "tile-processer-webgl";
 
 import { applyPoseView } from "../cesium/cameraControls";
@@ -37,7 +37,7 @@ import { measureNextRenderedFrame } from "./gpuFrameTimer";
 import { PerformanceStageCollector } from "./performanceStageCollector";
 
 type BenchmarkRuntime = {
-  processer: CesiumTileProcesser;
+  processer: CesiumTileProcessor;
   manager: SimpleGeoReconstructManager;
 };
 
@@ -588,7 +588,7 @@ async function createRuntime(
   const providerConstructorMs = now() - providerStart;
 
   const processorStart = now();
-  const processer = new CesiumTileProcesser({
+  const processer = new CesiumTileProcessor({
     slotCount: config.slotCount,
     outputType: config.outputType,
     maxImageCacheSize: config.maxImageCacheSize,
@@ -600,7 +600,7 @@ async function createRuntime(
   const managerStart = now();
   const manager = new SimpleGeoReconstructManager({
     provider,
-    processer,
+    processor: processer,
     anchorPlateId: config.anchorPlateId,
     featureSource: { url: config.featureUrl },
     rotationSources: config.rotationSources,
@@ -853,7 +853,7 @@ function assertion(
 
 function collectEnvironment(
   viewer: Viewer,
-  stats: CesiumTileProcesserStats,
+  stats: CesiumTileProcessorStats,
 ): BenchmarkEnvironment {
   const navigatorWithMemory = navigator as Navigator & {
     deviceMemory?: number;
@@ -883,7 +883,7 @@ function collectEnvironment(
 
 function findFirstProcessorStats(
   records: BenchmarkReplicateRecord[],
-): CesiumTileProcesserStats {
+): CesiumTileProcessorStats {
   const first = records[0];
   if (!first) {
     throw new Error("The benchmark did not produce any records.");

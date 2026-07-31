@@ -3,7 +3,7 @@ import type {
   PrimitiveTransformMode,
   TileGenerationReport,
 } from "simple-geo-reconstruct";
-import type { CesiumTileProcesserStats } from "tile-processer-webgl";
+import type { CesiumTileProcessorStats } from "tile-processer-webgl";
 import type {
   ProviderKey,
   UrlTemplateProviderConfig,
@@ -127,7 +127,7 @@ export type BenchmarkCamera3D = {
 export type BenchmarkStatsSnapshot = {
   capturedAtMs: number;
   manager: GeoTileStats;
-  processor: CesiumTileProcesserStats;
+  processor: CesiumTileProcessorStats;
   generationReport: TileGenerationReport | null;
   jsHeap: JsHeapSnapshot;
 };
@@ -178,7 +178,7 @@ export type LoadBenchmarkRecord = BaseBenchmarkRecord & {
   atReturn: BenchmarkStatsSnapshot;
   atPresent: BenchmarkStatsSnapshot;
   atIdle: BenchmarkStatsSnapshot;
-  foregroundProcessorSnapshot: CesiumTileProcesserStats | null;
+  foregroundProcessorSnapshot: CesiumTileProcessorStats | null;
   assertions: BenchmarkAssertion[];
 };
 

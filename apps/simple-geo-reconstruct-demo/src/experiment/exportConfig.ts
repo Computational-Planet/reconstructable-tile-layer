@@ -6,7 +6,7 @@ import type {
   PrimitiveTransformMode,
   SimpleGeoReconstructManager,
 } from "simple-geo-reconstruct";
-import type { CesiumTileProcesser } from "tile-processer-webgl";
+import type { CesiumTileProcessor } from "tile-processer-webgl";
 
 import {
   getCentralMeridian,
@@ -53,7 +53,7 @@ export type ExperimentExportContext = {
   rotPresetKey: RotationPresetKey;
   stats: GeoTileStats | null;
   status: string;
-  tileProcesser: CesiumTileProcesser | null;
+  tileProcesser: CesiumTileProcessor | null;
   viewer: Viewer;
 };
 

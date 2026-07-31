@@ -6,7 +6,7 @@ import type {
   PolygonRenderIntentMode,
   Position,
   RenderIntent,
-} from "./types";
+} from "./types.js";
 
 const DISTANT_FUTURE_TIME = -999;
 const DISTANT_PAST_TIME = 999999;
@@ -32,8 +32,11 @@ const LINE_LIKE_FEATURE_TYPES = new Set([
   "PassiveContinentalBoundary",
 ]);
 
+/** Options controlling coordinate interpretation and polygon classification. */
 export interface GpmlParserOptions {
+  /** Position-list order; `auto` infers the order from coordinate ranges. */
   coordinateOrder?: CoordinateOrder;
+  /** Whether parsed polygons follow classification or are always filled. */
   polygonRenderIntent?: PolygonRenderIntentMode;
 }
 
@@ -51,10 +54,7 @@ function descendantsByLocalName(node: Element | Document, localName: string) {
   );
 }
 
-function firstDescendantByLocalName(
-  node: Element | Document,
-  localName: string,
-) {
+function firstDescendantByLocalName(node: Element | Document, localName: string) {
   return descendantsByLocalName(node, localName)[0];
 }
 
@@ -101,25 +101,20 @@ function parseAttributeValue(text: string) {
 
 function parseShapefileAttributes(featureElement: Element) {
   const attributes: Record<string, string | number> = {};
-  descendantsByLocalName(featureElement, "KeyValueDictionaryElement").forEach(
-    (element) => {
-      const key = directChildText(element, "key");
-      const value = directChildText(element, "value");
-      if (key && value !== undefined) {
-        attributes[key] = parseAttributeValue(value);
-      }
-    },
-  );
+  descendantsByLocalName(featureElement, "KeyValueDictionaryElement").forEach((element) => {
+    const key = directChildText(element, "key");
+    const value = directChildText(element, "value");
+    if (key && value !== undefined) {
+      attributes[key] = parseAttributeValue(value);
+    }
+  });
   return attributes;
 }
 
-function getAttributeNumber(
-  attributes: Record<string, string | number>,
-  keys: string[],
-) {
-  const normalizedEntries: Array<[string, string | number]> = Object.entries(
-    attributes,
-  ).map(([key, value]) => [key.toUpperCase(), value]);
+function getAttributeNumber(attributes: Record<string, string | number>, keys: string[]) {
+  const normalizedEntries: Array<[string, string | number]> = Object.entries(attributes).map(
+    ([key, value]) => [key.toUpperCase(), value],
+  );
   const normalized = new Map<string, string | number>(normalizedEntries);
 
   for (const key of keys) {
@@ -191,16 +186,13 @@ function convertPairsToPositions(
   coordinateOrder: CoordinateOrder,
 ) {
   const detectedOrder =
-    coordinateOrder === "auto"
-      ? detectCoordinateOrder(values, dimension)
-      : coordinateOrder;
+    coordinateOrder === "auto" ? detectCoordinateOrder(values, dimension) : coordinateOrder;
   const positions: Position[] = [];
 
   for (let index = 0; index + 1 < values.length; index += dimension) {
     const first = values[index];
     const second = values[index + 1];
-    const position: Position =
-      detectedOrder === "lat-lon" ? [second, first] : [first, second];
+    const position: Position = detectedOrder === "lat-lon" ? [second, first] : [first, second];
     positions.push(position);
   }
 
@@ -228,11 +220,7 @@ function parsePosList(posListElement: Element, coordinateOrder: CoordinateOrder)
       .map(Number)
       .filter((value) => Number.isFinite(value)) ?? [];
 
-  return convertPairsToPositions(
-    values,
-    getDimension(posListElement),
-    coordinateOrder,
-  );
+  return convertPairsToPositions(values, getDimension(posListElement), coordinateOrder);
 }
 
 function firstPosListUnder(node?: Element) {
@@ -274,10 +262,7 @@ function getGeometryPropertyName(polygonElement: Element, featureElement: Elemen
   return "geometry";
 }
 
-function parseGeometries(
-  featureElement: Element,
-  coordinateOrder: CoordinateOrder,
-) {
+function parseGeometries(featureElement: Element, coordinateOrder: CoordinateOrder) {
   const geometries: ParsedGpmlGeometry[] = [];
   descendantsByLocalName(featureElement, "Polygon").forEach((polygonElement) => {
     const polygon = parsePolygonGeometry(polygonElement, coordinateOrder);
@@ -302,10 +287,7 @@ function stripNamespace(value: string | number | undefined) {
   return text.includes(":") ? text.slice(text.lastIndexOf(":") + 1) : text;
 }
 
-function getAttributeText(
-  attributes: Record<string, string | number>,
-  key: string,
-) {
+function getAttributeText(attributes: Record<string, string | number>, key: string) {
   const targetKey = key.toUpperCase();
   const entry = Object.entries(attributes).find(
     ([attributeKey]) => attributeKey.toUpperCase() === targetKey,
@@ -321,9 +303,7 @@ function classifyRenderIntent(
 ): { renderIntent: RenderIntent; renderIntentOverride?: PolygonRenderIntentMode } {
   const gpgimType = stripNamespace(getAttributeText(attributes, "GPGIM_TYPE"));
   const classificationType = gpgimType || featureType;
-  const hasPolygon = geometries.some(
-    (geometry) => geometry.geometryType === "Polygon",
-  );
+  const hasPolygon = geometries.some((geometry) => geometry.geometryType === "Polygon");
   let classifiedIntent: RenderIntent = "unknown";
 
   if (geometries.some((geometry) => geometry.propertyName === "centerLineOf")) {
@@ -332,8 +312,7 @@ function classifyRenderIntent(
     classifiedIntent = "area";
   } else if (
     LINE_LIKE_FEATURE_TYPES.has(classificationType) ||
-    (classificationType.includes("Boundary") &&
-      !AREA_FEATURE_TYPES.has(classificationType))
+    (classificationType.includes("Boundary") && !AREA_FEATURE_TYPES.has(classificationType))
   ) {
     classifiedIntent = "line-like";
   } else if (classificationType.includes("Coastline")) {
@@ -376,9 +355,8 @@ function parseFeatureMember(
     firstDescendantByLocalName(featureElement, "name")?.textContent?.trim() ||
     String(attributes.NAME ?? "");
   const reconstructionPlateId =
-    parseNumberFromElement(
-      firstDescendantByLocalName(featureElement, "reconstructionPlateId"),
-    ) ?? getAttributeNumber(attributes, PLATE_ATTRIBUTE_KEYS);
+    parseNumberFromElement(firstDescendantByLocalName(featureElement, "reconstructionPlateId")) ??
+    getAttributeNumber(attributes, PLATE_ATTRIBUTE_KEYS);
   const geometries = parseGeometries(featureElement, coordinateOrder);
   const intent = classifyRenderIntent(
     featureElement.localName,
@@ -411,6 +389,7 @@ function parseFeatureMember(
   return feature;
 }
 
+/** Parses a GPML XML document into normalized feature records. */
 export function parseGpmlText(text: string, options: GpmlParserOptions = {}) {
   const doc = new DOMParser().parseFromString(text, "application/xml");
   const parserError = firstDescendantByLocalName(doc, "parsererror");
@@ -422,12 +401,7 @@ export function parseGpmlText(text: string, options: GpmlParserOptions = {}) {
   const polygonRenderIntent = options.polygonRenderIntent ?? "classified";
   return descendantsByLocalName(doc, "featureMember")
     .map((featureMemberElement, index) =>
-      parseFeatureMember(
-        featureMemberElement,
-        index,
-        coordinateOrder,
-        polygonRenderIntent,
-      ),
+      parseFeatureMember(featureMemberElement, index, coordinateOrder, polygonRenderIntent),
     )
     .filter((feature): feature is ParsedGpmlFeature => Boolean(feature));
 }

@@ -4,12 +4,14 @@ import type {
   ParsedGpmlFeature,
   PolygonRenderIntentMode,
   Position,
-} from "./types";
+} from "./types.js";
 
 const DEFAULT_BEGIN_TIME = 999999;
 const DEFAULT_END_TIME = -999;
 
+/** Controls how parsed GPML polygons are classified for rendering. */
 export interface GpmlFeatureAdapterOptions {
+  /** Whether parsed polygons follow classification or are always filled. */
   polygonRenderIntent?: PolygonRenderIntentMode;
 }
 
@@ -45,10 +47,7 @@ function countFeatureIds(features: ParsedGpmlFeature[]) {
   return counts;
 }
 
-function getUniqueFeatureId(
-  feature: ParsedGpmlFeature,
-  featureIdCounts: Map<string, number>,
-) {
+function getUniqueFeatureId(feature: ParsedGpmlFeature, featureIdCounts: Map<string, number>) {
   if ((featureIdCounts.get(feature.id) ?? 0) <= 1) {
     return feature.id;
   }
@@ -61,10 +60,7 @@ function createDiagnostics(
   polygonRenderIntent: PolygonRenderIntentMode,
   featureIdCounts: Map<string, number>,
 ): FeatureImportDiagnostics {
-  const polygonCount = items.reduce(
-    (count, item) => count + item.clipArea.polygons.length,
-    0,
-  );
+  const polygonCount = items.reduce((count, item) => count + item.clipArea.polygons.length, 0);
   const interiorRingCount = items.reduce(
     (count, item) =>
       count +
@@ -74,9 +70,7 @@ function createDiagnostics(
       ),
     0,
   );
-  const multiPolygonFeatureCount = items.filter(
-    (item) => item.clipArea.polygons.length > 1,
-  ).length;
+  const multiPolygonFeatureCount = items.filter((item) => item.clipArea.polygons.length > 1).length;
   const skippedPolygonFeatureTypes: Record<string, number> = {};
 
   items.forEach((item) => {
@@ -84,50 +78,38 @@ function createDiagnostics(
       incrementRecord(skippedPolygonFeatureTypes, getDiagnosticFeatureType(item));
     }
   });
-  const duplicatedIdCounts = Array.from(featureIdCounts.values()).filter(
-    (count) => count > 1,
-  );
+  const duplicatedIdCounts = Array.from(featureIdCounts.values()).filter((count) => count > 1);
 
   return {
     totalFeatures: features.length,
     totalImportedFeatures: items.length,
     areaFeatureCount: items.filter((item) => item.renderIntent === "area").length,
-    lineLikeFeatureCount: items.filter(
-      (item) => item.renderIntent === "line-like",
-    ).length,
-    unknownFeatureCount: items.filter(
-      (item) => item.renderIntent === "unknown",
-    ).length,
+    lineLikeFeatureCount: items.filter((item) => item.renderIntent === "line-like").length,
+    unknownFeatureCount: items.filter((item) => item.renderIntent === "unknown").length,
     polygonCount,
     polygonsWithHoles: items.reduce(
       (count, item) =>
         count +
-        item.clipArea.polygons.filter(
-          (polygon) => (polygon.interiors?.length ?? 0) > 0,
-        ).length,
+        item.clipArea.polygons.filter((polygon) => (polygon.interiors?.length ?? 0) > 0).length,
       0,
     ),
     interiorRingCount,
     multiPolygonFeatureCount,
-    skippedFromFillFeatureCount: items.filter(
-      (item) => item.renderIntent !== "area",
-    ).length,
+    skippedFromFillFeatureCount: items.filter((item) => item.renderIntent !== "area").length,
     polygonRenderIntent,
     skippedPolygonFeatureTypes,
     staticPolygonAreaOverrideCount: features.filter(
       (feature) => feature.renderIntentOverride === "all-polygons-area",
     ).length,
     duplicateOriginalFeatureIdCount: duplicatedIdCounts.length,
-    duplicateFeatureMemberCount: duplicatedIdCounts.reduce(
-      (total, count) => total + count - 1,
-      0,
-    ),
+    duplicateFeatureMemberCount: duplicatedIdCounts.reduce((total, count) => total + count - 1, 0),
     renamedDuplicateFeatureIdCount: items.filter(
       (item) => item.featureId !== item.source?.originalFeatureId,
     ).length,
   };
 }
 
+/** Converts parsed GPML features into reconstruction-ready polygon data. */
 export function parsedGpmlFeaturesToPaleoData(
   features: ParsedGpmlFeature[],
   options: GpmlFeatureAdapterOptions = {},
@@ -171,10 +153,7 @@ export function parsedGpmlFeaturesToPaleoData(
         ),
         name: feature.name,
         polygonCount: clipPolygons.length,
-        interiorCount: clipPolygons.reduce(
-          (count, polygon) => count + polygon.interiors.length,
-          0,
-        ),
+        interiorCount: clipPolygons.reduce((count, polygon) => count + polygon.interiors.length, 0),
         attributes: feature.attributes,
       },
     });
@@ -182,11 +161,6 @@ export function parsedGpmlFeaturesToPaleoData(
 
   return {
     items,
-    diagnostics: createDiagnostics(
-      features,
-      items,
-      polygonRenderIntent,
-      featureIdCounts,
-    ),
+    diagnostics: createDiagnostics(features, items, polygonRenderIntent, featureIdCounts),
   };
 }

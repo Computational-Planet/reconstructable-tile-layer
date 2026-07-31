@@ -2,15 +2,25 @@ export {
   SimpleGeoReconstructManager,
   type FeatureSourceConfig,
   type GeoTileStats,
+  type LegacyPaleoPolygon,
+  type LegacyPaleoPosition,
+  type LegacyPaleoValidTime,
   type PaleoData,
+  type PaleoItem,
   type PlateQuadTreeGroup,
+  type PolygonQuadTreeRecord,
   type PrimitiveTransformMode,
   type ResolvedFeatureFiles,
+  type SetPrimitiveTransformModeOptions,
   type SimpleGeoReconstructManagerConstructorOptions,
+  type SimpleGeoReconstructManagerOptions,
+  type SimpleGeoReconstructManagerProcessorOptions,
   type TileGenerationReport,
+  type TilePrimitiveRecord,
   type ViewFineTileLoadOptions,
   type ViewFineTileLoadResult,
-} from "./SimpleGeoReconstructManager";
+  type ViewFineTileLoadSkipReason,
+} from "./SimpleGeoReconstructManager.js";
 
 export {
   subdivideRenderRectangle,
@@ -18,7 +28,7 @@ export {
   type RenderRectangleSubdivision,
   type SimpleGeoReconstructBenchmarkObserver,
   type SimpleGeoReconstructBenchmarkStage,
-} from "./renderRectangleSubdivision";
+} from "./renderRectangleSubdivision.js";
 
 export {
   decodeGplatesArrayBuffer,
@@ -27,7 +37,7 @@ export {
   parsedGpmlFeaturesToPaleoData,
   parseGpmlText,
   readGplatesXmlFromUrl,
-} from "./gplates";
+} from "./gplates/index.js";
 
 export type {
   CoordinateOrder,
@@ -35,9 +45,15 @@ export type {
   FeatureLoadOptions,
   FeatureLoadResult,
   FeaturePolygonData,
+  GpmlFeatureAdapterOptions,
+  GpmlParserOptions,
   ParsedGpmlFeature,
   ParsedGpmlGeometry,
   ParsedGpmlPolygon,
+  ParsedGpmlTime,
   PolygonRenderIntentMode,
+  Position,
   RenderIntent,
-} from "./gplates";
+} from "./gplates/index.js";
+
+export type { AnchorPlateId } from "plates-rotation-operator";

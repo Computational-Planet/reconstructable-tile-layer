@@ -1,6 +1,5 @@
 /** Encapsulates manager initialization and tile loading actions. */
-import { useEffect } from "react";
-import type { MutableRefObject } from "react";
+import { useEffect, type MutableRefObject } from "react";
 import type { Viewer } from "cesium";
 import {
   SimpleGeoReconstructManager,
@@ -8,7 +7,7 @@ import {
   type PolygonRenderIntentMode,
   type PrimitiveTransformMode,
 } from "simple-geo-reconstruct";
-import type { CesiumTileProcesser } from "tile-processer-webgl";
+import type { CesiumTileProcessor } from "tile-processer-webgl";
 
 import { waitForNextPaint } from "../cesium/cameraControls";
 import {
@@ -38,7 +37,7 @@ type UseReconstructActionsOptions = {
   setProviderKey: (value: ProviderKey) => void;
   setStats: (value: GeoTileStats | null) => void;
   setStatus: (value: string) => void;
-  tileProcesserRef: MutableRefObject<CesiumTileProcesser | null>;
+  tileProcesserRef: MutableRefObject<CesiumTileProcessor | null>;
   viewerRef: MutableRefObject<Viewer | null>;
 };
 
@@ -142,7 +141,7 @@ export function useReconstructActions({
       const manager = new SimpleGeoReconstructManager({
         anchorPlateId: resolvedAnchorPlateId,
         provider,
-        processer,
+        processor: processer,
         featureSource: {
           url: featureUrl.trim(),
           polygonRenderIntent,
