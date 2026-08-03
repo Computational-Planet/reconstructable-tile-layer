@@ -1,5 +1,7 @@
 # reconstructable-tile-layer
 
+[Monorepo](../../README.md) · English | [简体中文](README.zh-CN.md)
+
 This package implements the manuscript's browser-side **Reconstructable Tile
 Layer (RTL)** object. It joins a published imagery provider with polygonal
 plate-domain features, ROT finite rotations, tile--plate indexes, composite
@@ -7,6 +9,17 @@ task scheduling, WebGL-processed images, and Cesium primitives.
 
 The recommended public class is `ReconstructableTileLayer`. The existing
 `SimpleGeoReconstructManager` name remains an alias of the same class.
+
+## Highlights
+
+- Registers published imagery services without republishing their tiles.
+- Combines plate-domain features, finite rotations, and tile processing in one
+  executable age-aware layer.
+- Schedules foreground and background composite tasks while retaining reusable
+  processed images.
+- Supports adaptive root loading, explicit source levels, and view-aware
+  refinement.
+- Synchronizes Cesium scene modes and exposes runtime diagnostics.
 
 ## Installation
 
@@ -17,7 +30,7 @@ pnpm add reconstructable-tile-layer rtl-webgl-tile-processor cesium
 The package is browser-only. It requires `fetch`, the DOM, WebGL, and a Cesium
 viewer. The caller owns the viewer, imagery provider, and WebGL processor.
 
-## Complete workflow
+## Usage
 
 ```ts
 import { Ellipsoid, GeographicTilingScheme, UrlTemplateImageryProvider, Viewer } from "cesium";

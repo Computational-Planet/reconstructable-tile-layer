@@ -1,5 +1,14 @@
 # Reconstructable Tile Layer (RTL)
 
+English | [简体中文](README.zh-CN.md)
+
+[![Node.js >= 18](https://img.shields.io/badge/Node.js-%3E%3D18-339933?logo=node.js&logoColor=white)](package.json)
+[![pnpm 9.0.5](https://img.shields.io/badge/pnpm-9.0.5-F69220?logo=pnpm&logoColor=white)](package.json)
+[![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg)](LICENSE)
+
+Browser-side paleogeographic reconstruction of published Web tile services in
+Cesium.
+
 This repository contains the TypeScript reference implementation accompanying
 the manuscript _Reconstructable Tile Layers for Geological-Time-Driven Digital
 Earth: Browser-side Paleogeographic Reconstruction of Published Web Tile
@@ -12,6 +21,73 @@ ROT-derived finite rotations, masks boundary tiles in WebGL, and renders the
 processed fragments in Cesium. The implementation reconstructs the published
 visual layer; it does not recover source attributes, topology, feature
 identities, or numerical raster values.
+
+## Demo
+
+**Online demo:** To be added.
+
+<!-- Replace DEMO_URL, then uncomment this line. -->
+<!-- [Open the online demo](DEMO_URL) -->
+
+The application in [`apps/reconstructable-tile-layer-demo`](apps/reconstructable-tile-layer-demo)
+is the project demo started by `pnpm dev`. It:
+
+- is powered by React, Vite, Cesium, and the four RTL workspace libraries;
+- starts all library Rollup watch builds through Turbo;
+- supports interchangeable imagery services, plate-domain data, and ROT models;
+- reproduces the paper workflow for age changes, source-level loading,
+  view-aware refinement, reference overlays, and result export.
+
+With workspace dependencies already installed, launch the demo from the
+repository root:
+
+```sh
+pnpm dev
+```
+
+After a fresh clone, or whenever `package.json` or `pnpm-lock.yaml` changes,
+install the locked dependencies once before launching:
+
+```sh
+pnpm install --frozen-lockfile
+pnpm dev
+```
+
+Vite prints the local URL in the terminal. While the command remains running,
+changes to any library are rebuilt automatically and made available to the demo.
+
+![Reconstructable Tile Layer demo showing a paleogeographic reconstruction at 120 Ma](images/rtl_demo_preview.png)
+
+See the demo [English README](apps/reconstructable-tile-layer-demo/README.md) or
+[Chinese README](apps/reconstructable-tile-layer-demo/README.zh-CN.md) for its
+workflow, export behavior, and benchmark controller.
+
+Requirements: Node.js 18 or newer, pnpm 9.0.5, and a browser with WebGL support.
+
+## Features
+
+- Reconstructs compatible published WMS, WMTS, XYZ, and URL-template imagery
+  without republishing the source service.
+- Imports GPML, GPMLZ, XML, legacy JSON plate domains, and GPlates ROT models.
+- Interpolates finite rotations and composes reference-plate chains.
+- Indexes plate-domain coverage with lazy tile--plate quadtrees.
+- Masks boundary tiles in WebGL while retaining MultiPolygon parts and holes.
+- Reuses processed imagery across age changes and refines source tiles for the
+  current Cesium view.
+- Preserves historical APIs while exposing paper-aligned names.
+
+## Workspaces
+
+| Workspace                         | Source                                            | README                                                                                                                       | Role in RTL                                                                                       |
+| --------------------------------- | ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `rtl-finite-rotation`             | [Directory](packages/rtl-finite-rotation)         | [English](packages/rtl-finite-rotation/README.md) · [简体中文](packages/rtl-finite-rotation/README.zh-CN.md)                 | Parses ROT records, interpolates unit quaternions, and composes plate-reference chains.           |
+| `rtl-tile-plate-quadtree`         | [Directory](packages/rtl-tile-plate-quadtree)     | [English](packages/rtl-tile-plate-quadtree/README.md) · [简体中文](packages/rtl-tile-plate-quadtree/README.zh-CN.md)         | Builds lazy plate-domain tile indexes and produces complete or clipped source-tile entries.       |
+| `rtl-webgl-tile-processor`        | [Directory](packages/rtl-webgl-tile-processor)    | [English](packages/rtl-webgl-tile-processor/README.md) · [简体中文](packages/rtl-webgl-tile-processor/README.zh-CN.md)       | Requests source imagery, remaps WebMercator textures, and produces GPU-masked images.             |
+| `reconstructable-tile-layer`      | [Directory](packages/reconstructable-tile-layer)  | [English](packages/reconstructable-tile-layer/README.md) · [简体中文](packages/reconstructable-tile-layer/README.zh-CN.md)   | Implements the RTL object, task scheduling, retained records, age updates, and Cesium primitives. |
+| `reconstructable-tile-layer-demo` | [Directory](apps/reconstructable-tile-layer-demo) | [English](apps/reconstructable-tile-layer-demo/README.md) · [简体中文](apps/reconstructable-tile-layer-demo/README.zh-CN.md) | Demonstrates the paper workflow with interchangeable services, models, ages, and views.           |
+
+Each workspace README describes its method role, input contract, usage, and
+retained-resource lifecycle.
 
 ## Method-to-code map
 
@@ -31,41 +107,7 @@ identities, or numerical raster values.
 
 These names follow the Methodology section of the manuscript: service
 registration; plate-domain and rotation preparation; tile--plate indexing and
-task scheduling; and GPU masking and Cesium rendering. The source directories
-remain in place; only workspace package identifiers and imports were renamed.
-
-## Packages
-
-| Package                                                                   | Role in RTL                                                                                                    |
-| ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| [`rtl-finite-rotation`](packages/rtl-finite-rotation)                     | Parses ROT records, interpolates unit quaternions, and composes plate-reference chains.                        |
-| [`rtl-tile-plate-quadtree`](packages/rtl-tile-plate-quadtree)             | Builds lazy plate-domain tile indexes and produces complete or clipped source-tile entries.                    |
-| [`rtl-webgl-tile-processor`](packages/rtl-webgl-tile-processor)           | Requests source imagery, remaps WebMercator textures, and produces GPU-masked processed tile images.           |
-| [`reconstructable-tile-layer`](packages/reconstructable-tile-layer)       | Implements the browser-side RTL object, task scheduling, retained records, age updates, and Cesium primitives. |
-| [`reconstructable-tile-layer-demo`](apps/reconstructable-tile-layer-demo) | Demonstrates the paper workflow with interchangeable services, plate models, ages, and views.                  |
-
-Each package README describes its method role, input contract, minimal usage,
-and retained-resource lifecycle.
-
-## Requirements
-
-- Node.js 18 or newer
-- pnpm 9.x; the repository is pinned to pnpm 9.0.5
-- A browser with WebGL support for the rendering packages and demo
-- Cesium 1.x in applications that consume the libraries
-
-## Install and build
-
-```sh
-corepack enable
-corepack prepare pnpm@9.0.5 --activate
-pnpm install --frozen-lockfile
-pnpm build
-```
-
-The shared Rollup configuration emits ESM, CommonJS, and TypeScript declaration
-outputs for all four libraries. Cesium remains a peer dependency and is not
-bundled into the packages.
+task scheduling; and GPU masking and Cesium rendering.
 
 ## Minimal RTL workflow
 
@@ -114,19 +156,27 @@ The implementation preserves MultiPolygon parts and interior rings in
 dateline-separated polygon components, matching the current method limitation
 described in the manuscript.
 
-## Demo
+## Development
 
-The demo keeps the paper's browser workflow in one application: import a
-reproducible configuration, select a published imagery source and paired
-plate-domain/ROT inputs, change reconstruction age or model, load an explicit
-source level, refine the current view, and export the resulting scene metadata.
+| Command               | Purpose                                                      |
+| --------------------- | ------------------------------------------------------------ |
+| `pnpm dev`            | Start all library watch builds and the Vite demo.            |
+| `pnpm build`          | Build all libraries, then create the demo production bundle. |
+| `pnpm build:packages` | Build only the four publishable libraries.                   |
+| `pnpm check`          | Run formatting, linting, builds, type checks, and tests.     |
+| `pnpm test`           | Run the tile--plate quadtree tests.                          |
+| `pnpm clean`          | Remove workspace build outputs and the Turbo cache.          |
+
+The shared Rollup configuration emits ESM, CommonJS, and TypeScript declaration
+outputs for all four libraries. Cesium remains a peer dependency and is not
+bundled into the packages.
+
+To start only the demo, first ensure the libraries have already been built,
+then run:
 
 ```sh
 pnpm --filter reconstructable-tile-layer-demo dev
 ```
-
-Its existing UI text, layout, reference polygons, experiment schema, benchmark
-controller, and datasets are preserved.
 
 ## Compatibility
 

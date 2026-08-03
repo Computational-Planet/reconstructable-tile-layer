@@ -1,5 +1,7 @@
 # rtl-finite-rotation
 
+[Monorepo](../../README.md) · English | [简体中文](README.zh-CN.md)
+
 This package implements the manuscript's **finite-rotation interpolator**. It
 parses GPlates ROT records, converts finite Euler rotations to unit
 quaternions, interpolates control ages with Cesium `QuaternionSpline`, and
@@ -9,13 +11,21 @@ The recommended paper-aligned class name is
 `FiniteRotationInterpolator`. The existing `RotationOperator` name remains
 available as the same class.
 
+## Highlights
+
+- Parses standard GPlates ROT text from URLs or memory.
+- Interpolates finite Euler rotations as unit quaternions.
+- Composes moving/fixed plate chains to a configurable anchor plate.
+- Returns forward and inverse Cesium rotation matrices without creating scene
+  resources.
+
 ## Installation
 
 ```sh
 pnpm add rtl-finite-rotation cesium
 ```
 
-## Basic use
+## Usage
 
 ```ts
 import { FiniteRotationInterpolator } from "rtl-finite-rotation";

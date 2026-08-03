@@ -1,5 +1,7 @@
 # rtl-webgl-tile-processor
 
+[Monorepo](../../README.md) · English | [简体中文](README.zh-CN.md)
+
 This package implements the manuscript's **WebGL processor**. It requests
 service-delivered source tiles, remaps WebMercator texture coordinates when
 needed, triangulates tile-local `TileClipArea` masks, and exports transparent
@@ -8,6 +10,14 @@ processed tile images for Cesium materials.
 The recommended paper-aligned class name is `WebGLTileProcessor`. The
 existing `CesiumTileProcessor` and historical `CesiumTileProcesser` names
 remain aliases of the same implementation.
+
+## Highlights
+
+- Requests and remaps source imagery for geographic and WebMercator tiles.
+- Triangulates plate-domain masks and clips boundary tiles with the stencil
+  buffer.
+- Provides bounded render concurrency, result caching, and runtime counters.
+- Exports retained canvas, blob URL, or data URL images with explicit ownership.
 
 ## Installation
 

@@ -1,10 +1,30 @@
 # Reconstructable Tile Layer Demo
 
+[Monorepo](../../README.md) · English | [简体中文](README.zh-CN.md)
+
 This Cesium application demonstrates the browser-side Reconstructable Tile
 Layer (RTL) described in the accompanying manuscript. It uses the
 paper-aligned `ReconstructableTileLayer` and `WebGLTileProcessor` APIs while
 preserving the original interface, controls, datasets, reference polygon
 overlays, export schema, and rendering behavior.
+
+## Quick start
+
+From the repository root, with dependencies already installed:
+
+```sh
+pnpm dev
+```
+
+After a fresh clone or a dependency change, install once before starting:
+
+```sh
+pnpm install --frozen-lockfile
+pnpm dev
+```
+
+Turbo starts all four library watch builds and the Vite demo together. Use the
+local URL printed by Vite in the terminal.
 
 ## Paper workflow
 
@@ -22,18 +42,18 @@ The source service supplies imagery and styling. RTL supplies plate-domain
 assignment, finite rotations, tile-local masking, age-aware placement, and
 view-aware source-tile selection.
 
-## Run
-
-From the repository root:
-
-```sh
-pnpm install --frozen-lockfile
-pnpm --filter reconstructable-tile-layer-demo dev
-```
+## Runtime data
 
 The application expects its bundled assets under `public/`. Online providers
 remain subject to their availability, access policy, CORS configuration, and
 attribution requirements.
+
+For an isolated demo process, first ensure the workspace libraries have already
+been built, then run:
+
+```sh
+pnpm --filter reconstructable-tile-layer-demo dev
+```
 
 ## Basic sequence
 

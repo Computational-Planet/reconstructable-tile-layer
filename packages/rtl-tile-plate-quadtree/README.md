@@ -1,5 +1,7 @@
 # rtl-tile-plate-quadtree
 
+[Monorepo](../../README.md) · English | [简体中文](README.zh-CN.md)
+
 This package implements the manuscript's **tile--plate quadtree indexing**
 stage. One `PlateDomainTileQuadtree` maps a polygonal plate-domain feature
 from the modern geographic frame to source tiles in the imagery provider's
@@ -9,13 +11,20 @@ The package retains MultiPolygon parts and interior rings through
 `TileClipArea`. Selected entries represent no coverage, complete coverage, or
 partial coverage that must be masked by the WebGL processor.
 
+## Highlights
+
+- Uses the imagery provider's exact Cesium tiling scheme and ellipsoid.
+- Preserves MultiPolygon parts and holes in tile-local clip areas.
+- Distinguishes empty, complete, and partially covered source tiles.
+- Supports explicit-level and conservative view-aware queries.
+
 ## Installation
 
 ```sh
 pnpm add rtl-tile-plate-quadtree cesium
 ```
 
-## Plate-domain index
+## Usage
 
 ```ts
 import { GeographicTilingScheme } from "cesium";
