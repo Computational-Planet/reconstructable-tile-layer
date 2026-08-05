@@ -2,9 +2,9 @@
 
 English | [简体中文](README.zh-CN.md)
 
-This directory contains JSON configurations for the cases demonstrated by the
-Reconstructable Tile Layer demo. The subdirectories correspond to the
-individual cases.
+This directory is located at `case_configs/` in the repository root. It
+contains JSON configurations for the cases demonstrated by the Reconstructable
+Tile Layer demo. The subdirectories correspond to the individual cases.
 
 ## Usage
 

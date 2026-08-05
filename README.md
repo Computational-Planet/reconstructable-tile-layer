@@ -62,6 +62,9 @@ See the demo [English README](apps/reconstructable-tile-layer-demo/README.md) or
 [Chinese README](apps/reconstructable-tile-layer-demo/README.zh-CN.md) for its
 workflow, export behavior, and benchmark controller.
 
+Ready-to-use case configurations: [English](case_configs/README.md) ·
+[简体中文](case_configs/README.zh-CN.md).
+
 Requirements: Node.js 18 or newer, pnpm 9.0.5, and a browser with WebGL support.
 
 ## Features

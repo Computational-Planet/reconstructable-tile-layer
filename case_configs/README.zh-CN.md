@@ -2,7 +2,8 @@
 
 [English](README.md) | 简体中文
 
-本目录保存 Reconstructable Tile Layer demo 所使用的案例 JSON 配置。各子目录对应不同的案例。
+本目录位于仓库根目录的 `case_configs/`，保存 Reconstructable Tile Layer demo
+所使用的案例 JSON 配置。各子目录对应不同的案例。
 
 ## 使用方法
 

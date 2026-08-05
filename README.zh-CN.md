@@ -55,6 +55,9 @@ Vite 会在终端输出本地地址。命令运行期间，任意库的代码变
 [English README](apps/reconstructable-tile-layer-demo/README.md)
 或[中文 README](apps/reconstructable-tile-layer-demo/README.zh-CN.md)。
 
+可直接加载的案例配置：[English](case_configs/README.md) ·
+[简体中文](case_configs/README.zh-CN.md)。
+
 环境要求：Node.js 18 或更高版本、pnpm 9.0.5，以及支持 WebGL 的浏览器。
 
 ## 功能特性
