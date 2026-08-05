@@ -1,0 +1,151 @@
+{
+  "schemaVersion": 1,
+  "exportedAt": "2026-06-28T13:55:45.510Z",
+  "exportBaseName": "case1_300Ma_20260628T135545Z",
+  "caseId": "case1",
+  "modelName": "EarthByte present-day static plate polygons GPMLZ",
+  "rotationFile": "/rotations/Zahirovic_etal_2022_OptimisedMantleRef_and_NNRMantleRef.rot",
+  "rotationFiles": [
+    "/rotations/Zahirovic_etal_2022_OptimisedMantleRef_and_NNRMantleRef.rot"
+  ],
+  "platePolygonFile": "/features/Global_EarthByte_GPlates_PresentDay_StaticPlatePolygons.gpmlz",
+  "timeMa": 300,
+  "viewMode": "2D_RECTANGULAR",
+  "projection": "PlateCarree",
+  "centralMeridian": 0,
+  "extent": {
+    "west": -180,
+    "south": -90,
+    "east": 180,
+    "north": 90
+  },
+  "output": {
+    "width": 1798,
+    "height": 898,
+    "pixelRatio": 1,
+    "canvasWidth": 1438,
+    "canvasHeight": 718,
+    "devicePixelRatio": 0.800000011920929,
+    "resolutionScale": 1,
+    "configuredCssWidth": 1800,
+    "configuredCssHeight": 900,
+    "configuredPixelRatio": 1
+  },
+  "layers": {
+    "rtlLayer": "GPlates Topography (4326)",
+    "plateBoundary": true,
+    "controlPoints": false,
+    "graticule": false,
+    "gplatesReferencePolygons": true,
+    "backgroundColor": "#2f343b",
+    "opacity": 1
+  },
+  "sources": {
+    "featurePresetKey": "earthbyte-static-polygons-gpmlz",
+    "featureUrl": "/features/Global_EarthByte_GPlates_PresentDay_StaticPlatePolygons.gpmlz",
+    "gplatesReferencePolygonColor": "#ff4d8d",
+    "gplatesReferencePolygonKey": "zahirovic-2022-300",
+    "gplatesReferencePolygonUrl": "/gplates_ref/geojson/Zahirovic2022_300.00Ma.geojson",
+    "rotationAnchorMode": "default",
+    "anchorPlateId": "0",
+    "rotationPresetKey": "zahirovic-2022-optimised-mantle-rot",
+    "rotUrls": [
+      "/rotations/Zahirovic_etal_2022_OptimisedMantleRef_and_NNRMantleRef.rot"
+    ],
+    "providerKey": "gplates-topography-4326",
+    "providerLabel": "GPlates Topography (4326)"
+  },
+  "render": {
+    "initialized": true,
+    "level": 4,
+    "polygonRenderIntent": "all-polygons-area",
+    "primitiveTransformMode": "dynamic3D",
+    "debugEnabled": false,
+    "status": "Extent view applied: -180, -90, 180, 90."
+  },
+  "cesium": {
+    "sceneMode": "SCENE2D",
+    "mapProjection": "GeographicProjection",
+    "camera": {
+      "longitude": 0,
+      "latitude": 0,
+      "height": 40085982.55,
+      "heading": 360,
+      "pitch": -90,
+      "roll": 0,
+      "orthographic": false,
+      "frustum": "OrthographicOffCenterFrustum"
+    }
+  },
+  "stats": {
+    "geoTileStats": {
+      "statsSchemaVersion": 1,
+      "sourceTaskCount": 6202,
+      "compositeTaskCount": 4852,
+      "uniqueRawTileCount": 512,
+      "maxPolygonsPerComposite": 12,
+      "avgPolygonsPerComposite": 1.2782357790601813,
+      "currentVisibleTaskCount": 1701,
+      "prewarmTaskCount": 3151,
+      "lastRevealMs": 0,
+      "lastAgeVisibleRecordCount": 884,
+      "lastAgeHiddenRecordCount": 3968,
+      "last2DRebuildSkippedCount": 3968,
+      "importDiagnostics": {
+        "totalFeatures": 2471,
+        "totalImportedFeatures": 2471,
+        "areaFeatureCount": 2471,
+        "lineLikeFeatureCount": 0,
+        "unknownFeatureCount": 0,
+        "polygonCount": 2483,
+        "polygonsWithHoles": 3,
+        "interiorRingCount": 3,
+        "multiPolygonFeatureCount": 12,
+        "skippedFromFillFeatureCount": 0,
+        "polygonRenderIntent": "all-polygons-area",
+        "skippedPolygonFeatureTypes": {},
+        "staticPolygonAreaOverrideCount": 0,
+        "duplicateOriginalFeatureIdCount": 0,
+        "duplicateFeatureMemberCount": 0,
+        "renamedDuplicateFeatureIdCount": 0
+      },
+      "loadedCompositeTileCount": 4852,
+      "pendingCompositeTileCount": 0
+    },
+    "tileProcesserStats": {
+      "statsSchemaVersion": 2,
+      "poolSize": 4,
+      "busyRendererCount": 0,
+      "queuedJobCount": 0,
+      "pendingExportCount": 0,
+      "imageBufferSize": 256,
+      "resultBufferSize": 512,
+      "pendingResultPromiseCount": 0,
+      "contextCount": 1,
+      "slotCount": 4,
+      "busySlotCount": 0,
+      "contextLostCount": 0,
+      "totalRequests": 8898,
+      "imageCacheHits": 4414,
+      "imageCacheMisses": 1390,
+      "imagePromiseHits": 3094,
+      "resultCacheHits": 0,
+      "resultCacheMisses": 8898,
+      "resultPromiseHits": 0,
+      "renderedJobCount": 8898,
+      "exportedAssetCount": 8898,
+      "imageRequestMs": 194770.70000014454,
+      "queueWaitMs": 8286.099999770522,
+      "renderQueueWaitMs": 8286.099999770522,
+      "textureUploadMs": 2998.6999998241663,
+      "drawMs": 212.59999983757734,
+      "copyToCanvasMs": 91.99999997764826,
+      "snapshotMs": 1587.7000003531575,
+      "slotHoldMs": 4905.399999991059,
+      "exportMs": 0,
+      "encodeMs": 0,
+      "materialApplyMs": 0,
+      "maxBusySlotCount": 4
+    }
+  }
+}
