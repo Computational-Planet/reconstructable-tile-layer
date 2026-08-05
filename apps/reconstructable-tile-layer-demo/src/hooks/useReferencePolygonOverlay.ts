@@ -15,6 +15,7 @@ import {
   getGplatesReferencePolygonSource,
   type GplatesReferencePolygonKey,
 } from "../dataSources";
+import { resolveDemoAssetUrl } from "../utils/demoAssetUrl";
 
 const REFERENCE_DATA_SOURCE_NAME = "gplates-reference-polygons";
 const REFERENCE_LINE_ALPHA = 0.82;
@@ -269,7 +270,7 @@ export function useReferencePolygonOverlay({
     void (async () => {
       try {
         const result = await loadReferencePolygonDataSource(
-          sourceUrl,
+          resolveDemoAssetUrl(sourceUrl),
           referencePolygonColorRef.current,
           abortController.signal,
         );

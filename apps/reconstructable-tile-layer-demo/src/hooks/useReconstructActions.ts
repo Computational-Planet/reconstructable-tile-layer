@@ -17,6 +17,7 @@ import {
   type UrlTemplateProviderConfig,
 } from "../cesium/providers";
 import { DEMO_ELLIPSOID_CONFIG } from "../cesium/createViewer";
+import { resolveDemoAssetUrl } from "../utils/demoAssetUrl";
 
 type UseReconstructActionsOptions = {
   age: number;
@@ -143,10 +144,10 @@ export function useReconstructActions({
         provider,
         processor: webglProcessor,
         featureSource: {
-          url: featureUrl.trim(),
+          url: resolveDemoAssetUrl(featureUrl.trim()),
           polygonRenderIntent,
         },
-        rotationSources,
+        rotationSources: rotationSources.map(resolveDemoAssetUrl),
         initialAge: age,
         primitiveTransformMode,
         referenceEllipsoid: DEMO_ELLIPSOID_CONFIG.ellipsoid,

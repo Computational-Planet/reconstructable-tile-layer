@@ -19,10 +19,7 @@ Web 瓦片服务作为影像源，将瓦片内容分配给多边形板块域，�
 
 ## Demo
 
-**在线演示：** 待添加。
-
-<!-- 替换 DEMO_URL 后，取消下一行的注释。 -->
-<!-- [打开在线演示](DEMO_URL) -->
+**在线演示：** [打开可重建瓦片图层 Demo](https://computational-earth.github.io/reconstructable-tile-layer/)。
 
 [`apps/reconstructable-tile-layer-demo`](apps/reconstructable-tile-layer-demo)
 中的应用就是 `pnpm dev` 启动的项目 Demo。它：

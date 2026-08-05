@@ -8,6 +8,8 @@ import {
   WebMercatorTilingScheme,
 } from "cesium";
 
+import { resolveDemoAssetUrl } from "../utils/demoAssetUrl";
+
 export type ProviderKey =
   | "gplates-topography-4326"
   | "gplates-topography-3857"
@@ -227,7 +229,7 @@ export function createImageryProvider(
   const ellipsoid = resolveProviderEllipsoid(options);
   if (key === "gplates-topography-4326") {
     return new UrlTemplateImageryProvider({
-      url: GPLATES_TOPOGRAPHY_TILE_URL,
+      url: resolveDemoAssetUrl(GPLATES_TOPOGRAPHY_TILE_URL),
       tilingScheme: new GeographicTilingScheme({ ellipsoid }),
       minimumLevel: 0,
       maximumLevel: 4,
@@ -236,7 +238,7 @@ export function createImageryProvider(
 
   if (key === "gplates-topography-3857") {
     return new UrlTemplateImageryProvider({
-      url: GPLATES_TOPOGRAPHY_3857_URL,
+      url: resolveDemoAssetUrl(GPLATES_TOPOGRAPHY_3857_URL),
       tilingScheme: new WebMercatorTilingScheme({ ellipsoid }),
       minimumLevel: 0,
       maximumLevel: 4,

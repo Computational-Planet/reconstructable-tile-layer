@@ -13,6 +13,7 @@ import {
 import { applyPoseView } from "../cesium/cameraControls";
 import { DEMO_ELLIPSOID_CONFIG } from "../cesium/createViewer";
 import { createImageryProvider } from "../cesium/providers";
+import { resolveDemoAssetUrl } from "../utils/demoAssetUrl";
 import { downloadBlob } from "../utils/downloads";
 import { DEFAULT_PERFORMANCE_BENCHMARK_CONFIG } from "./performanceBenchmarkConfig";
 import type {
@@ -602,8 +603,8 @@ async function createRuntime(
     provider,
     processor: webglProcessor,
     anchorPlateId: config.anchorPlateId,
-    featureSource: { url: config.featureUrl },
-    rotationSources: config.rotationSources,
+    featureSource: { url: resolveDemoAssetUrl(config.featureUrl) },
+    rotationSources: config.rotationSources.map(resolveDemoAssetUrl),
     initialAge: config.initialAgeMa,
     primitiveTransformMode: transformMode,
     referenceEllipsoid: DEMO_ELLIPSOID_CONFIG.ellipsoid,

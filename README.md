@@ -24,10 +24,7 @@ identities, or numerical raster values.
 
 ## Demo
 
-**Online demo:** To be added.
-
-<!-- Replace DEMO_URL, then uncomment this line. -->
-<!-- [Open the online demo](DEMO_URL) -->
+**Online demo:** [Launch the Reconstructable Tile Layer demo](https://computational-earth.github.io/reconstructable-tile-layer/).
 
 The application in [`apps/reconstructable-tile-layer-demo`](apps/reconstructable-tile-layer-demo)
 is the project demo started by `pnpm dev`. It:
