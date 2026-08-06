@@ -40,13 +40,13 @@
   "license": "ISC",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/RogerWQH2023/tile-processer-turborepo.git",
+    "url": "git+https://github.com/computational-earth/reconstructable-tile-layer.git",
     "directory": "packages/reconstructable-tile-layer"
   },
   "bugs": {
-    "url": "https://github.com/RogerWQH2023/tile-processer-turborepo/issues"
+    "url": "https://github.com/computational-earth/reconstructable-tile-layer/issues"
   },
-  "homepage": "https://github.com/RogerWQH2023/tile-processer-turborepo#readme",
+  "homepage": "https://github.com/computational-earth/reconstructable-tile-layer#readme",
   "publishConfig": {
     "access": "public"
   },
