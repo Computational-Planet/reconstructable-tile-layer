@@ -21,6 +21,12 @@ Web 瓦片服务作为影像源，将瓦片内容分配给多边形板块域，�
 
 **在线演示：** [打开可重建瓦片图层 Demo](https://computational-earth.github.io/reconstructable-tile-layer/)。
 
+**最简操作：** Demo 已提供默认数据源，无需加载案例配置即可使用。
+
+1. 点击 **Init Reconstruction Manager**。
+2. 点击 **Load Tiles By Level**，等待瓦片加载完成。
+3. 拖动 **Reconstruction Age** 时间轴，查看不同时刻的重建结果。
+
 [`apps/reconstructable-tile-layer-demo`](apps/reconstructable-tile-layer-demo)
 中的应用就是 `pnpm dev` 启动的项目 Demo。它：
 

@@ -26,6 +26,12 @@ identities, or numerical raster values.
 
 **Online demo:** [Launch the Reconstructable Tile Layer demo](https://computational-earth.github.io/reconstructable-tile-layer/).
 
+**Quick start:** The default data sources work without loading a case config.
+
+1. Click **Init Reconstruction Manager**.
+2. Click **Load Tiles By Level** and wait for the tiles to finish loading.
+3. Drag the **Reconstruction Age** slider to view the reconstruction at different times.
+
 The application in [`apps/reconstructable-tile-layer-demo`](apps/reconstructable-tile-layer-demo)
 is the project demo started by `pnpm dev`. It:
 
