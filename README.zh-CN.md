@@ -19,7 +19,7 @@ Web 瓦片服务作为影像源，将瓦片内容分配给多边形板块域，�
 
 ## Demo
 
-**在线演示：** [打开可重建瓦片图层 Demo](https://computational-earth.github.io/reconstructable-tile-layer/)。
+**在线演示：** [打开可重建瓦片图层 Demo](https://computational-planet.github.io/reconstructable-tile-layer/)。
 
 **最简操作：** Demo 已提供默认数据源，无需加载案例配置即可使用。
 

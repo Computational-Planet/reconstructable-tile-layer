@@ -41,13 +41,13 @@
   "license": "ISC",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/computational-earth/reconstructable-tile-layer.git",
+    "url": "git+https://github.com/Computational-Planet/reconstructable-tile-layer.git",
     "directory": "packages/rtl-tile-plate-quadtree"
   },
   "bugs": {
-    "url": "https://github.com/computational-earth/reconstructable-tile-layer/issues"
+    "url": "https://github.com/Computational-Planet/reconstructable-tile-layer/issues"
   },
-  "homepage": "https://github.com/computational-earth/reconstructable-tile-layer#readme",
+  "homepage": "https://github.com/Computational-Planet/reconstructable-tile-layer#readme",
   "publishConfig": {
     "access": "public"
   },

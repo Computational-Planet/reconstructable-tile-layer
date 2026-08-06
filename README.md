@@ -24,7 +24,7 @@ identities, or numerical raster values.
 
 ## Demo
 
-**Online demo:** [Launch the Reconstructable Tile Layer demo](https://computational-earth.github.io/reconstructable-tile-layer/).
+**Online demo:** [Launch the Reconstructable Tile Layer demo](https://computational-planet.github.io/reconstructable-tile-layer/).
 
 **Quick start:** The default data sources work without loading a case config.
 
