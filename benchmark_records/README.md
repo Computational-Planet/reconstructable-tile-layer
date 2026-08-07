@@ -7,16 +7,21 @@ manuscript and its supplementary material. Routine benchmark output remains
 under the git-ignored `output/` directory; only the reviewed evidence runs are
 tracked here.
 
-| Run directory                                                | Evidence role                                                       | Retained suite records            |
-| ------------------------------------------------------------ | ------------------------------------------------------------------- | --------------------------------- |
-| `r2/2026-07-23T15-30-09-990Z-rtx4080-paper-n50`              | Primary paper-profile benchmark, 50 measured blocks                 | `paper.json`                      |
-| `r2/2026-07-24T02-02-56-276Z-rtx4080-diagnostic-network-n10` | Primary diagnostic and paired network benchmark, 10 measured blocks | `diagnostic.json`, `network.json` |
-| `r2/2026-07-23T15-19-04-757Z-integrated-laptop-n10`          | Secondary-device paper-profile replication, 10 measured blocks      | `paper.json`                      |
+| Run directory                                                | Evidence role                                                       | Retained suite records               |
+| ------------------------------------------------------------ | ------------------------------------------------------------------- | ------------------------------------ |
+| `r2/2026-07-23T15-30-09-990Z-rtx4080-paper-n50`              | Primary paper-profile benchmark, 50 measured blocks                 | `paper.json`                         |
+| `r2/2026-07-24T02-02-56-276Z-rtx4080-diagnostic-network-n10` | Primary diagnostic and paired network benchmark, 10 measured blocks | `diagnostic.json.gz`, `network.json` |
+| `r2/2026-07-23T15-19-04-757Z-integrated-laptop-n10`          | Secondary-device paper-profile replication, 10 measured blocks      | `paper.json`                         |
 
 Each run also contains `assertions.json`, `host.json`, and a curated
 `manifest.json`. These are the files read by the manuscript analysis pipeline.
 The manifests record SHA-256 hashes for every retained artifact, and
 `r2/CHECKSUMS.sha256` covers the complete curated record set.
+
+The large primary diagnostic record is stored as `diagnostic.json.gz` to keep
+the repository compact. Before running the manuscript parser, extract it in
+place with `gzip -dk diagnostic.json.gz`. Its manifest records SHA-256 hashes
+for both the compressed file and the extracted `diagnostic.json` content.
 
 ## Curation boundary
 

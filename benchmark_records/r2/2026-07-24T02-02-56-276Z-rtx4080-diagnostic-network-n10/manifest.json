@@ -214,7 +214,7 @@
     "files":  {
                   "assertions.json":  "dda73606f95ae3295b64253450e26288a90ad72b26953173751a3fe112f8a031",
                   "host.json":  "63e6c6e4813efcd5b4a81c3c087da87c155f69512fd195998209d8e19fa5ec9c",
-                  "diagnostic.json":  "fe68a987112bbf5292cefd3f6ba5bb416befbf4cb7453c41f8d84e62c8a82e2f",
+                  "diagnostic.json.gz":  "a4816dc062b49492ed2de6f9318e81584f0611a9d9855c0d58f11c6ad3588c1f",
                   "network.json":  "f64b2d130e818353c92a53b35f73b842f6b2712fd641017867e66567a98dc6c4"
               },
     "curation":  {
@@ -225,6 +225,12 @@
                                         "local host names",
                                         "local repository and user-profile paths"
                                     ],
-                     "numericalMeasurementsChanged":  false
+                     "numericalMeasurementsChanged":  false,
+                     "compressedArtifacts":  {
+                                                   "diagnostic.json.gz":  {
+                                                                               "extractsTo":  "diagnostic.json",
+                                                                               "extractedSha256":  "fe68a987112bbf5292cefd3f6ba5bb416befbf4cb7453c41f8d84e62c8a82e2f"
+                                                                           }
+                                               }
                  }
 }
