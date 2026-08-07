@@ -10,6 +10,7 @@ apps/reconstructable-tile-layer-demo/src/
 packages/rtl-tile-plate-quadtree/src/AreaQuadTreeTileNode.spec.ts
 coverage/
 case_configs/**/*.json
+benchmark_records/r2/**
 output/
 tmp/
 pnpm-lock.yaml

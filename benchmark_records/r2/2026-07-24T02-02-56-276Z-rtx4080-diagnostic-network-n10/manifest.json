@@ -1,0 +1,230 @@
+{
+    "schemaVersion":  1,
+    "createdAt":  "2026-07-24T03:39:44.593Z",
+    "deviceLabel":  "rtx4080-diagnostic-network-n10",
+    "commandLine":  [
+                        "C:\\Program Files\\nodejs\\node.exe",
+                        "REPOSITORY_ROOT\\apps\\simple-geo-reconstruct-demo\\benchmark\\r2\\run-r2-benchmark.mjs",
+                        "--",
+                        "--device-label",
+                        "rtx4080-diagnostic-network-n10",
+                        "--profiles",
+                        "diagnostic",
+                        "--warmup-runs",
+                        "3",
+                        "--measured-blocks",
+                        "10",
+                        "--network-blocks",
+                        "10"
+                    ],
+    "options":  {
+                    "deviceLabel":  "rtx4080-diagnostic-network-n10",
+                    "profiles":  [
+                                     "diagnostic"
+                                 ],
+                    "warmupRuns":  3,
+                    "measuredBlocks":  10,
+                    "networkBlocks":  10,
+                    "randomSeed":  20260710,
+                    "viewportWidth":  1280,
+                    "viewportHeight":  720,
+                    "deviceScaleFactor":  1,
+                    "skipBuild":  false,
+                    "skipNetwork":  false,
+                    "headless":  false
+                },
+    "git":  {
+                "commit":  "8e52066a8feb65c5ee5c24a71d0b9fe9ffb6c6c5",
+                "dirty":  false,
+                "status":  ""
+            },
+    "coreValidation":  [
+                           {
+                               "name":  "level-0-part-count",
+                               "observed":  16,
+                               "expected":  16,
+                               "passed":  true
+                           },
+                           {
+                               "name":  "level-0-part-0-extent",
+                               "observed":  true,
+                               "expected":  true,
+                               "passed":  true
+                           },
+                           {
+                               "name":  "level-0-part-1-extent",
+                               "observed":  true,
+                               "expected":  true,
+                               "passed":  true
+                           },
+                           {
+                               "name":  "level-0-part-2-extent",
+                               "observed":  true,
+                               "expected":  true,
+                               "passed":  true
+                           },
+                           {
+                               "name":  "level-0-part-3-extent",
+                               "observed":  true,
+                               "expected":  true,
+                               "passed":  true
+                           },
+                           {
+                               "name":  "level-0-part-4-extent",
+                               "observed":  true,
+                               "expected":  true,
+                               "passed":  true
+                           },
+                           {
+                               "name":  "level-0-part-5-extent",
+                               "observed":  true,
+                               "expected":  true,
+                               "passed":  true
+                           },
+                           {
+                               "name":  "level-0-part-6-extent",
+                               "observed":  true,
+                               "expected":  true,
+                               "passed":  true
+                           },
+                           {
+                               "name":  "level-0-part-7-extent",
+                               "observed":  true,
+                               "expected":  true,
+                               "passed":  true
+                           },
+                           {
+                               "name":  "level-0-part-8-extent",
+                               "observed":  true,
+                               "expected":  true,
+                               "passed":  true
+                           },
+                           {
+                               "name":  "level-0-part-9-extent",
+                               "observed":  true,
+                               "expected":  true,
+                               "passed":  true
+                           },
+                           {
+                               "name":  "level-0-part-10-extent",
+                               "observed":  true,
+                               "expected":  true,
+                               "passed":  true
+                           },
+                           {
+                               "name":  "level-0-part-11-extent",
+                               "observed":  true,
+                               "expected":  true,
+                               "passed":  true
+                           },
+                           {
+                               "name":  "level-0-part-12-extent",
+                               "observed":  true,
+                               "expected":  true,
+                               "passed":  true
+                           },
+                           {
+                               "name":  "level-0-part-13-extent",
+                               "observed":  true,
+                               "expected":  true,
+                               "passed":  true
+                           },
+                           {
+                               "name":  "level-0-part-14-extent",
+                               "observed":  true,
+                               "expected":  true,
+                               "passed":  true
+                           },
+                           {
+                               "name":  "level-0-part-15-extent",
+                               "observed":  true,
+                               "expected":  true,
+                               "passed":  true
+                           },
+                           {
+                               "name":  "level-0-aggregate-triangle-count",
+                               "observed":  64440,
+                               "expected":  64440,
+                               "passed":  true
+                           },
+                           {
+                               "name":  "level-1-part-count",
+                               "observed":  4,
+                               "expected":  4,
+                               "passed":  true
+                           },
+                           {
+                               "name":  "level-1-part-0-extent",
+                               "observed":  true,
+                               "expected":  true,
+                               "passed":  true
+                           },
+                           {
+                               "name":  "level-1-part-1-extent",
+                               "observed":  true,
+                               "expected":  true,
+                               "passed":  true
+                           },
+                           {
+                               "name":  "level-1-part-2-extent",
+                               "observed":  true,
+                               "expected":  true,
+                               "passed":  true
+                           },
+                           {
+                               "name":  "level-1-part-3-extent",
+                               "observed":  true,
+                               "expected":  true,
+                               "passed":  true
+                           },
+                           {
+                               "name":  "level-1-aggregate-triangle-count",
+                               "observed":  16110,
+                               "expected":  16110,
+                               "passed":  true
+                           },
+                           {
+                               "name":  "level-2-part-count",
+                               "observed":  1,
+                               "expected":  1,
+                               "passed":  true
+                           },
+                           {
+                               "name":  "level-2-part-0-extent",
+                               "observed":  true,
+                               "expected":  true,
+                               "passed":  true
+                           },
+                           {
+                               "name":  "level-2-aggregate-triangle-count",
+                               "observed":  4005,
+                               "expected":  4005,
+                               "passed":  true
+                           },
+                           {
+                               "name":  "global-level-4-rgba8-estimate",
+                               "observed":  1271922688,
+                               "expected":  1271922688,
+                               "passed":  true
+                           }
+                       ],
+    "server":  {
+                   "relayRequestCount":  690
+               },
+    "files":  {
+                  "assertions.json":  "dda73606f95ae3295b64253450e26288a90ad72b26953173751a3fe112f8a031",
+                  "host.json":  "63e6c6e4813efcd5b4a81c3c087da87c155f69512fd195998209d8e19fa5ec9c",
+                  "diagnostic.json":  "fe68a987112bbf5292cefd3f6ba5bb416befbf4cb7453c41f8d84e62c8a82e2f",
+                  "network.json":  "f64b2d130e818353c92a53b35f73b842f6b2712fd641017867e66567a98dc6c4"
+              },
+    "curation":  {
+                     "scope":  "Artifacts consumed by the manuscript benchmark analysis",
+                     "evidenceRole":  "primary diagnostic and network benchmark (10 measured blocks)",
+                     "sourceManifestSha256":  "93476dba2ea4f4c9ffa67d50a25555dd88d206bd0d5e1508e380b632c6c30c9a",
+                     "redactions":  [
+                                        "local host names",
+                                        "local repository and user-profile paths"
+                                    ],
+                     "numericalMeasurementsChanged":  false
+                 }
+}

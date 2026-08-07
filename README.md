@@ -65,8 +65,17 @@ See the demo [English README](apps/reconstructable-tile-layer-demo/README.md) or
 [Chinese README](apps/reconstructable-tile-layer-demo/README.zh-CN.md) for its
 workflow, export behavior, and benchmark controller.
 
-Ready-to-use case configurations: [English](case_configs/README.md) ·
-[简体中文](case_configs/README.zh-CN.md).
+## Research materials
+
+- Ready-to-use case configurations: [English](case_configs/README.md) ·
+  [简体中文](case_configs/README.zh-CN.md).
+- Browser benchmark records used by the manuscript and supplementary material:
+  [English](benchmark_records/README.md) ·
+  [简体中文](benchmark_records/README.zh-CN.md).
+
+Routine benchmark runs are written to the git-ignored `output/` directory. The
+three reviewed evidence runs used by the paper are preserved separately under
+`benchmark_records/`.
 
 Requirements: Node.js 18 or newer, pnpm 9.0.5, and a browser with WebGL support.
 
