@@ -18,7 +18,7 @@ import type {
   ExperimentViewMode,
   GeographicExtent,
 } from "../experiment";
-import type { ProviderKey, UrlTemplateProviderConfig } from "./providers";
+import type { TileServiceConfig } from "./providers";
 
 export function waitForNextPaint() {
   return new Promise<void>((resolve) => {
@@ -56,19 +56,12 @@ export function getExperimentViewMode(mode: SceneMode): ExperimentViewMode {
 
 export function getExperimentProjection(
   mode: SceneMode,
-  providerKey: ProviderKey,
-  customProviderConfig: UrlTemplateProviderConfig,
+  serviceConfig: TileServiceConfig,
 ): ExperimentProjection {
   if (mode === SceneMode.SCENE3D) {
     return "OrthographicGlobe";
   }
-  if (
-    providerKey === "arcgis-world-imagery" ||
-    providerKey === "gmrt-topography-wms-3857" ||
-    providerKey === "nasa-gibs-blue-marble-3857" ||
-    (providerKey === "custom-url-template" &&
-      customProviderConfig.tilingSchemeKey === "web-mercator")
-  ) {
+  if (serviceConfig.tilingSchemeKey === "web-mercator") {
     return "WebMercator";
   }
   return "PlateCarree";
@@ -103,11 +96,7 @@ export function validateExtent(extent: GeographicExtent) {
   if (extent.west < -180 || extent.east > 180 || extent.west >= extent.east) {
     return "Extent longitude must satisfy -180 <= west < east <= 180.";
   }
-  if (
-    extent.south < -90 ||
-    extent.north > 90 ||
-    extent.south >= extent.north
-  ) {
+  if (extent.south < -90 || extent.north > 90 || extent.south >= extent.north) {
     return "Extent latitude must satisfy -90 <= south < north <= 90.";
   }
   return "";
@@ -174,12 +163,7 @@ export function applyExtentView(viewer: Viewer, extent: GeographicExtent) {
 
   applySceneMode(viewer, "2D_RECTANGULAR");
   viewer.camera.setView({
-    destination: Rectangle.fromDegrees(
-      extent.west,
-      extent.south,
-      extent.east,
-      extent.north,
-    ),
+    destination: Rectangle.fromDegrees(extent.west, extent.south, extent.east, extent.north),
   });
   viewer.scene.requestRender();
 }
@@ -218,10 +202,7 @@ export function applyPoseView(viewer: Viewer, camera3D: ExperimentCamera3D) {
   viewer.scene.requestRender();
 }
 
-export function applyExperimentView(
-  viewer: Viewer,
-  config: ExperimentViewConfig,
-) {
+export function applyExperimentView(viewer: Viewer, config: ExperimentViewConfig) {
   if (config.viewMode === "2D_RECTANGULAR") {
     applyExtentView(viewer, config.extent);
     return;

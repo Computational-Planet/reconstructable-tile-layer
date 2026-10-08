@@ -1,0 +1,49 @@
+{
+  "name": "rtl-raster-imagery-provider",
+  "version": "0.1.0",
+  "description": "Local numeric rasters as standard Cesium imagery providers and reconstructable tile sources.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "README.zh-CN.md",
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "pnpm run clean && tsc -p tsconfig.json",
+    "clean": "rimraf dist",
+    "lint": "eslint src --ext .ts --report-unused-disable-directives --max-warnings 0",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "rtl-raster-source": "workspace:*"
+  },
+  "peerDependencies": {
+    "cesium": "^1.119.0"
+  },
+  "license": "ISC",
+  "author": "Qiuhan Wang",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Computational-Planet/reconstructable-tile-layer.git",
+    "directory": "packages/rtl-raster-imagery-provider"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

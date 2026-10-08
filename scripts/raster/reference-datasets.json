@@ -1,0 +1,47 @@
+[
+  {
+    "id": "ncep-air-climatology",
+    "filename": "ncep-air.mon.ltm.nc",
+    "url": "https://psl.noaa.gov/thredds/fileServer/Datasets/ncep.reanalysis/Monthlies/surface/air.mon.ltm.nc",
+    "source": "https://psl.noaa.gov/thredds/catalog/Datasets/ncep.reanalysis/Monthlies/surface/catalog.html?dataset=Datasets%2Fncep.reanalysis%2FMonthlies%2Fsurface%2Fair.mon.ltm.nc",
+    "description": "NOAA PSL NCEP/NCAR monthly air-temperature climatology; time selection, descending latitude, 0–360 longitude and COARDS metadata.",
+    "maximumBytes": 4194304,
+    "sha256": "31e6f601fd8e1ecc0bd63e9907ae9e0f931fe675c397ab608abe191b15576619"
+  },
+  {
+    "id": "pcmdi-sea-surface-temperature",
+    "filename": "tos_O1_2001-2002.nc",
+    "url": "https://archive.unidata.ucar.edu/software/netcdf/examples/tos_O1_2001-2002.nc",
+    "source": "https://archive.unidata.ucar.edu/software/netcdf/examples/files.html",
+    "description": "PCMDI/IPCC sea-surface temperature distributed by NSF Unidata; CF coordinate bounds, calendar, missing ocean/land cells and multiple times.",
+    "maximumBytes": 4194304,
+    "sha256": "ecd54cdd054cb6a529d47bd0af1cc8d6a45cb6e22f4f209562084b6b5af01ba8"
+  },
+  {
+    "id": "ccsm-atmosphere",
+    "filename": "sresa1b_ncar_ccsm3-example.nc",
+    "url": "https://archive.unidata.ucar.edu/software/netcdf/examples/sresa1b_ncar_ccsm3-example.nc",
+    "source": "https://archive.unidata.ucar.edu/software/netcdf/examples/files.html",
+    "description": "Community Climate System Model (CCSM) atmosphere: tas/pr/ua, pressure dimension, noleap calendar, bounds and nonuniform Gaussian latitude. Must never be silently stretched as an affine grid.",
+    "maximumBytes": 4194304,
+    "sha256": "2c2047ee329654f3bebf0a4b0d99eada50f1183728a3c7c129b0bc50d404511b"
+  },
+  {
+    "id": "etopo-2022-geotiff",
+    "filename": "ETOPO_2022_v1_15s_N00E000_surface.tif",
+    "url": "https://www.ngdc.noaa.gov/mgg/global/relief/ETOPO2022/data/15s/15s_surface_elev_gtif/ETOPO_2022_v1_15s_N00E000_surface.tif",
+    "source": "https://www.ncei.noaa.gov/products/etopo-global-relief-model",
+    "description": "NOAA NCEI ETOPO 2022 elevation/bathymetry 15-arcsecond tile. DOI: 10.25921/fd45-gt74.",
+    "maximumBytes": 41943040,
+    "sha256": "6ecc6e7d1b2fab4812fe508b23f525f413413a07f6c7380a8c7d9c5b41df981d"
+  },
+  {
+    "id": "etopo-2022-netcdf",
+    "filename": "ETOPO_2022_v1_15s_N00E000_surface.nc",
+    "url": "https://www.ngdc.noaa.gov/thredds/fileServer/global/ETOPO2022/15s/15s_surface_elev_netcdf/ETOPO_2022_v1_15s_N00E000_surface.nc",
+    "source": "https://www.ncei.noaa.gov/products/etopo-global-relief-model",
+    "description": "The same ETOPO 2022 tile in NetCDF; cross-format numeric and geographic comparison against the GeoTIFF. DOI: 10.25921/fd45-gt74.",
+    "maximumBytes": 41943040,
+    "sha256": "9d56f9cff04ecb695ce965f8a6b200ea54309b0d3f0574404a9dd6d68dc3136e"
+  }
+]

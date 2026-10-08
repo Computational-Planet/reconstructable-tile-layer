@@ -74,8 +74,17 @@ const processedImage = await webglProcessor.processMaskedSourceTileImage(
 );
 ```
 
-Coordinates are tile-local and normally lie in `[0, 1]`. A null result means
+Coordinates are tile-local and normally lie in `[0, 1]`: `(0, 0)` is southwest
+and `(1, 1)` is northeast. A null result means
 the work was cancelled or no usable processed image could be produced.
+
+Canvas and HTML image inputs use ordinary north-at-top image rows. The processor
+flips DOM image rows during WebGL upload so texture coordinates and plate masks
+share the same direction. `ImageBitmap` follows Cesium's decode convention:
+`ImageryProvider.loadImage` prepares it with `flipY`; custom providers creating
+bitmaps should likewise use `imageOrientation: "flipY"`. WebGL ignores the upload
+flip flag for bitmaps, so they must not be flipped again. Both renderer pools
+preserve north-at-top output for the Cesium material.
 
 ## Processed image ownership
 

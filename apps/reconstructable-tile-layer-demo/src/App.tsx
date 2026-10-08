@@ -14,10 +14,11 @@ import {
   validateOutputConfig,
 } from "./cesium/cameraControls";
 import {
-  DEFAULT_CUSTOM_PROVIDER_CONFIG,
   DEFAULT_PROVIDER_KEY,
+  getServicePreset,
+  getServiceLabel,
   type ProviderKey,
-  type UrlTemplateProviderConfig,
+  type TileServiceConfig,
 } from "./cesium/providers";
 import { ControlPanel } from "./components/ControlPanel";
 import {
@@ -42,54 +43,52 @@ import { useExperimentIO } from "./hooks/useExperimentIO";
 import { useReferencePolygonOverlay } from "./hooks/useReferencePolygonOverlay";
 import { useReconstructActions } from "./hooks/useReconstructActions";
 import { DEFAULT_GLOBE_BASE_COLOR } from "./cesium/createViewer";
+import { useLocalRaster } from "./hooks/useLocalRaster";
+import type {
+  AppliedService,
+  ImagerySourceKind,
+} from "./components/controlPanel/ControlPanel.types";
 
 function App() {
   const [age, setAge] = useState(0);
   const [busy, setBusy] = useState(false);
   const [debugEnabled, setDebugEnabled] = useState(false);
-  const [globeBaseColor, setGlobeBaseColor] = useState(
-    DEFAULT_GLOBE_BASE_COLOR,
-  );
+  const [globeBaseColor, setGlobeBaseColor] = useState(DEFAULT_GLOBE_BASE_COLOR);
   const [initialized, setInitialized] = useState(false);
   const [level, setLevel] = useState(4);
   const [polygonRenderIntent, setPolygonRenderIntent] =
     useState<PolygonRenderIntentMode>("all-polygons-area");
   const [primitiveTransformMode, setPrimitiveTransformModeState] =
     useState<PrimitiveTransformMode>("dynamic3D");
-  const [providerKey, setProviderKey] =
-    useState<ProviderKey>(DEFAULT_PROVIDER_KEY);
-  const [referencePolygonKey, setReferencePolygonKey] =
-    useState<GplatesReferencePolygonKey>(DEFAULT_GPLATES_REFERENCE_POLYGON_KEY);
+  const [providerKey, setProviderKey] = useState<ProviderKey>(DEFAULT_PROVIDER_KEY);
+  const [sourceKind, setSourceKind] = useState<ImagerySourceKind>("tile-service");
+  const [appliedService, setAppliedService] = useState<AppliedService | null>(null);
+  const [referencePolygonKey, setReferencePolygonKey] = useState<GplatesReferencePolygonKey>(
+    DEFAULT_GPLATES_REFERENCE_POLYGON_KEY,
+  );
   const [referencePolygonColor, setReferencePolygonColor] = useState(
     DEFAULT_GPLATES_REFERENCE_POLYGON_COLOR,
   );
-  const [rotationAnchorMode, setRotationAnchorMode] =
-    useState<RotationAnchorMode>(DEFAULT_ROTATION_ANCHOR_MODE);
-  const [anchorPlateIdInput, setAnchorPlateIdInput] = useState(
-    DEFAULT_ANCHOR_PLATE_ID,
+  const [rotationAnchorMode, setRotationAnchorMode] = useState<RotationAnchorMode>(
+    DEFAULT_ROTATION_ANCHOR_MODE,
   );
-  const [customProviderConfig, setCustomProviderConfig] =
-    useState<UrlTemplateProviderConfig>(DEFAULT_CUSTOM_PROVIDER_CONFIG);
-  const [customProviderError, setCustomProviderError] = useState("");
+  const [anchorPlateIdInput, setAnchorPlateIdInput] = useState(DEFAULT_ANCHOR_PLATE_ID);
+  const [serviceConfig, setServiceConfig] = useState<TileServiceConfig>(() =>
+    getServicePreset(DEFAULT_PROVIDER_KEY),
+  );
   const [stats, setStats] = useState<ReconstructableTileLayerStats | null>(null);
   const [status, setStatus] = useState("Viewer is starting");
   const [experimentViewConfig, setExperimentViewConfig] = useState(
     createDefaultExperimentViewConfig,
   );
-  const [appliedOutputSize, setAppliedOutputSize] =
-    useState<ExperimentOutputConfig | null>(null);
+  const [appliedOutputSize, setAppliedOutputSize] = useState<ExperimentOutputConfig | null>(null);
 
-  const {
-    containerRef,
-    managerRef,
-    sceneModeCleanupRef,
-    webglProcessorRef,
-    viewerRef,
-  } = useCesiumRuntime({
-    appliedOutputSize,
-    globeBaseColor,
-    onStatusChange: setStatus,
-  });
+  const { containerRef, managerRef, sceneModeCleanupRef, webglProcessorRef, viewerRef } =
+    useCesiumRuntime({
+      appliedOutputSize,
+      globeBaseColor,
+      onStatusChange: setStatus,
+    });
 
   const dataSourceControls = useDataSourceControls({
     onModelNameChange: (modelName) =>
@@ -122,23 +121,76 @@ function App() {
         ? DEFAULT_ANCHOR_PLATE_ID
         : anchorPlateIdInput.trim();
 
+  const model = {
+    name: experimentViewConfig.modelName,
+    featureUrl: dataSourceControls.featureUrl,
+    featureLabel: dataSourceControls.featureSourceLabel,
+    rotationUrls: dataSourceControls.rotationSources,
+    rotationLabels: dataSourceControls.rotSourceLabels,
+    anchorPlateId: resolvedAnchorPlateId,
+    polygonRenderIntent,
+  };
+  const modelKey = JSON.stringify(model);
+  const clearReconstruction = () => {
+    sceneModeCleanupRef.current?.();
+    sceneModeCleanupRef.current = null;
+    const viewer = viewerRef.current;
+    if (viewer && !viewer.isDestroyed()) managerRef.current?.destroy(viewer);
+    managerRef.current = null;
+    delete window.__simpleGeoReconstructStats;
+    setInitialized(false);
+    setStats(null);
+    setAppliedService(null);
+    setStatus("Reconstruction tiles cleared.");
+  };
+  const localRaster = useLocalRaster({
+    viewerRef,
+    age,
+    setAge,
+    setLevel,
+    model,
+    clearReconstruction,
+    applyReconstruction: async (provider): Promise<boolean> => {
+      const applied = await reconstructActions.initializeWithProvider(provider);
+      if (applied) setAppliedService(null);
+      return applied;
+    },
+  });
+
+  const activeRasterProvider =
+    localRaster.applied?.context.role === "modern-reconstructable"
+      ? localRaster.applied.provider
+      : undefined;
   const reconstructActions = useReconstructActions({
+    activeRasterProvider,
+    onServiceApplied: () => {
+      localRaster.detachForService();
+      setLevel((current) =>
+        Math.max(
+          serviceConfig.minimumLevel,
+          Math.min(current, serviceConfig.maximumLevel ?? current),
+        ),
+      );
+      setAppliedService({
+        label: getServiceLabel(serviceConfig),
+        config: structuredClone(serviceConfig),
+        exampleKey: providerKey,
+        modelKey,
+      });
+    },
     age,
     anchorPlateId: resolvedAnchorPlateId,
-    customProviderConfig,
+    serviceConfig,
     featureUrl: dataSourceControls.featureUrl,
     initialized,
     level,
     managerRef,
     polygonRenderIntent,
     primitiveTransformMode,
-    providerKey,
     rotationSources: dataSourceControls.rotationSources,
     sceneModeCleanupRef,
     setBusy,
-    setCustomProviderError,
     setInitialized,
-    setProviderKey,
     setStats,
     setStatus,
     webglProcessorRef,
@@ -146,15 +198,22 @@ function App() {
   });
 
   const experimentIO = useExperimentIO({
+    localRaster: localRaster.descriptor,
+    appliedService,
+    onImportSources: (hasLocalRaster) => {
+      localRaster.remove();
+      clearReconstruction();
+      setSourceKind(hasLocalRaster ? "local-raster" : "tile-service");
+    },
     age,
     applyImportedFeatureSource: dataSourceControls.applyImportedFeatureSource,
-    applyImportedRotationSources:
-      dataSourceControls.applyImportedRotationSources,
-    customProviderConfig,
+    applyImportedRotationSources: dataSourceControls.applyImportedRotationSources,
+    serviceConfig,
     debugEnabled,
     experimentViewConfig,
     featurePresetKey: dataSourceControls.featurePresetKey,
     featureUrl: dataSourceControls.featureUrl,
+    featureSourceLabel: dataSourceControls.featureSourceLabel,
     globeBaseColor,
     initialized,
     level,
@@ -168,11 +227,11 @@ function App() {
     anchorPlateId: resolvedAnchorPlateId,
     rotationSources: dataSourceControls.rotationSources,
     rotPresetKey: dataSourceControls.rotPresetKey,
+    rotSourceLabels: dataSourceControls.rotSourceLabels,
     setAge,
     setAppliedOutputSize,
     setBusy,
-    setCustomProviderConfig,
-    setCustomProviderError,
+    setServiceConfig,
     setDebugEnabled,
     setExperimentViewConfig,
     setGlobeBaseColor,
@@ -277,10 +336,14 @@ function App() {
   return (
     <main className="app-shell">
       <ControlPanel
+        localRaster={localRaster}
+        sourceKind={sourceKind}
+        onSourceKindChange={setSourceKind}
+        appliedService={appliedService}
+        modelNeedsApply={!!(initialized && appliedService && appliedService.modelKey !== modelKey)}
         age={age}
-        busy={busy}
-        customProviderConfig={customProviderConfig}
-        customProviderError={customProviderError}
+        busy={busy || localRaster.busy}
+        serviceConfig={serviceConfig}
         debugEnabled={debugEnabled}
         experimentViewConfig={experimentViewConfig}
         featurePresetKey={dataSourceControls.featurePresetKey}
@@ -291,6 +354,19 @@ function App() {
         anchorPlateIdInput={anchorPlateIdInput}
         initialized={initialized}
         level={level}
+        tileLevelRange={
+          activeRasterProvider
+            ? {
+                minimumLevel: activeRasterProvider.minimumLevel,
+                maximumLevel: activeRasterProvider.maximumLevel,
+              }
+            : initialized && appliedService
+              ? {
+                  minimumLevel: appliedService.config.minimumLevel,
+                  maximumLevel: appliedService.config.maximumLevel ?? undefined,
+                }
+              : undefined
+        }
         polygonRenderIntent={polygonRenderIntent}
         primitiveTransformMode={primitiveTransformMode}
         providerKey={providerKey}
@@ -313,7 +389,7 @@ function App() {
         onCaptureScreenshot={experimentIO.handleCaptureScreenshot}
         onClear={reconstructActions.handleClear}
         onAnchorPlateIdInputChange={setAnchorPlateIdInput}
-        onCustomProviderConfigChange={setCustomProviderConfig}
+        onServiceConfigChange={setServiceConfig}
         onDebugEnabledChange={setDebugEnabled}
         onExperimentSceneModeChange={handleExperimentSceneModeChange}
         onExperimentViewConfigChange={setExperimentViewConfig}
@@ -322,32 +398,26 @@ function App() {
         onFeatureUpload={dataSourceControls.handleFeatureUpload}
         onFeatureUrlChange={dataSourceControls.handleFeatureUrlChange}
         onGlobeBaseColorChange={setGlobeBaseColor}
-        onInit={reconstructActions.handleInit}
         onImportExperimentConfig={experimentIO.handleImportExperimentConfig}
         onLevelChange={setLevel}
         onLoadFineInView={reconstructActions.handleLoadFineInView}
         onLoadLevel={reconstructActions.handleLoadLevel}
-        onLoadRoot={reconstructActions.handleLoadRoot}
         onPolygonRenderIntentChange={setPolygonRenderIntent}
         onPrimitiveTransformModeChange={setPrimitiveTransformModeState}
-        onProviderKeyChange={setProviderKey}
+        onProviderKeyChange={(key) => {
+          setProviderKey(key);
+          setServiceConfig(getServicePreset(key));
+        }}
         onReferencePolygonColorChange={setReferencePolygonColor}
         onReferencePolygonKeyChange={setReferencePolygonKey}
         onRotationAnchorModeChange={setRotationAnchorMode}
         onRotPresetChange={dataSourceControls.handleRotPresetChange}
         onRotUpload={dataSourceControls.handleRotUpload}
         onRotUrlsChange={dataSourceControls.handleRotUrlsChange}
-        onSaveCustomProviderConfig={
-          reconstructActions.handleSaveCustomProviderConfig
-        }
       />
       <section className="viewer-workspace" aria-label="Cesium viewer">
         <div className="viewer-stage">
-          <div
-            ref={containerRef}
-            className="cesium-container"
-            style={cesiumContainerStyle}
-          />
+          <div ref={containerRef} className="cesium-container" style={cesiumContainerStyle} />
         </div>
       </section>
     </main>

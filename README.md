@@ -22,6 +22,12 @@ processed fragments in Cesium. The implementation reconstructs the published
 visual layer; it does not recover source attributes, topology, feature
 identities, or numerical raster values.
 
+Optional local-file packages retain numeric GeoTIFF/NetCDF sources separately
+from their display images, provide standard Cesium imagery, and export COG in a
+browser Worker. The source Demo includes this workflow; the hosted Demo may reflect
+an earlier release. See [local data instructions](apps/reconstructable-tile-layer-demo/README.md#local-scientific-rasters)
+and the [tested data matrix](scripts/raster/README.md#production-demo-and-scientific-meaning).
+
 ## Demo
 
 **Online demo:** [Launch the Reconstructable Tile Layer demo](https://computational-planet.github.io/reconstructable-tile-layer/).
@@ -35,8 +41,8 @@ identities, or numerical raster values.
 The application in [`apps/reconstructable-tile-layer-demo`](apps/reconstructable-tile-layer-demo)
 is the project demo started by `pnpm dev`. It:
 
-- is powered by React, Vite, Cesium, and the four RTL workspace libraries;
-- starts all library Rollup watch builds through Turbo;
+- is powered by React, Vite, Cesium, four RTL core libraries and three optional raster libraries;
+- starts core-library Rollup watch builds through Turbo;
 - supports interchangeable imagery services, plate-domain data, and ROT models;
 - reproduces the paper workflow for age changes, source-level loading,
   view-aware refinement, reference overlays, and result export.
@@ -53,11 +59,13 @@ install the locked dependencies once before launching:
 
 ```sh
 pnpm install --frozen-lockfile
+pnpm build:packages
 pnpm dev
 ```
 
 Vite prints the local URL in the terminal. While the command remains running,
-changes to any library are rebuilt automatically and made available to the demo.
+changes to core libraries are rebuilt automatically. Rebuild optional raster
+packages with `pnpm build:packages` after changing their source or worker assets.
 
 ![Reconstructable Tile Layer demo showing a paleogeographic reconstruction at 120 Ma](images/rtl_demo_preview.png)
 
@@ -103,6 +111,17 @@ Requirements: Node.js 18 or newer, pnpm 9.0.5, and a browser with WebGL support.
 
 Each workspace README describes its method role, input contract, usage, and
 retained-resource lifecycle.
+
+| Optional package                                                    | Responsibility                                                                          | Coupling                                                                           |
+| ------------------------------------------------------------------- | --------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| [rtl-raster-source](packages/rtl-raster-source)                     | Local numeric windows, CRS/grid metadata, CF NetCDF slices via explicit `/netcdf` entry | No Cesium, React or reconstruction dependency                                      |
+| [rtl-raster-imagery-provider](packages/rtl-raster-imagery-provider) | Numeric sources → styled standard Cesium imagery; single band/RGB/NoData, bounded cache | Cesium peer; works with a standalone viewer or the existing RTL `provider` option  |
+| [rtl-raster-converter](packages/rtl-raster-converter)               | TIFF or selected numeric slice → COG + provenance JSON in an on-demand GDAL Worker      | No Cesium/React; host supplies GDAL static assets; conversion optional for display |
+
+The main RTL package has no dependency on these optional engines. A modern-coordinate
+source requires a compatible plate model. Already-paleo snapshots use ordinary
+age-selected imagery, without another rotation. Numeric point queries remain outside
+this implementation.
 
 ## Method-to-code map
 

@@ -1,5 +1,6 @@
 /** Handles browser-side file downloads for exported experiment artifacts. */
 import type { ExperimentExportInfo } from "../experiment";
+import { stringifyScientific } from "../raster/context";
 
 export function downloadBlob(blob: Blob, fileName: string) {
   const url = URL.createObjectURL(blob);
@@ -13,7 +14,7 @@ export function downloadBlob(blob: Blob, fileName: string) {
 }
 
 export function downloadJson(info: ExperimentExportInfo, fileName: string) {
-  const blob = new Blob([JSON.stringify(info, null, 2)], {
+  const blob = new Blob([stringifyScientific(info)], {
     type: "application/json;charset=utf-8",
   });
   downloadBlob(blob, fileName);

@@ -70,7 +70,7 @@ export function useCesiumRuntime({
         delete window.__tileProcesserStats;
       },
     });
-    onStatusChange("Viewer ready. Initialize the manager to load data.");
+    onStatusChange("Viewer ready. Choose a plate model and apply an imagery source.");
 
     return () => {
       removePerformanceBenchmark();

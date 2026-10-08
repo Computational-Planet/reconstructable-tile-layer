@@ -353,7 +353,11 @@ export interface ViewFineTileLoadOptions {
 }
 
 /** Reason a fine-tile request completed without loading tiles. */
-export type ViewFineTileLoadSkipReason = "no-view-rectangle" | "not-ready" | "stale-age";
+export type ViewFineTileLoadSkipReason =
+  | "no-view-rectangle"
+  | "not-ready"
+  | "stale-age"
+  | "stale-source";
 
 /** Summary returned by a view-based fine-tile request. */
 export interface ViewFineTileLoadResult {

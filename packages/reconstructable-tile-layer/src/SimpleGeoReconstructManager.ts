@@ -61,6 +61,7 @@ import {
   clampFineViewLevel,
   createFineTileLoadResult,
   createViewBoundingSphereFromRectangle,
+  getProviderLevelBounds,
   resolveFineTileViewRectangle,
   resolveFineViewLevel,
 } from "./manager/viewLevel.js";
@@ -170,6 +171,8 @@ export class SimpleGeoReconstructManager {
   private _generationToken = 0;
   private _ageUpdateToken = 0;
   private _primitiveRebuildToken = 0;
+  private _initializationToken = 0;
+  private _rotationInitialization: Promise<void> = Promise.resolve();
   private _pendingTileTokens = new Map<string, number>();
   private _currentAge = 0;
   private _transformMode: PrimitiveTransformMode = "dynamic3D";
@@ -325,7 +328,15 @@ export class SimpleGeoReconstructManager {
    * the configured sources after clearing rendered content.
    */
   async init() {
+    const initializationToken = ++this._initializationToken;
     this._ready = false;
+    this._generationToken++;
+    this._ageUpdateToken++;
+    this._primitiveRebuildToken++;
+    this._pendingTileTokens.clear();
+    this.processer.clearBuffer();
+    if (this._boundViewer) this.removeAllPrimitives(this._boundViewer);
+    else this.releaseAllTileAssets();
     this.plates.clear();
     this._tileListCache.clear();
     this._rotationMatrixCache.clear();
@@ -335,6 +346,7 @@ export class SimpleGeoReconstructManager {
     this._primitiveRemovedCount = 0;
 
     const loadResult = await this.getPaleoDataFlatten(this._files.polygon);
+    if (initializationToken !== this._initializationToken) return;
     this.allPaleoData = loadResult.items;
     this.paleoData = loadResult.items.filter((item) => item.renderIntent === "area");
     this._geoTileStats.importDiagnostics = loadResult.diagnostics;
@@ -363,7 +375,17 @@ export class SimpleGeoReconstructManager {
       });
     });
 
-    await this.rotationOperator.init(this._files.rots);
+    // 保留公开 rotationOperator 实例；串行初始化，避免旧加载覆盖新模型。
+    const rotationInitialization = this._rotationInitialization
+      .catch(() => {})
+      .then(async () => {
+        if (initializationToken === this._initializationToken) {
+          await this.rotationOperator.init(this._files.rots);
+        }
+      });
+    this._rotationInitialization = rotationInitialization;
+    await rotationInitialization;
+    if (initializationToken !== this._initializationToken) return;
     this._ready = true;
   }
 
@@ -476,15 +498,27 @@ export class SimpleGeoReconstructManager {
     }
 
     const usingCurrentAge = options.age === undefined;
+    const generationToken = this._generationToken;
     const age = options.age ?? this._currentAge;
     const viewBoundingSphere = createViewBoundingSphereFromRectangle(this._provider, viewRectangle);
     const plateMatrices = await this.getPlateMatrixEntries(age);
+    if (generationToken !== this._generationToken) {
+      return createFineTileLoadResult(level, 0, 0, "stale-source");
+    }
     if (usingCurrentAge && age !== this._currentAge) {
       return createFineTileLoadResult(level, 0, 0, "stale-age");
     }
 
     this.updateQuadTreeBoundingSpheres(plateMatrices);
-    const tasks = await this.collectFineTileTasksInView(level, viewBoundingSphere, age);
+    const tasks = await this.collectFineTileTasksInView(
+      level,
+      viewBoundingSphere,
+      age,
+      generationToken,
+    );
+    if (generationToken !== this._generationToken) {
+      return createFineTileLoadResult(level, 0, 0, "stale-source");
+    }
     if (usingCurrentAge && age !== this._currentAge) {
       return createFineTileLoadResult(level, 0, tasks.length, "stale-age");
     }
@@ -638,6 +672,7 @@ export class SimpleGeoReconstructManager {
 
     const visibleRecords = this.getVisibleRecordsAtAge(age);
     const matrixByPlate = await this.getPlateMatrixMapForRecords(visibleRecords, age);
+    if (rebuildToken !== this._primitiveRebuildToken || age !== this._currentAge) return;
     this.updateAgeRecordStats(age);
     await this.rebuildLoadedPrimitives(viewer, matrixByPlate, {
       age,
@@ -799,6 +834,8 @@ export class SimpleGeoReconstructManager {
     this._boundViewer = viewer;
     this._provider = provider;
     this._generationToken++;
+    this._ageUpdateToken++;
+    this._primitiveRebuildToken++;
     this._pendingTileTokens.clear();
     this.processer.clearBuffer();
     this.plates.forEach((plateItem) => {
@@ -828,6 +865,7 @@ export class SimpleGeoReconstructManager {
   clearAllTiles(viewer: Viewer) {
     this._boundViewer = viewer;
     this._generationToken++;
+    this._ageUpdateToken++;
     this._primitiveRebuildToken++;
     this._pendingTileTokens.clear();
     this.processer.clearBuffer();
@@ -849,6 +887,7 @@ export class SimpleGeoReconstructManager {
     const targetViewer = viewer ?? this._boundViewer;
     this.unbindSceneModeSync();
     this._ready = false;
+    this._initializationToken++;
     this._generationToken++;
     this._ageUpdateToken++;
     this._primitiveRebuildToken++;
@@ -892,6 +931,7 @@ export class SimpleGeoReconstructManager {
     level: number,
     viewBoundingSphere: BoundingSphere,
     age: number,
+    generationToken: number,
   ) {
     const collectionStart = now();
     const taskMap = new Map<string, CompositeTileTask>();
@@ -914,6 +954,7 @@ export class SimpleGeoReconstructManager {
           );
         }
 
+        if (generationToken !== this._generationToken) return [];
         const tiles: NodeInfo[] = [];
         polygonItem.quadTree.findTilesByLevelInBoundingSphere(
           level,
@@ -1233,6 +1274,8 @@ export class SimpleGeoReconstructManager {
     mode: "level" | "root",
     level?: number,
   ) {
+    const bounds = getProviderLevelBounds(this._provider);
+    if (mode === "level") level = clampFineViewLevel(level ?? bounds.minLevel, this._provider, {});
     const cacheKey = [
       polygonItem.info.featureId,
       this.getTilingSchemeKey(),
@@ -1248,7 +1291,7 @@ export class SimpleGeoReconstructManager {
     if (mode === "level") {
       polygonItem.quadTree.findTilesByLevel(level ?? 0, tiles);
     } else {
-      polygonItem.quadTree.findTilesAtRoot(tiles);
+      polygonItem.quadTree.findTilesAtRoot(tiles, bounds);
     }
     this._tileListCache.set(cacheKey, tiles);
     return tiles;
@@ -1429,11 +1472,14 @@ export class SimpleGeoReconstructManager {
       return cachedMatrix;
     }
 
+    const initializationToken = this._initializationToken;
     const modelMatrix = await this.rotationOperator.getRotateMatrix(plateId, age);
     const matrix4 = modelMatrix
       ? Matrix4.fromRotation(modelMatrix)
       : Matrix4.clone(Matrix4.IDENTITY);
-    this._rotationMatrixCache.set(cacheKey, matrix4);
+    if (initializationToken === this._initializationToken) {
+      this._rotationMatrixCache.set(cacheKey, matrix4);
+    }
     return matrix4;
   }
 
@@ -1497,12 +1543,6 @@ export class SimpleGeoReconstructManager {
     const mode = options.mode ?? this._transformMode;
     const age = options.age ?? this._currentAge;
 
-    // Remove old primitives before 2D/CV morphs so Cesium never sees stale
-    // non-identity model matrices during MORPHING frames.
-    if (options.removeBeforeBuild) {
-      this.removePrimitiveInstances(viewer);
-    }
-
     if (
       rebuildToken !== this._primitiveRebuildToken ||
       mode !== this._transformMode ||
@@ -1511,9 +1551,8 @@ export class SimpleGeoReconstructManager {
       return;
     }
 
-    if (!options.removeBeforeBuild) {
-      this.removePrimitiveInstances(viewer);
-    }
+    // 先验证任务仍有效，再删除图元；旧任务不能清掉换源后建立的内容。
+    this.removePrimitiveInstances(viewer);
 
     if (mode === "bakedInstance") {
       await this.rebuildBakedVisiblePrimitives(viewer, matrixByPlate, age, {
@@ -1558,7 +1597,7 @@ export class SimpleGeoReconstructManager {
       }
     }
 
-    if (addedCount > 0) {
+    if (addedCount > 0 && rebuildToken === this._primitiveRebuildToken) {
       viewer.scene.requestRender();
     }
   }
@@ -1614,6 +1653,7 @@ export class SimpleGeoReconstructManager {
       }
     }
 
+    if (options.rebuildToken !== this._primitiveRebuildToken || age !== this._currentAge) return;
     const revealStart = now();
     visibleRecords.forEach((tileRecord) => {
       tileRecord.primitives.forEach((primitive) => {

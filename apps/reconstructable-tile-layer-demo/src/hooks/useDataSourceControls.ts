@@ -150,7 +150,7 @@ export function useDataSourceControls({
     importedFeatureUrl: string | undefined,
     importedFeaturePresetKey: FeaturePresetKey | undefined,
   ) => {
-    if (importedFeatureUrl) {
+    if (importedFeatureUrl !== undefined) {
       const matchedFeaturePreset = FEATURE_PRESETS.find(
         (preset) => preset.url === importedFeatureUrl,
       );

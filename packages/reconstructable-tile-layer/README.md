@@ -94,6 +94,51 @@ Use `new ReconstructableTileLayer(options)` followed by
 
 ## RTL inputs
 
+### Optional local scientific rasters
+
+The main package keeps its existing `ImageryProvider` interface and has no raster,
+NetCDF, HDF5 or GDAL dependency. Install the optional adapter when needed:
+
+```sh
+pnpm add rtl-raster-imagery-provider rtl-raster-source
+```
+
+```ts
+import { openRasterSource } from "rtl-raster-source";
+import { RasterImageryProvider } from "rtl-raster-imagery-provider";
+
+const source = await openRasterSource(file);
+const localProvider = await RasterImageryProvider.fromSource(source, {
+  ellipsoid: viewer.scene.globe.ellipsoid,
+  style: { kind: "single-band", band: 0, domain: [-8000, 4000] },
+});
+// Use only when file coordinates are in the modern frame of the selected model.
+await rtl.setImageryProvider(viewer, localProvider);
+await rtl.loadRootTiles(viewer);
+await rtl.setReconstructionAge(100);
+
+// Detach before releasing the provider/source. The processor/viewer remain caller-owned.
+rtl.destroy(viewer);
+localProvider.destroy();
+source.close();
+```
+
+For NetCDF, open `rtl-raster-source/netcdf`, inspect `describeVariable`, select a
+2D slice, then pass that source to the adapter. A dataset owns its slices; close
+it after the providers and slices. Optional `rtl-raster-converter` exports numeric
+COG data with explicitly hosted GDAL assets; no conversion is required for direct
+display. See each package's README for worker hosting and ownership examples.
+
+Already-paleo snapshots such as PaleoDEM use ordinary Cesium imagery at an explicit
+display age, without RTL rotation. Model-calendar time must not be interpreted as
+geological age. Transporting modern elevation with a plate model does not predict
+paleo topography. Query/inverse sampling is not implemented by this integration.
+
+Provider replacement invalidates cached tile coverage, age/rebuild work and pending
+image delivery. `clear()` keeps the manager reusable. `destroy()` invalidates pending
+initialization and releases retained imagery; the caller then closes owned sources.
+An in-flight view refinement interrupted by replacement reports `stale-source`.
+
 ### Published imagery service
 
 `provider` supplies the source tile coordinates, tiling scheme, image

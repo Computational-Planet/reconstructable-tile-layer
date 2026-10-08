@@ -1,13 +1,12 @@
 /** Converts exported experiment JSON back into editable control state. */
-import type {
-  PolygonRenderIntentMode,
-  PrimitiveTransformMode,
-} from "reconstructable-tile-layer";
+import type { PolygonRenderIntentMode, PrimitiveTransformMode } from "reconstructable-tile-layer";
 
-import type {
-  ProviderKey,
-  UrlTemplateProviderConfig,
+import {
+  getServicePreset,
+  type ProviderKey,
+  type UrlTemplateProviderConfig,
 } from "../cesium/providers";
+import { migrateUrlTemplateConfig, parseTileServiceConfig } from "../cesium/tileServiceConfig";
 import {
   DEFAULT_ANCHOR_PLATE_ID,
   DEFAULT_GPLATES_REFERENCE_POLYGON_COLOR,
@@ -18,11 +17,7 @@ import {
   type RotationAnchorMode,
   type RotationPresetKey,
 } from "../dataSources";
-import type {
-  ExperimentViewMode,
-  GeographicExtent,
-  ImportedExperimentControlState,
-} from "./types";
+import type { ExperimentViewMode, GeographicExtent, ImportedExperimentControlState } from "./types";
 
 const FEATURE_PRESET_KEYS: FeaturePresetKey[] = [
   "seton-2012-static-polygons-gpmlz",
@@ -38,11 +33,7 @@ const ROTATION_PRESET_KEYS: RotationPresetKey[] = [
   "custom",
 ];
 
-const ROTATION_ANCHOR_MODES: RotationAnchorMode[] = [
-  "default",
-  "auto",
-  "custom",
-];
+const ROTATION_ANCHOR_MODES: RotationAnchorMode[] = ["default", "auto", "custom"];
 
 const GPLATES_REFERENCE_POLYGON_KEYS: GplatesReferencePolygonKey[] = [
   "off",
@@ -72,29 +63,17 @@ const PROVIDER_KEYS: ProviderKey[] = [
   "custom-url-template",
 ];
 
-const POLYGON_RENDER_INTENTS: PolygonRenderIntentMode[] = [
-  "classified",
-  "all-polygons-area",
-];
+const POLYGON_RENDER_INTENTS: PolygonRenderIntentMode[] = ["classified", "all-polygons-area"];
 
-const PRIMITIVE_TRANSFORM_MODES: PrimitiveTransformMode[] = [
-  "dynamic3D",
-  "bakedInstance",
-];
+const PRIMITIVE_TRANSFORM_MODES: PrimitiveTransformMode[] = ["dynamic3D", "bakedInstance"];
 
-const IMPORTABLE_VIEW_MODES: ExperimentViewMode[] = [
-  "2D_RECTANGULAR",
-  "3D_GLOBE",
-];
+const IMPORTABLE_VIEW_MODES: ExperimentViewMode[] = ["2D_RECTANGULAR", "3D_GLOBE"];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function getRecord(
-  value: Record<string, unknown>,
-  key: string,
-): Record<string, unknown> | null {
+function getRecord(value: Record<string, unknown>, key: string): Record<string, unknown> | null {
   const nextValue = value[key];
   return isRecord(nextValue) ? nextValue : null;
 }
@@ -120,9 +99,7 @@ function getBoolean(value: Record<string, unknown>, key: string) {
 
 function getNumber(value: Record<string, unknown>, key: string) {
   const nextValue = value[key];
-  return typeof nextValue === "number" && Number.isFinite(nextValue)
-    ? nextValue
-    : undefined;
+  return typeof nextValue === "number" && Number.isFinite(nextValue) ? nextValue : undefined;
 }
 
 function getInteger(value: Record<string, unknown>, key: string) {
@@ -142,15 +119,9 @@ function getStringArray(value: Record<string, unknown>, key: string) {
   return strings.length > 0 ? strings : undefined;
 }
 
-function getEnumValue<T extends string>(
-  value: Record<string, unknown>,
-  key: string,
-  options: T[],
-) {
+function getEnumValue<T extends string>(value: Record<string, unknown>, key: string, options: T[]) {
   const nextValue = getString(value, key);
-  return nextValue && options.includes(nextValue as T)
-    ? (nextValue as T)
-    : undefined;
+  return nextValue && options.includes(nextValue as T) ? (nextValue as T) : undefined;
 }
 
 function isZeroLikePlateId(value: string) {
@@ -166,12 +137,7 @@ function parseExtent(value: Record<string, unknown>) {
   const south = getNumber(value, "south");
   const east = getNumber(value, "east");
   const north = getNumber(value, "north");
-  if (
-    west === undefined ||
-    south === undefined ||
-    east === undefined ||
-    north === undefined
-  ) {
+  if (west === undefined || south === undefined || east === undefined || north === undefined) {
     return undefined;
   }
 
@@ -210,12 +176,9 @@ function parseCamera3D(value: Record<string, unknown>) {
 }
 
 function parseOutput(value: Record<string, unknown>) {
-  const width =
-    getInteger(value, "configuredCssWidth") ?? getInteger(value, "width");
-  const height =
-    getInteger(value, "configuredCssHeight") ?? getInteger(value, "height");
-  const pixelRatio =
-    getNumber(value, "configuredPixelRatio") ?? getNumber(value, "pixelRatio");
+  const width = getInteger(value, "configuredCssWidth") ?? getInteger(value, "width");
+  const height = getInteger(value, "configuredCssHeight") ?? getInteger(value, "height");
+  const pixelRatio = getNumber(value, "configuredPixelRatio") ?? getNumber(value, "pixelRatio");
   if (
     width === undefined ||
     height === undefined ||
@@ -232,18 +195,10 @@ function parseOutput(value: Record<string, unknown>) {
 
 function parseCustomProviderConfig(value: Record<string, unknown>) {
   const url = getString(value, "url");
-  const tilingSchemeKey = getEnumValue(value, "tilingSchemeKey", [
-    "geographic",
-    "web-mercator",
-  ]);
+  const tilingSchemeKey = getEnumValue(value, "tilingSchemeKey", ["geographic", "web-mercator"]);
   const minimumLevel = getInteger(value, "minimumLevel");
   const maximumLevel = getInteger(value, "maximumLevel");
-  if (
-    !url ||
-    !tilingSchemeKey ||
-    minimumLevel === undefined ||
-    maximumLevel === undefined
-  ) {
+  if (!url || !tilingSchemeKey || minimumLevel === undefined || maximumLevel === undefined) {
     return undefined;
   }
 
@@ -255,9 +210,7 @@ function parseCustomProviderConfig(value: Record<string, unknown>) {
   } satisfies UrlTemplateProviderConfig;
 }
 
-export function parseImportedExperimentConfig(
-  value: unknown,
-): ImportedExperimentControlState {
+export function parseImportedExperimentConfig(value: unknown): ImportedExperimentControlState {
   if (!isRecord(value)) {
     throw new Error("Imported file is not a valid experiment JSON object.");
   }
@@ -322,17 +275,13 @@ export function parseImportedExperimentConfig(
   }
 
   if (sources) {
-    result.featurePresetKey = getEnumValue(
-      sources,
-      "featurePresetKey",
-      FEATURE_PRESET_KEYS,
-    );
-    result.featureUrl =
-      getString(sources, "featureUrl") ?? getString(value, "platePolygonFile");
-    const referencePolygonColor = getString(
-      sources,
-      "gplatesReferencePolygonColor",
-    );
+    // 描述可移植，File/Blob 本身不可从 JSON 恢复；不接收历史 blob URL。
+    const localRaster = getRecord(sources, "localRaster");
+    const localFile = localRaster && getRecord(localRaster, "file");
+    result.localRasterFileName = localFile ? getString(localFile, "name") : undefined;
+    result.featurePresetKey = getEnumValue(sources, "featurePresetKey", FEATURE_PRESET_KEYS);
+    result.featureUrl = getString(sources, "featureUrl") ?? getString(value, "platePolygonFile");
+    const referencePolygonColor = getString(sources, "gplatesReferencePolygonColor");
     if (referencePolygonColor && isHexColor(referencePolygonColor)) {
       result.referencePolygonColor = referencePolygonColor;
     }
@@ -342,20 +291,12 @@ export function parseImportedExperimentConfig(
       GPLATES_REFERENCE_POLYGON_KEYS,
     );
     if (!result.referencePolygonKey) {
-      const referencePolygonUrl = getString(
-        sources,
-        "gplatesReferencePolygonUrl",
-      );
+      const referencePolygonUrl = getString(sources, "gplatesReferencePolygonUrl");
       result.referencePolygonKey =
-        GPLATES_REFERENCE_POLYGON_SOURCES.find(
-          (source) => source.url === referencePolygonUrl,
-        )?.key ?? "off";
+        GPLATES_REFERENCE_POLYGON_SOURCES.find((source) => source.url === referencePolygonUrl)
+          ?.key ?? "off";
     }
-    result.rotPresetKey = getEnumValue(
-      sources,
-      "rotationPresetKey",
-      ROTATION_PRESET_KEYS,
-    );
+    result.rotPresetKey = getEnumValue(sources, "rotationPresetKey", ROTATION_PRESET_KEYS);
     const importedRotationAnchorMode = getEnumValue(
       sources,
       "rotationAnchorMode",
@@ -369,8 +310,7 @@ export function parseImportedExperimentConfig(
       } else if (importedRotationAnchorMode === "auto") {
         result.anchorPlateId = null;
       } else {
-        result.anchorPlateId =
-          importedAnchorPlateId ?? DEFAULT_ANCHOR_PLATE_ID;
+        result.anchorPlateId = importedAnchorPlateId ?? DEFAULT_ANCHOR_PLATE_ID;
       }
     } else if (importedAnchorPlateId !== undefined) {
       result.anchorPlateId = importedAnchorPlateId;
@@ -395,12 +335,32 @@ export function parseImportedExperimentConfig(
     if (parsedCustomProviderConfig) {
       result.customProviderConfig = parsedCustomProviderConfig;
     }
+    // 新配置保留编辑后的完整连接；旧配置通过示例或四字段 URL 模板迁移。
+    if (sources.serviceConfig !== undefined) {
+      result.serviceConfig = parseTileServiceConfig(sources.serviceConfig);
+    } else if (result.providerKey === "custom-url-template" && parsedCustomProviderConfig) {
+      result.serviceConfig = migrateUrlTemplateConfig(parsedCustomProviderConfig);
+    } else if (result.providerKey) {
+      result.serviceConfig = getServicePreset(result.providerKey);
+    }
   } else {
     result.featureUrl = getString(value, "platePolygonFile");
     const rotationFile = getString(value, "rotationFile");
     result.rotUrls =
-      getStringArray(value, "rotationFiles") ??
-      (rotationFile ? [rotationFile] : undefined);
+      getStringArray(value, "rotationFiles") ?? (rotationFile ? [rotationFile] : undefined);
+  }
+
+  // 同时拒绝旧配置中的 blob URL；不把缺失的旋转文件悄悄替换成当前模型。
+  const localModelFiles = sources && getRecord(sources, "localModelFiles");
+  if (localModelFiles?.feature || result.featureUrl?.trim().startsWith("blob:")) {
+    result.featureUrl = "";
+    result.featurePresetKey = "custom";
+    result.requiresLocalModelFiles = true;
+  }
+  if (localModelFiles?.rotations || result.rotUrls?.some((url) => url.trim().startsWith("blob:"))) {
+    result.rotUrls = [];
+    result.rotPresetKey = "custom";
+    result.requiresLocalModelFiles = true;
   }
 
   if (render) {

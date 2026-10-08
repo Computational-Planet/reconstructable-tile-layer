@@ -16,11 +16,8 @@ import {
   isOrthographicCamera,
   rectangleToDegrees,
 } from "../cesium/cameraControls";
-import {
-  PROVIDER_OPTIONS,
-  type ProviderKey,
-  type UrlTemplateProviderConfig,
-} from "../cesium/providers";
+import { getServiceLabel, type ProviderKey, type TileServiceConfig } from "../cesium/providers";
+import { validateTileServiceConfig } from "../cesium/tileServiceConfig";
 import {
   getGplatesReferencePolygonSource,
   type FeaturePresetKey,
@@ -33,7 +30,7 @@ import type { ExperimentExportInfo, ExperimentViewConfig } from "./types";
 
 export type ExperimentExportContext = {
   age: number;
-  customProviderConfig: UrlTemplateProviderConfig;
+  serviceConfig: TileServiceConfig;
   debugEnabled: boolean;
   experimentViewConfig: ExperimentViewConfig;
   featurePresetKey: FeaturePresetKey;
@@ -61,18 +58,7 @@ function sanitizeFileSegment(value: string) {
   return value.trim().replace(/[^a-zA-Z0-9._-]+/g, "_") || "experiment";
 }
 
-function getProviderLabel(providerKey: ProviderKey) {
-  return (
-    PROVIDER_OPTIONS.find((provider) => provider.key === providerKey)?.label ??
-    providerKey
-  );
-}
-
-export function createExportBaseName(
-  config: ExperimentViewConfig,
-  age: number,
-  exportedAt: Date,
-) {
+export function createExportBaseName(config: ExperimentViewConfig, age: number, exportedAt: Date) {
   const timestamp = exportedAt
     .toISOString()
     .replace(/[-:]/g, "")
@@ -98,10 +84,8 @@ export function createExperimentExportInfo(
     : undefined;
   const position = camera.positionCartographic;
   const canvas = scene.canvas;
-  const providerLabel = getProviderLabel(context.providerKey);
-  const referencePolygonSource = getGplatesReferencePolygonSource(
-    context.referencePolygonKey,
-  );
+  const providerLabel = getServiceLabel(context.serviceConfig);
+  const referencePolygonSource = getGplatesReferencePolygonSource(context.referencePolygonKey);
   const orthographic = isOrthographicCamera(context.viewer);
 
   return {
@@ -115,11 +99,7 @@ export function createExperimentExportInfo(
     platePolygonFile: context.featureUrl,
     timeMa: context.age,
     viewMode: getExperimentViewMode(scene.mode),
-    projection: getExperimentProjection(
-      scene.mode,
-      context.providerKey,
-      context.customProviderConfig,
-    ),
+    projection: getExperimentProjection(scene.mode, context.serviceConfig),
     centralMeridian: roundNumber(getCentralMeridian(extent)),
     extent,
     camera3D:
@@ -138,8 +118,7 @@ export function createExperimentExportInfo(
       pixelRatio: context.viewer.resolutionScale,
       canvasWidth: canvas.width,
       canvasHeight: canvas.height,
-      devicePixelRatio:
-        typeof window === "undefined" ? 1 : window.devicePixelRatio,
+      devicePixelRatio: typeof window === "undefined" ? 1 : window.devicePixelRatio,
       resolutionScale: context.viewer.resolutionScale,
       configuredCssWidth: context.experimentViewConfig.output.width,
       configuredCssHeight: context.experimentViewConfig.output.height,
@@ -151,8 +130,7 @@ export function createExperimentExportInfo(
       controlPoints: false,
       graticule: false,
       gplatesReferencePolygons:
-        context.referencePolygonKey !== "off" &&
-        Boolean(referencePolygonSource?.url),
+        context.referencePolygonKey !== "off" && Boolean(referencePolygonSource?.url),
       backgroundColor: context.globeBaseColor,
       opacity: 1,
     },
@@ -168,9 +146,10 @@ export function createExperimentExportInfo(
       rotUrls: context.rotationFiles,
       providerKey: context.providerKey,
       providerLabel,
-      ...(context.providerKey === "custom-url-template"
-        ? { customProviderConfig: context.customProviderConfig }
-        : {}),
+      // 未完成的在线表单不能使当前本地数据的实验导出变成无法重新导入的配置。
+      serviceConfig: validateTileServiceConfig(context.serviceConfig).length
+        ? undefined
+        : context.serviceConfig,
     },
     render: {
       initialized: context.initialized,

@@ -14,6 +14,159 @@
   scrollbar-width: thin;
 }
 
+/* 三个主步骤常显，配置明细按需展开；状态摘要与正在编辑的选项分开呈现。 */
+.workflow-step {
+  display: inline-grid;
+  width: 22px;
+  height: 22px;
+  margin-right: 6px;
+  place-items: center;
+  border-radius: 50%;
+  background: rgb(241 121 34 / 18%);
+  color: #ffb16f;
+}
+
+.control-panel .field-hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #bbc8d8;
+  overflow-wrap: anywhere;
+}
+
+.unstyled-fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.active-source {
+  display: grid;
+  gap: 5px;
+  padding: 10px;
+  border-left: 3px solid #8fb6ff;
+  border-radius: 4px;
+  background: rgb(143 182 255 / 7%);
+  overflow-wrap: anywhere;
+  font-size: 13px;
+}
+
+.active-source-label {
+  color: #9fb3c8;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.active-source strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.panel-disclosure > summary {
+  cursor: pointer;
+  color: #d9e2ec;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.panel-disclosure > summary:focus-visible {
+  outline: 2px solid #8fb6ff;
+  outline-offset: 4px;
+}
+
+.panel-disclosure[open] > summary {
+  margin-bottom: 12px;
+}
+
+.source-settings {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 6px;
+}
+
+.source-apply-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.source-apply-actions button {
+  flex: 1 1 auto;
+  padding: 0 10px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.service-connection-form,
+.service-protocol-fields {
+  display: grid;
+  min-width: 0;
+  gap: 10px;
+}
+.service-connection-form {
+  padding-top: 10px;
+  border-top: 1px solid rgb(255 255 255 / 12%);
+}
+.service-protocol-fields {
+  margin: 0;
+  padding: 10px;
+  border: 1px solid rgb(143 182 255 / 22%);
+  border-radius: 6px;
+}
+.service-protocol-fields legend {
+  color: #a9d1ff;
+  font-size: 12px;
+}
+.service-example-edited,
+.service-tile-test {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+.service-example-edited {
+  justify-content: space-between;
+  color: #ffc58e;
+}
+.service-tile-test img {
+  flex: 0 0 80px;
+  border: 1px solid rgb(255 255 255 / 16%);
+  border-radius: 4px;
+}
+.service-advanced {
+  padding: 10px;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 6px;
+}
+.service-validation {
+  margin: 0;
+  padding-left: 18px;
+  color: #ffc58e;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.active-service-url {
+  display: block;
+  min-width: 0;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.service-connection-form textarea {
+  font:
+    12px/1.5 ui-monospace,
+    monospace;
+}
+
 .control-panel::-webkit-scrollbar,
 .stats-panel pre::-webkit-scrollbar,
 textarea::-webkit-scrollbar {
@@ -367,6 +520,8 @@ textarea::-webkit-scrollbar-thumb:hover {
 }
 
 .status {
+  flex-shrink: 0;
+  overflow-wrap: anywhere;
   min-height: 20px;
   margin: 0;
   color: #a9d1ff;

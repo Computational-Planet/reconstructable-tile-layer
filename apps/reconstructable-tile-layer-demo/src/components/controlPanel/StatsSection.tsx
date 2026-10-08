@@ -1,17 +1,13 @@
 /** Displays manager statistics and operation status. */
 import type { ControlPanelProps } from "./ControlPanel.types";
 
-type StatsSectionProps = Pick<ControlPanelProps, "stats" | "status">;
+type StatsSectionProps = Pick<ControlPanelProps, "stats">;
 
-export function StatsSection({ stats, status }: StatsSectionProps) {
+export function StatsSection({ stats }: StatsSectionProps) {
   return (
-    <>
-      <p className="status">{status}</p>
-
-      <section className="panel-section stats-panel">
-        <h2>Stats</h2>
-        <pre>{stats ? JSON.stringify(stats, null, 2) : "Not initialized"}</pre>
-      </section>
-    </>
+    <details className="panel-section stats-panel panel-disclosure">
+      <summary>Runtime statistics</summary>
+      <pre>{stats ? JSON.stringify(stats, null, 2) : "Not initialized"}</pre>
+    </details>
   );
 }

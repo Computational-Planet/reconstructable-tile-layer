@@ -8,7 +8,7 @@ export class CachedPromise<T> {
   getOrCreate(key: string, promiseFn: () => Promise<T>): Promise<T> {
     if (!this.cacheMap.has(key)) {
       const promise = promiseFn().catch((error) => {
-        this.cacheMap.delete(key);
+        this.delete(key, promise);
         throw error;
       });
       this.cacheMap.set(key, promise);
@@ -16,8 +16,11 @@ export class CachedPromise<T> {
     return this.cacheMap.get(key)!;
   }
 
-  delete(key: string): void {
-    this.cacheMap.delete(key);
+  delete(key: string, expected?: Promise<T>): void {
+    // 换源后同名键可能已指向新请求；旧任务只能删除自己的缓存项。
+    if (!expected || this.cacheMap.get(key) === expected) {
+      this.cacheMap.delete(key);
+    }
   }
 
   clear(): void {

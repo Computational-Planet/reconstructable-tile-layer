@@ -1,7 +1,7 @@
 import {
   Math as CesiumMath,
   Rectangle,
-  WebMercatorTilingScheme,
+  WebMercatorProjection,
   type ImageryProvider,
   type ImageryTypes,
 } from "cesium";
@@ -104,14 +104,15 @@ export function getIdentityTextureCoordData(vertexRowNum: number) {
   return positions;
 }
 
-function getTextureCoordData(
+export function getTextureCoordData(
   vertexRowNum: number,
   provider: ImageryProvider,
   x: number,
   y: number,
   level: number,
 ) {
-  if (provider.tilingScheme instanceof WebMercatorTilingScheme) {
+  // 自定义 tiling scheme 可能继承墨卡托类但输出经纬度纹理，应按实际投影判断。
+  if (provider.tilingScheme.projection instanceof WebMercatorProjection) {
     const rectangle = provider.tilingScheme.tileXYToRectangle(x, y, level, new Rectangle());
     const sinLatitudeSouth = Math.sin(rectangle.south);
     const southMercatorY = 0.5 * Math.log((1 + sinLatitudeSouth) / (1 - sinLatitudeSouth));
@@ -152,6 +153,9 @@ export function uploadImageToTexture(
   allowMipMap = false,
 ) {
   gl.bindTexture(gl.TEXTURE_2D, texture);
+  // Canvas/HTMLImage 的首行在北侧，WebGL 的 t=0 在南侧；上传时统一方向，避免逐瓦片南北翻转。
+  // ImageBitmap 忽略此开关，Cesium 的 loadImage 已在解码时执行 flipY，不能再手动翻一次。
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
 
   if (allowMipMap && isPowerOf2(image.width) && isPowerOf2(image.height)) {
@@ -316,6 +320,16 @@ function drawSceneMasked(
     gl.bindBuffer(gl.ARRAY_BUFFER, maskVertexBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, maskVertices, gl.STATIC_DRAW);
     gl.useProgram(maskProgramInfo.program);
+    // 遮罩只使用位置属性。旧 Canvas 池会删除上一张瓦片的纹理坐标缓冲，
+    // 若仍启用该属性，下一次遮罩绘制会因引用已删除的缓冲而失败。
+    for (const location of [
+      defaultProgramInfo.attribLocations.vertexPosition,
+      defaultProgramInfo.attribLocations.textureCoord,
+    ]) {
+      if (location >= 0 && location !== maskProgramInfo.attribLocations.vertexPosition) {
+        gl.disableVertexAttribArray(location);
+      }
+    }
     setMaskPositionAttribute(gl, maskVertexBuffer, maskProgramInfo);
 
     const projectionMatrix = mat4.create();

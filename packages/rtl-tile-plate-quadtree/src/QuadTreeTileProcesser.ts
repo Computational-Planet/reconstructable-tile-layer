@@ -18,11 +18,6 @@ type CrossInfo = {
   magnify: boolean;
 };
 
-function getTilingSchemeReferenceKey(tilingScheme: TilingScheme) {
-  const { x, y, z } = tilingScheme.ellipsoid.radii;
-  return `${tilingScheme.constructor.name}:${x},${y},${z}`;
-}
-
 function isTileClipArea(value: Array<number> | GeographicClipArea): value is GeographicClipArea {
   return !Array.isArray(value) && Array.isArray(value.polygons);
 }
@@ -417,11 +412,25 @@ export class QuadTreeTileProcesser {
   }
 
   /** Appends tiles at the effective root detail level to `result`. */
-  findTilesAtRoot(result: Array<NodeInfo>) {
+  findTilesAtRoot(result: Array<NodeInfo>, bounds: { minLevel?: number; maxLevel?: number } = {}) {
+    const minLevel = bounds.minLevel ?? 0;
+    const maxLevel = bounds.maxLevel ?? Infinity;
+    if (
+      !Number.isInteger(minLevel) ||
+      minLevel < 0 ||
+      maxLevel < minLevel ||
+      (maxLevel !== Infinity && !Number.isInteger(maxLevel))
+    ) {
+      throw new RangeError(
+        "Root level bounds must be non-negative integers with maxLevel >= minLevel.",
+      );
+    }
+    const rootLevel = (index: number) =>
+      Math.min(maxLevel, Math.max(minLevel, 3, this._realRootLevel[index]));
     if (this._areaMode) {
       for (let i = 0; i < this.rootNum; i++) {
         const subResult: NodeInfo[] = [];
-        const level = this._realRootLevel[i] > 3 ? this._realRootLevel[i] : 3;
+        const level = rootLevel(i);
         this._areaRoots[i].getTileInfoByLevel(level, subResult);
         result.push(...subResult);
       }
@@ -430,7 +439,7 @@ export class QuadTreeTileProcesser {
 
     for (let i = 0; i < this.rootNum; i++) {
       const subResult: NodeInfo[] = [];
-      const level = this._realRootLevel[i] > 3 ? this._realRootLevel[i] : 3;
+      const level = rootLevel(i);
       this._roots[i].getTileInfoByLevel(level, subResult);
       result.push(...subResult);
       console.log("level" + this._realRootLevel[i]);
@@ -482,16 +491,11 @@ export class QuadTreeTileProcesser {
     );
   }
 
-  /** Rebuilds when the provider's tiling-scheme class or ellipsoid radii change. */
+  /** Rebuilds source-tile clipping and bounds when the imagery provider is replaced. */
   updateProvider(provider: ImageryProvider) {
-    if (
-      getTilingSchemeReferenceKey(provider.tilingScheme) ===
-      getTilingSchemeReferenceKey(this._tilingScheme)
-    ) {
-      return;
-    } else {
-      this.init(provider.tilingScheme, this._sourceGeometry);
-    }
+    // 同一投影也可能更换栅格范围、根布局或自定义投影参数；显式换源时统一重建，
+    // 同时覆盖调用方原地修改 tilingScheme 的情况，避免继续使用旧源的裁剪结果。
+    this.init(provider.tilingScheme, this._sourceGeometry);
   }
   /** Rebuilds the tree with new geographic clipping geometry. */
   updatePolygon(polygon: Array<number> | GeographicClipArea) {

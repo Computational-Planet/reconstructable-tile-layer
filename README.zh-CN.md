@@ -17,6 +17,11 @@ Web 瓦片服务作为影像源，将瓦片内容分配给多边形板块域，�
 有限旋转，在 WebGL 中对边界瓦片进行掩膜，并在 Cesium 中渲染处理后的片段。
 本实现重建的是已发布的可视图层，不会恢复源属性、拓扑、要素标识或数值栅格值。
 
+可选本地文件扩展会独立保留 GeoTIFF/NetCDF 原始数值，提供标准 Cesium 影像，并在
+浏览器 Worker 中导出 COG。源码 Demo 已提供这一路径；在线演示可能仍为较早版本。
+详见[本地数据操作说明](apps/reconstructable-tile-layer-demo/README.zh-CN.md#本地科学栅格)
+及[逐数据集验证范围](scripts/raster/README.md#production-demo-and-scientific-meaning)。
+
 ## Demo
 
 **在线演示：** [打开可重建瓦片图层 Demo](https://computational-planet.github.io/reconstructable-tile-layer/)。
@@ -30,8 +35,8 @@ Web 瓦片服务作为影像源，将瓦片内容分配给多边形板块域，�
 [`apps/reconstructable-tile-layer-demo`](apps/reconstructable-tile-layer-demo)
 中的应用就是 `pnpm dev` 启动的项目 Demo。它：
 
-- 基于 React、Vite、Cesium 和四个 RTL 工作区库；
-- 通过 Turbo 启动全部库的 Rollup 监听构建；
+- 基于 React、Vite、Cesium、四个 RTL 核心库及三个可选栅格库；
+- 通过 Turbo 启动核心库的 Rollup 监听构建；
 - 支持替换影像服务、板块域数据和 ROT 模型；
 - 复现论文中的年代切换、源层级加载、视图感知细化、参考图层叠加和结果导出流程。
 
@@ -46,11 +51,12 @@ pnpm dev
 
 ```sh
 pnpm install --frozen-lockfile
+pnpm build:packages
 pnpm dev
 ```
 
-Vite 会在终端输出本地地址。命令运行期间，任意库的代码变更都会自动重新构建并提供
-给 Demo 使用。
+Vite 会在终端输出本地地址。命令运行期间，核心库的代码变更会自动重新构建。
+可选栅格库及其 Worker 修改后执行 `pnpm build:packages` 更新产物。
 
 ![可重建瓦片图层 Demo 展示 120 Ma 古地理重建](images/rtl_demo_preview.png)
 
@@ -92,6 +98,15 @@ Vite 会在终端输出本地地址。命令运行期间，任意库的代码变
 | `reconstructable-tile-layer-demo` | [目录](apps/reconstructable-tile-layer-demo) | [English](apps/reconstructable-tile-layer-demo/README.md) · [简体中文](apps/reconstructable-tile-layer-demo/README.zh-CN.md) | 使用可替换的服务、模型、年代和视图演示论文工作流。          |
 
 每个工作区的 README 都说明了其方法作用、输入约定、用法和保留资源的生命周期。
+
+| 可选包                                                              | 职责                                                          | 与主包的关系                                                |
+| ------------------------------------------------------------------- | ------------------------------------------------------------- | ----------------------------------------------------------- |
+| [rtl-raster-source](packages/rtl-raster-source)                     | 本地数值窗口、CRS/网格元数据、显式 `/netcdf` 子入口的 CF 选片 | 无 Cesium/React/重建依赖，可独立用于科学数据处理            |
+| [rtl-raster-imagery-provider](packages/rtl-raster-imagery-provider) | 将数值源变成单波段/RGB/NoData 影像，控制缓存                  | Cesium peer；独立 Viewer 或现有 RTL `provider` 接口均可使用 |
+| [rtl-raster-converter](packages/rtl-raster-converter)               | TIFF 或已选二维切片 → COG 与溯源 JSON；GDAL Worker 按需启动   | 无 Cesium/React；由宿主提供引擎静态资源；直接显示无需转换   |
+
+主包不强依赖这些引擎。现代坐标源需要匹配的板块模型；已有古坐标快照使用普通
+影像图层按年龄显示，不再旋转。本轮不实现数值点查询。
 
 ## 方法与代码映射
 

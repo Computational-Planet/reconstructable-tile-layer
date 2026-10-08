@@ -1,0 +1,53 @@
+{
+  "name": "rtl-raster-source",
+  "version": "0.1.0",
+  "description": "Browser-local numeric raster windows and metadata for GeoTIFF and scientific grids.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./netcdf": {
+      "types": "./dist/netcdf/index.d.ts",
+      "import": "./dist/netcdf/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "README.zh-CN.md",
+    "LICENSE",
+    "licenses",
+    "THIRD_PARTY_NOTICES.md"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "pnpm run clean && tsc -p tsconfig.json && rollup --config rollup.workers.config.mjs",
+    "clean": "rimraf dist",
+    "lint": "eslint src --ext .ts --report-unused-disable-directives --max-warnings 0",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "geotiff": "3.0.5",
+    "h5wasm": "0.10.3",
+    "netcdfjs": "4.0.0"
+  },
+  "license": "ISC",
+  "author": "Qiuhan Wang",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Computational-Planet/reconstructable-tile-layer.git",
+    "directory": "packages/rtl-raster-source"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

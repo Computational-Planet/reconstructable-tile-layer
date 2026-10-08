@@ -26,7 +26,8 @@
     "clean": "rimraf dist",
     "dev": "rollup --config --watch",
     "lint": "eslint src --ext .ts --report-unused-disable-directives --max-warnings 0",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "keywords": [
     "cesium",

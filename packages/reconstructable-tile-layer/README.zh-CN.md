@@ -90,6 +90,43 @@ viewer.destroy();
 
 ## RTL 输入
 
+### 可选的本地科学栅格
+
+主包继续使用 `ImageryProvider` 接口，不依赖栅格、NetCDF、HDF5 或 GDAL 引擎。
+需要本地数据时安装 `rtl-raster-source` 与 `rtl-raster-imagery-provider`：
+
+```ts
+import { openRasterSource } from "rtl-raster-source";
+import { RasterImageryProvider } from "rtl-raster-imagery-provider";
+
+const source = await openRasterSource(file);
+const localProvider = await RasterImageryProvider.fromSource(source, {
+  ellipsoid: viewer.scene.globe.ellipsoid,
+  style: { kind: "single-band", band: 0, domain: [-8000, 4000] },
+});
+// 数据必须处于所选板块模型的现代参考位置。
+await rtl.setImageryProvider(viewer, localProvider);
+await rtl.loadRootTiles(viewer);
+await rtl.setReconstructionAge(100);
+
+rtl.destroy(viewer); // 先解除场景与异步任务引用
+localProvider.destroy();
+source.close();
+```
+
+NetCDF 使用显式子入口 `rtl-raster-source/netcdf`；通过 `describeVariable` 查看 CF
+空间轴与选片维度，选出二维切片后交给同一适配器。dataset 拥有切片，其关闭顺序为
+provider、slice、dataset。可选 `rtl-raster-converter` 配合应用托管的 GDAL 资源导出
+数值 COG；直接显示不要求先转换。各包 README 提供独立使用与 Worker 托管示例。
+
+PaleoDEM 等已经位于古坐标的快照，使用普通 Cesium 图层按显式年龄显示，不再旋转。
+模型日历时间不作为地质年龄。现代地形的刚性板块搬移也不等于古地形预测。
+此接入不实现点查询或逆向数值采样。
+
+换源会清除相关瓦片覆盖缓存并使旧年代/图元任务与旧图像交付失效；`clear()` 保留
+manager 的可复用性，`destroy()` 同时阻止尚未完成的初始化重新变为就绪。调用方再
+关闭自己拥有的源。换源中断的视图细化返回 `stale-source`。
+
 ### 已发布影像服务
 
 `provider` 提供源瓦片坐标、瓦片方案、图像请求和服务访问行为。支持地理坐标

@@ -267,22 +267,28 @@ export class CesiumTileProcesser {
 
     const imagePromise = this._imageCachePromise.getOrCreate(tileKey, async () => {
       const requestStart = now();
-      this._stats.imageRequestAttempts++;
       try {
-        const request = provider.requestImage(x, y, level);
-        if (!request) {
-          this._stats.imageRequestUndefined++;
-          throw new Error("图像获取失败");
+        while (!this._destroyed && cacheToken === this._cacheToken) {
+          this._stats.imageRequestAttempts++;
+          const request = provider.requestImage(x, y, level);
+          if (!request) {
+            // Cesium 的 undefined 表示暂时限流；多瓦片加载应稍后重试，不能当作缺块。
+            // 每次等待后重新检查换源/销毁标记，防止旧请求继续进入新场景。
+            this._stats.imageRequestUndefined++;
+            await new Promise<void>((resolve) => setTimeout(resolve, 16));
+            continue;
+          }
+          const requestedImage = await request;
+          if (!requestedImage) {
+            this._stats.imageRequestUndefined++;
+            throw new Error("图像获取失败");
+          }
+          this._stats.imageRequestSuccesses++;
+          return requestedImage;
         }
-        const requestedImage = await request;
-        if (!requestedImage) {
-          this._stats.imageRequestUndefined++;
-          throw new Error("图像获取失败");
-        }
-        this._stats.imageRequestSuccesses++;
-        return requestedImage;
+        throw new Error("Imagery request cancelled after clearing or destroying the processor.");
       } catch (error) {
-        this._stats.imageRequestFailures++;
+        if (!this._destroyed && cacheToken === this._cacheToken) this._stats.imageRequestFailures++;
         throw error;
       } finally {
         const requestEnd = now();
@@ -299,7 +305,7 @@ export class CesiumTileProcesser {
     if (cacheToken === this._cacheToken) {
       this._imageBuffer.set(tileKey, image);
     }
-    this._imageCachePromise.delete(tileKey);
+    this._imageCachePromise.delete(tileKey, imagePromise);
     return image;
   }
 
@@ -335,15 +341,16 @@ export class CesiumTileProcesser {
         return;
       }
 
+      const cacheToken = this._cacheToken;
       worker.busy = true;
       this._stats.maxBusySlotCount = Math.max(
         this._stats.maxBusySlotCount,
         this._rendererPool.workers.filter((item) => item.busy).length,
       );
       Promise.resolve()
-        .then(() => worker.render(job))
+        .then(() => (cacheToken === this._cacheToken ? worker.render(job) : null))
         .then((result) => {
-          if (result) {
+          if (result && cacheToken === this._cacheToken) {
             this.recordRenderTiming(result.timing);
             this._currentTileXYZ = {
               x: job.x,
@@ -437,17 +444,19 @@ export class CesiumTileProcesser {
       return Promise.resolve(bufferedResult.retain());
     }
 
+    const cacheToken = this._cacheToken;
+    const isCurrent = () => !this._destroyed && cacheToken === this._cacheToken;
     const pendingResult = this._resultPromises.get(resultKey);
     if (pendingResult) {
       this._stats.resultPromiseHits++;
-      return pendingResult.then((asset) => asset?.retain() ?? null);
+      return pendingResult.then((asset) => (isCurrent() ? (asset?.retain() ?? null) : null));
     }
 
     this._stats.resultCacheMisses++;
-    const cacheToken = this._cacheToken;
     let processingStart: number | null = null;
     const resultPromise = this.getImage(x, y, level, provider, cacheToken)
       .then((image) => {
+        if (!isCurrent()) return null;
         processingStart = now();
         return this.enqueueRender({
           x,
@@ -465,6 +474,10 @@ export class CesiumTileProcesser {
         if (!result) {
           return null;
         }
+        if (!isCurrent()) {
+          disposeSnapshotCanvas(result.snapshotCanvas);
+          return null;
+        }
 
         if (outputType === "canvas") {
           this.recordExportTiming({ exportMs: 0, encodeMs: 0 });
@@ -476,23 +489,28 @@ export class CesiumTileProcesser {
         );
       })
       .then((asset) => {
-        if (asset) {
-          this._currentResult = asset;
+        if (!asset) return null;
+        // 交付前持有一份引用，防止容量为 0 的缓存或异步 clear 提前释放图像。
+        asset.retain();
+        if (!isCurrent()) {
+          asset.release();
+          return null;
         }
-        if (asset && cacheToken === this._cacheToken) {
-          this._resultBuffer.set(resultKey, asset.retain());
-        }
+        this._currentResult = asset;
+        this._resultBuffer.set(resultKey, asset.retain());
         return asset;
       })
       .catch((error) => {
-        console.error("获取或处理图像时发生错误:", error);
+        if (isCurrent()) console.error("获取或处理图像时发生错误:", error);
         return null;
       })
       .finally(() => {
         if (processingStart !== null) {
           this._benchmarkObserver?.onStageOperation("masking", processingStart, now());
         }
-        this._resultPromises.delete(resultKey);
+        if (this._resultPromises.get(resultKey) === resultPromise) {
+          this._resultPromises.delete(resultKey);
+        }
       });
 
     this._resultPromises.set(resultKey, resultPromise);
@@ -500,7 +518,13 @@ export class CesiumTileProcesser {
       this._stats.maxPendingResultPromiseCount,
       this._resultPromises.size,
     );
-    return resultPromise.then((asset) => asset?.retain() ?? null);
+    return resultPromise.then((asset) => {
+      try {
+        return isCurrent() ? (asset?.retain() ?? null) : null;
+      } finally {
+        asset?.release();
+      }
+    });
   }
 
   /**
@@ -679,6 +703,8 @@ export class CesiumTileProcesser {
    */
   clearBuffer() {
     this._cacheToken++;
+    this._currentResult = null;
+    this._currentTileXYZ = undefined;
     this._imageBuffer.clear();
     this._resultBuffer.clear();
     this._imageCachePromise.clear();

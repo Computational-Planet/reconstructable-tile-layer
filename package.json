@@ -12,7 +12,7 @@
     "format:check": "prettier --check .",
     "lint": "pnpm lint:root && pnpm --recursive --sort --if-present lint",
     "lint:root": "eslint .eslintrc.cjs rollup.config.mjs --ext .cjs --ext .mjs --report-unused-disable-directives --max-warnings 0",
-    "test": "pnpm --filter rtl-tile-plate-quadtree test",
+    "test": "pnpm --recursive --sort --if-present test",
     "typecheck": "pnpm build:packages && pnpm typecheck:workspace",
     "typecheck:workspace": "pnpm --recursive --sort --if-present typecheck"
   },

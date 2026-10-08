@@ -1,6 +1,6 @@
 /** Encapsulates manager initialization and tile loading actions. */
-import { useEffect, type MutableRefObject } from "react";
-import type { Viewer } from "cesium";
+import { useEffect, useRef, type MutableRefObject } from "react";
+import type { ImageryProvider, Viewer } from "cesium";
 import {
   ReconstructableTileLayer,
   type ReconstructableTileLayerStats,
@@ -10,32 +10,26 @@ import {
 import type { WebGLTileProcessor } from "rtl-webgl-tile-processor";
 
 import { waitForNextPaint } from "../cesium/cameraControls";
-import {
-  createImageryProvider,
-  validateUrlTemplateProviderConfig,
-  type ProviderKey,
-  type UrlTemplateProviderConfig,
-} from "../cesium/providers";
+import { createTileServiceProvider, type TileServiceConfig } from "../cesium/providers";
 import { DEMO_ELLIPSOID_CONFIG } from "../cesium/createViewer";
 import { resolveDemoAssetUrl } from "../utils/demoAssetUrl";
 
 type UseReconstructActionsOptions = {
+  activeRasterProvider?: ImageryProvider;
+  onServiceApplied: () => void;
   age: number;
   anchorPlateId: string | null;
-  customProviderConfig: UrlTemplateProviderConfig;
+  serviceConfig: TileServiceConfig;
   featureUrl: string;
   initialized: boolean;
   level: number;
   managerRef: MutableRefObject<ReconstructableTileLayer | null>;
   polygonRenderIntent: PolygonRenderIntentMode;
   primitiveTransformMode: PrimitiveTransformMode;
-  providerKey: ProviderKey;
   rotationSources: string[];
   sceneModeCleanupRef: MutableRefObject<(() => void) | null>;
   setBusy: (value: boolean) => void;
-  setCustomProviderError: (value: string) => void;
   setInitialized: (value: boolean) => void;
-  setProviderKey: (value: ProviderKey) => void;
   setStats: (value: ReconstructableTileLayerStats | null) => void;
   setStatus: (value: string) => void;
   webglProcessorRef: MutableRefObject<WebGLTileProcessor | null>;
@@ -43,49 +37,44 @@ type UseReconstructActionsOptions = {
 };
 
 export function useReconstructActions({
+  activeRasterProvider,
+  onServiceApplied,
   age,
   anchorPlateId,
-  customProviderConfig,
+  serviceConfig,
   featureUrl,
   initialized,
   level,
   managerRef,
   polygonRenderIntent,
   primitiveTransformMode,
-  providerKey,
   rotationSources,
   sceneModeCleanupRef,
   setBusy,
-  setCustomProviderError,
   setInitialized,
-  setProviderKey,
   setStats,
   setStatus,
   webglProcessorRef,
   viewerRef,
 }: UseReconstructActionsOptions) {
+  const initialization = useRef(0);
+  useEffect(
+    () => () => {
+      initialization.current++;
+    },
+    [],
+  );
   const refreshStats = () => {
     setStats(managerRef.current?.getRuntimeStats() ?? null);
   };
 
   const createSelectedImageryProvider = () => {
-    if (providerKey === "custom-url-template") {
-      const errors = validateUrlTemplateProviderConfig(customProviderConfig);
-      if (errors.length > 0) {
-        setCustomProviderError(errors[0]);
-        setStatus(errors[0]);
-        return null;
-      }
-    }
-
     try {
-      setCustomProviderError("");
-      return createImageryProvider(providerKey, customProviderConfig, {
+      return createTileServiceProvider(serviceConfig, {
         ellipsoid: DEMO_ELLIPSOID_CONFIG.ellipsoid,
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      setCustomProviderError(message);
       setStatus(message);
       return null;
     }
@@ -110,30 +99,31 @@ export function useReconstructActions({
     };
   }, [age, initialized]);
 
-  const handleInit = async () => {
+  const initializeWithProvider = async (suppliedProvider?: ImageryProvider): Promise<boolean> => {
     const viewer = viewerRef.current;
     const webglProcessor = webglProcessorRef.current;
     if (!viewer || !webglProcessor) {
       setStatus("Viewer is not ready yet.");
-      return;
+      return false;
     }
     if (rotationSources.length === 0) {
       setStatus("Add at least one ROT file before initialization.");
-      return;
+      return false;
     }
-    const resolvedAnchorPlateId =
-      anchorPlateId === null ? null : anchorPlateId.trim();
+    const resolvedAnchorPlateId = anchorPlateId === null ? null : anchorPlateId.trim();
     if (resolvedAnchorPlateId === "") {
       setStatus("Enter an anchor plate ID or choose Auto recurse.");
-      return;
+      return false;
     }
 
-    const provider = createSelectedImageryProvider();
+    const provider = suppliedProvider ?? activeRasterProvider ?? createSelectedImageryProvider();
     if (!provider) {
-      return;
+      return false;
     }
 
+    const token = ++initialization.current;
     setBusy(true);
+    setInitialized(false);
     setStatus("Loading feature and rotation data...");
     try {
       sceneModeCleanupRef.current?.();
@@ -155,60 +145,46 @@ export function useReconstructActions({
 
       managerRef.current = manager;
       await manager.initialize();
+      if (
+        token !== initialization.current ||
+        managerRef.current !== manager ||
+        !manager.ready ||
+        viewer.isDestroyed()
+      )
+        return false;
       sceneModeCleanupRef.current = manager.bindSceneModeSync(viewer);
+      if (!suppliedProvider && !activeRasterProvider) onServiceApplied();
       window.__simpleGeoReconstructStats = () => manager.getRuntimeStats();
       setInitialized(true);
       setStatus("Manager initialized.");
       refreshStats();
       viewer.scene.requestRender();
+      return true;
     } catch (error) {
+      if (token !== initialization.current) return false;
       console.error(error);
+      managerRef.current?.destroy(viewer);
+      managerRef.current = null;
       setInitialized(false);
       setStats(null);
       setStatus(error instanceof Error ? error.message : String(error));
+      return false;
     } finally {
-      setBusy(false);
+      if (token === initialization.current) setBusy(false);
     }
   };
 
   const handleApplyProvider = async () => {
-    const viewer = viewerRef.current;
-    const manager = managerRef.current;
-    if (!viewer || !manager) {
-      return;
-    }
-
     const provider = createSelectedImageryProvider();
     if (!provider) {
       return;
     }
 
-    setBusy(true);
-    setStatus("Applying provider and clearing loaded tiles...");
-    try {
-      await manager.setImageryProvider(viewer, provider);
-      setStatus("Provider applied. Reload tiles for the new imagery source.");
-      refreshStats();
-    } catch (error) {
-      console.error(error);
-      setStatus(error instanceof Error ? error.message : String(error));
-    } finally {
-      setBusy(false);
+    // 应用服务同时绑定当前模型；首次使用和从本地源切回都走同一个入口。
+    if (await initializeWithProvider(provider)) {
+      onServiceApplied();
+      setStatus("Source applied. Load tiles to reconstruct it.");
     }
-  };
-
-  const handleSaveCustomProviderConfig = () => {
-    const errors = validateUrlTemplateProviderConfig(customProviderConfig);
-    if (errors.length > 0) {
-      setCustomProviderError(errors[0]);
-      setStatus(errors[0]);
-      return false;
-    }
-
-    setCustomProviderError("");
-    setProviderKey("custom-url-template");
-    setStatus("Custom provider settings saved.");
-    return true;
   };
 
   const handleApplyTransformMode = async () => {
@@ -262,6 +238,18 @@ export function useReconstructActions({
       return;
     }
 
+    if (
+      activeRasterProvider &&
+      (!Number.isInteger(level) ||
+        level < (activeRasterProvider.minimumLevel ?? 0) ||
+        level > (activeRasterProvider.maximumLevel ?? 24))
+    ) {
+      setStatus(
+        `Local raster supports L${activeRasterProvider.minimumLevel ?? 0}–L${activeRasterProvider.maximumLevel ?? 24}. Choose a level in that range.`,
+      );
+      return;
+    }
+
     setBusy(true);
     setStatus(`Loading level ${level} tiles...`);
     try {
@@ -287,7 +275,15 @@ export function useReconstructActions({
     setStatus("Loading tiles in current view...");
     try {
       await waitForNextPaint();
-      const result = await manager.refineTilesForView(viewer);
+      // 本地低分辨率源也从 L2 细分起步，避免视野较大时自动退回难用的 L0/L1。
+      const result = await manager.refineTilesForView(
+        viewer,
+        activeRasterProvider
+          ? {
+              minLevel: Math.min(2, activeRasterProvider.maximumLevel ?? 2),
+            }
+          : {},
+      );
       const nextStatus = result.skippedReason
         ? `View load skipped: ${result.skippedReason}.`
         : result.loadedCount > 0
@@ -319,11 +315,10 @@ export function useReconstructActions({
     handleApplyProvider,
     handleApplyTransformMode,
     handleClear,
-    handleInit,
+    initializeWithProvider,
     handleLoadFineInView,
     handleLoadLevel,
     handleLoadRoot,
-    handleSaveCustomProviderConfig,
     refreshStats,
   };
 }

@@ -50,14 +50,28 @@ export function resolveFineTileViewRectangle(
   );
 }
 
-function getFineViewLevelBounds(provider: ImageryProvider, options: ViewFineTileLoadOptions) {
-  const providerMaxLevel = provider.maximumLevel ?? DEFAULT_VIEW_MAX_LEVEL;
-  const minLevel = Math.max(0, normalizeInteger(options.minLevel ?? 0, 0));
-  const configuredMaxLevel = normalizeInteger(
-    options.maxLevel ?? providerMaxLevel,
-    DEFAULT_VIEW_MAX_LEVEL,
+export function getProviderLevelBounds(provider: ImageryProvider) {
+  const minLevel = Math.max(0, normalizeInteger(provider.minimumLevel ?? 0, 0));
+  const maxLevel = Math.max(
+    minLevel,
+    normalizeInteger(provider.maximumLevel ?? DEFAULT_VIEW_MAX_LEVEL, DEFAULT_VIEW_MAX_LEVEL),
   );
-  const maxLevel = Math.max(minLevel, configuredMaxLevel);
+  return { minLevel, maxLevel };
+}
+
+function getFineViewLevelBounds(provider: ImageryProvider, options: ViewFineTileLoadOptions) {
+  const limits = getProviderLevelBounds(provider);
+  // 应用偏好不能把请求扩大到数据源声明的层级之外。
+  const minLevel = clampNumber(
+    normalizeInteger(options.minLevel ?? limits.minLevel, limits.minLevel),
+    limits.minLevel,
+    limits.maxLevel,
+  );
+  const maxLevel = clampNumber(
+    normalizeInteger(options.maxLevel ?? limits.maxLevel, limits.maxLevel),
+    minLevel,
+    limits.maxLevel,
+  );
 
   return { minLevel, maxLevel };
 }

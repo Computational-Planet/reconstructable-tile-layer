@@ -14,10 +14,7 @@ import {
   makeAppliedOutputSize,
   renderViewerFrame,
 } from "../cesium/cameraControls";
-import type {
-  ProviderKey,
-  UrlTemplateProviderConfig,
-} from "../cesium/providers";
+import type { ProviderKey, TileServiceConfig } from "../cesium/providers";
 import {
   DEFAULT_ANCHOR_PLATE_ID,
   type FeaturePresetKey,
@@ -33,8 +30,12 @@ import {
   type ExperimentViewConfig,
 } from "../experiment";
 import { canvasToPngBlob, downloadBlob, downloadJson } from "../utils/downloads";
+import type { LocalRasterDescriptor } from "../raster/context";
 
 type UseExperimentIOOptions = {
+  localRaster?: LocalRasterDescriptor;
+  appliedService: { config: TileServiceConfig; exampleKey: ProviderKey } | null;
+  onImportSources: (hasLocalRaster: boolean) => void;
   age: number;
   applyImportedFeatureSource: (
     importedFeatureUrl: string | undefined,
@@ -44,11 +45,12 @@ type UseExperimentIOOptions = {
     importedRotUrls: string[] | undefined,
     importedRotPresetKey: RotationPresetKey | undefined,
   ) => void;
-  customProviderConfig: UrlTemplateProviderConfig;
+  serviceConfig: TileServiceConfig;
   debugEnabled: boolean;
   experimentViewConfig: ExperimentViewConfig;
   featurePresetKey: FeaturePresetKey;
   featureUrl: string;
+  featureSourceLabel: string;
   globeBaseColor: string;
   initialized: boolean;
   level: number;
@@ -61,17 +63,15 @@ type UseExperimentIOOptions = {
   rotationAnchorMode: RotationAnchorMode;
   anchorPlateId: string | null;
   rotationSources: string[];
+  rotSourceLabels: string[];
   rotPresetKey: RotationPresetKey;
   setAge: (value: number) => void;
   setAppliedOutputSize: (value: ExperimentOutputConfig | null) => void;
   setBusy: (value: boolean) => void;
-  setCustomProviderConfig: (value: UrlTemplateProviderConfig) => void;
-  setCustomProviderError: (value: string) => void;
+  setServiceConfig: (value: TileServiceConfig) => void;
   setDebugEnabled: (value: boolean) => void;
   setExperimentViewConfig: (
-    value:
-      | ExperimentViewConfig
-      | ((current: ExperimentViewConfig) => ExperimentViewConfig),
+    value: ExperimentViewConfig | ((current: ExperimentViewConfig) => ExperimentViewConfig),
   ) => void;
   setGlobeBaseColor: (value: string) => void;
   setLevel: (value: number) => void;
@@ -90,14 +90,18 @@ type UseExperimentIOOptions = {
 };
 
 export function useExperimentIO({
+  localRaster,
+  appliedService,
+  onImportSources,
   age,
   applyImportedFeatureSource,
   applyImportedRotationSources,
-  customProviderConfig,
+  serviceConfig,
   debugEnabled,
   experimentViewConfig,
   featurePresetKey,
   featureUrl,
+  featureSourceLabel,
   globeBaseColor,
   initialized,
   level,
@@ -110,12 +114,12 @@ export function useExperimentIO({
   rotationAnchorMode,
   anchorPlateId,
   rotationSources,
+  rotSourceLabels,
   rotPresetKey,
   setAge,
   setAppliedOutputSize,
   setBusy,
-  setCustomProviderConfig,
-  setCustomProviderError,
+  setServiceConfig,
   setDebugEnabled,
   setExperimentViewConfig,
   setGlobeBaseColor,
@@ -139,10 +143,10 @@ export function useExperimentIO({
       throw new Error("Viewer is not ready yet.");
     }
 
-    return createExperimentExportInfo(
+    const info = createExperimentExportInfo(
       {
         age,
-        customProviderConfig,
+        serviceConfig: initialized && appliedService ? appliedService.config : serviceConfig,
         debugEnabled,
         experimentViewConfig,
         featurePresetKey,
@@ -153,7 +157,7 @@ export function useExperimentIO({
         manager: managerRef.current,
         polygonRenderIntent,
         primitiveTransformMode,
-        providerKey,
+        providerKey: initialized && appliedService ? appliedService.exampleKey : providerKey,
         referencePolygonColor,
         referencePolygonKey,
         rotationAnchorMode,
@@ -168,6 +172,35 @@ export function useExperimentIO({
       exportedAt,
       exportBaseName,
     );
+    if (localRaster) {
+      info.sources.localRaster = localRaster;
+      info.sources.providerLabel = `Local raster: ${localRaster.file.name}`;
+      info.layers.rtlLayer =
+        localRaster.context.role === "modern-reconstructable" ? localRaster.file.name : "off";
+    }
+    // 本地模型与本地栅格遵循同一规则：导出文件描述，不能重用会话中的 blob 地址。
+    const featureIsLocal = featureUrl.trim().startsWith("blob:");
+    const rotationsAreLocal = rotationSources.some((url) => url.trim().startsWith("blob:"));
+    if (featureIsLocal || rotationsAreLocal) {
+      info.sources.localModelFiles = {
+        feature: featureIsLocal ? featureSourceLabel || "Local plate-domain file" : undefined,
+        rotations: rotationsAreLocal
+          ? rotationSources.map((url, index) =>
+              url.trim().startsWith("blob:") ? rotSourceLabels[index] || "Local ROT file" : url,
+            )
+          : undefined,
+      };
+      if (featureIsLocal) {
+        info.sources.featureUrl = "";
+        info.platePolygonFile = "";
+      }
+      if (rotationsAreLocal) {
+        info.sources.rotUrls = [];
+        info.rotationFiles = [];
+        info.rotationFile = "";
+      }
+    }
+    return info;
   };
 
   const handleImportExperimentConfig = async (file: File | null) => {
@@ -178,6 +211,13 @@ export function useExperimentIO({
     try {
       const parsedJson = JSON.parse(await file.text()) as unknown;
       const importedConfig = parseImportedExperimentConfig(parsedJson);
+      onImportSources(!!importedConfig.localRasterFileName);
+      const rasterNotice = importedConfig.localRasterFileName
+        ? ` Reselect the local file ${importedConfig.localRasterFileName} and apply its slice/context; local files are not embedded.`
+        : "";
+      const modelNotice = importedConfig.requiresLocalModelFiles
+        ? " Reselect the local plate-domain/ROT files before initializing the model."
+        : "";
       const importedViewConfig = importedConfig.experimentViewConfig;
       const nextViewConfig: ExperimentViewConfig = importedViewConfig
         ? {
@@ -198,9 +238,7 @@ export function useExperimentIO({
           }
         : experimentViewConfig;
       const shouldApplyImportedView = Boolean(
-        importedViewConfig?.viewMode ||
-          importedViewConfig?.extent ||
-          importedViewConfig?.camera3D,
+        importedViewConfig?.viewMode || importedViewConfig?.extent || importedViewConfig?.camera3D,
       );
 
       if (importedConfig.age !== undefined) {
@@ -221,9 +259,8 @@ export function useExperimentIO({
       if (importedConfig.primitiveTransformMode) {
         setPrimitiveTransformMode(importedConfig.primitiveTransformMode);
       }
-      if (importedConfig.customProviderConfig) {
-        setCustomProviderConfig(importedConfig.customProviderConfig);
-        setCustomProviderError("");
+      if (importedConfig.serviceConfig) {
+        setServiceConfig(importedConfig.serviceConfig);
       }
       if (importedConfig.providerKey) {
         setProviderKey(importedConfig.providerKey);
@@ -238,19 +275,11 @@ export function useExperimentIO({
         setRotationAnchorMode(importedConfig.rotationAnchorMode);
       }
       if (importedConfig.anchorPlateId !== undefined) {
-        setAnchorPlateIdInput(
-          importedConfig.anchorPlateId ?? DEFAULT_ANCHOR_PLATE_ID,
-        );
+        setAnchorPlateIdInput(importedConfig.anchorPlateId ?? DEFAULT_ANCHOR_PLATE_ID);
       }
 
-      applyImportedFeatureSource(
-        importedConfig.featureUrl,
-        importedConfig.featurePresetKey,
-      );
-      applyImportedRotationSources(
-        importedConfig.rotUrls,
-        importedConfig.rotPresetKey,
-      );
+      applyImportedFeatureSource(importedConfig.featureUrl, importedConfig.featurePresetKey);
+      applyImportedRotationSources(importedConfig.rotUrls, importedConfig.rotPresetKey);
 
       if (importedViewConfig) {
         setExperimentViewConfig(nextViewConfig);
@@ -272,11 +301,13 @@ export function useExperimentIO({
 
       if (shouldApplyImportedView && viewerRef.current) {
         applyExperimentView(viewerRef.current, nextViewConfig);
-        setStatus(`Experiment config imported and view applied: ${file.name}`);
+        setStatus(
+          `Experiment config imported and view applied: ${file.name}.${rasterNotice}${modelNotice}`,
+        );
         return;
       }
 
-      setStatus(`Experiment config imported: ${file.name}`);
+      setStatus(`Experiment config imported: ${file.name}.${rasterNotice}${modelNotice}`);
     } catch (error) {
       console.error(error);
       setStatus(error instanceof Error ? error.message : String(error));
@@ -286,11 +317,7 @@ export function useExperimentIO({
   const handleExportInfo = () => {
     try {
       const exportedAt = new Date();
-      const exportBaseName = createExportBaseName(
-        experimentViewConfig,
-        age,
-        exportedAt,
-      );
+      const exportBaseName = createExportBaseName(experimentViewConfig, age, exportedAt);
       const info = createCurrentExportInfo(exportedAt, exportBaseName);
       downloadJson(info, `${exportBaseName}.json`);
       setStatus(`Experiment info exported: ${exportBaseName}.json`);
@@ -311,11 +338,7 @@ export function useExperimentIO({
     setStatus("Rendering screenshot...");
     try {
       const exportedAt = new Date();
-      const exportBaseName = createExportBaseName(
-        experimentViewConfig,
-        age,
-        exportedAt,
-      );
+      const exportBaseName = createExportBaseName(experimentViewConfig, age, exportedAt);
       await renderViewerFrame(viewer);
       const info = createCurrentExportInfo(exportedAt, exportBaseName);
       const pngBlob = await canvasToPngBlob(viewer.scene.canvas);

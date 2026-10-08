@@ -1,14 +1,12 @@
 /** Shares control panel props across the grouped section components. */
+import type { LocalRasterControls } from "../../hooks/useLocalRaster";
 import type {
   ReconstructableTileLayerStats,
   PolygonRenderIntentMode,
   PrimitiveTransformMode,
 } from "reconstructable-tile-layer";
 
-import type {
-  ProviderKey,
-  UrlTemplateProviderConfig,
-} from "../../cesium/providers";
+import type { ProviderKey, TileServiceConfig } from "../../cesium/providers";
 import type {
   FeaturePreset,
   FeaturePresetKey,
@@ -21,6 +19,11 @@ import type {
 import type { ExperimentViewConfig, ExperimentViewMode } from "../../experiment";
 
 export type ControlPanelProps = {
+  localRaster: LocalRasterControls;
+  sourceKind: ImagerySourceKind;
+  appliedService: AppliedService | null;
+  modelNeedsApply: boolean;
+  onSourceKindChange: (value: ImagerySourceKind) => void;
   age: number;
   busy: boolean;
   debugEnabled: boolean;
@@ -32,11 +35,11 @@ export type ControlPanelProps = {
   referencePolygonColor: string;
   referencePolygonKey: GplatesReferencePolygonKey;
   referencePolygonSources: GplatesReferencePolygonSource[];
-  customProviderConfig: UrlTemplateProviderConfig;
-  customProviderError: string;
+  serviceConfig: TileServiceConfig;
   experimentViewConfig: ExperimentViewConfig;
   initialized: boolean;
   level: number;
+  tileLevelRange?: { minimumLevel: number; maximumLevel?: number };
   polygonRenderIntent: PolygonRenderIntentMode;
   primitiveTransformMode: PrimitiveTransformMode;
   providerKey: ProviderKey;
@@ -56,7 +59,7 @@ export type ControlPanelProps = {
   onApplyTransformMode: () => void;
   onCaptureScreenshot: () => void;
   onClear: () => void;
-  onCustomProviderConfigChange: (value: UrlTemplateProviderConfig) => void;
+  onServiceConfigChange: (value: TileServiceConfig) => void;
   onDebugEnabledChange: (value: boolean) => void;
   onExperimentSceneModeChange: (value: ExperimentViewMode) => void;
   onExperimentViewConfigChange: (value: ExperimentViewConfig) => void;
@@ -65,12 +68,10 @@ export type ControlPanelProps = {
   onFeatureUpload: (file: File | null) => void;
   onFeatureUrlChange: (value: string) => void;
   onGlobeBaseColorChange: (value: string) => void;
-  onInit: () => void;
   onImportExperimentConfig: (file: File | null) => void;
   onLevelChange: (value: number) => void;
   onLoadFineInView: () => void;
   onLoadLevel: () => void;
-  onLoadRoot: () => void;
   onPolygonRenderIntentChange: (value: PolygonRenderIntentMode) => void;
   onPrimitiveTransformModeChange: (value: PrimitiveTransformMode) => void;
   onProviderKeyChange: (value: ProviderKey) => void;
@@ -81,5 +82,13 @@ export type ControlPanelProps = {
   onRotPresetChange: (value: RotationPresetKey) => void;
   onRotUpload: (files: FileList | null) => void;
   onRotUrlsChange: (value: string) => void;
-  onSaveCustomProviderConfig: () => boolean;
+};
+
+/** 来源选择是待应用配置；当前生效的服务单独保存，避免把选项误当作地图状态。 */
+export type ImagerySourceKind = "tile-service" | "local-raster";
+export type AppliedService = {
+  config: TileServiceConfig;
+  exampleKey: ProviderKey;
+  label: string;
+  modelKey: string;
 };

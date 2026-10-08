@@ -5,10 +5,12 @@ import type {
   PrimitiveTransformMode,
 } from "reconstructable-tile-layer";
 import type { WebGLTileProcessor } from "rtl-webgl-tile-processor";
+import type { LocalRasterDescriptor } from "../raster/context";
 
 import type {
   ProviderKey,
   UrlTemplateProviderConfig,
+  TileServiceConfig,
 } from "../cesium/providers";
 import type {
   FeaturePresetKey,
@@ -51,10 +53,7 @@ export type ExperimentViewConfig = {
   output: ExperimentOutputConfig;
 };
 
-export type ExperimentProjection =
-  | "PlateCarree"
-  | "WebMercator"
-  | "OrthographicGlobe";
+export type ExperimentProjection = "PlateCarree" | "WebMercator" | "OrthographicGlobe";
 
 export type ExperimentExportInfo = {
   schemaVersion: 1;
@@ -90,6 +89,8 @@ export type ExperimentExportInfo = {
     opacity: number;
   };
   sources: {
+    localRaster?: LocalRasterDescriptor;
+    localModelFiles?: { feature?: string; rotations?: string[] };
     featurePresetKey: FeaturePresetKey;
     featureUrl: string;
     gplatesReferencePolygonColor: string;
@@ -102,6 +103,7 @@ export type ExperimentExportInfo = {
     providerKey: ProviderKey;
     providerLabel: string;
     customProviderConfig?: UrlTemplateProviderConfig;
+    serviceConfig?: TileServiceConfig;
   };
   render: {
     initialized: boolean;
@@ -132,8 +134,11 @@ export type ExperimentExportInfo = {
 };
 
 export type ImportedExperimentControlState = {
+  localRasterFileName?: string;
+  requiresLocalModelFiles?: boolean;
   age?: number;
   customProviderConfig?: UrlTemplateProviderConfig;
+  serviceConfig?: TileServiceConfig;
   debugEnabled?: boolean;
   experimentViewConfig?: Partial<ExperimentViewConfig> & {
     camera3D?: Partial<ExperimentCamera3D>;
