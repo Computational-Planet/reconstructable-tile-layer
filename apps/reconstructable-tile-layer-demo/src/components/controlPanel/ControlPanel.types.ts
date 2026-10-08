@@ -16,7 +16,11 @@ import type {
   RotationPreset,
   RotationPresetKey,
 } from "../../dataSources";
-import type { ExperimentViewConfig, ExperimentViewMode } from "../../experiment";
+import type {
+  ExperimentViewConfig,
+  ExperimentViewMode,
+  ExperimentViewPreset,
+} from "../../experiment";
 
 export type ControlPanelProps = {
   localRaster: LocalRasterControls;
@@ -56,6 +60,7 @@ export type ControlPanelProps = {
   onApplyOutputSize: () => void;
   onApplyProvider: () => void;
   onApplyPoseView: () => void;
+  onApplyCameraPreset: (value: ExperimentViewPreset) => void;
   onApplyTransformMode: () => void;
   onCaptureScreenshot: () => void;
   onClear: () => void;

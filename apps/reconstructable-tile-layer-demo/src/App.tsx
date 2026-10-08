@@ -7,6 +7,7 @@ import type {
 } from "reconstructable-tile-layer";
 
 import {
+  applyCameraPreset,
   applyExtentView,
   applyPoseView,
   applySceneMode,
@@ -34,8 +35,10 @@ import {
 } from "./dataSources";
 import {
   createDefaultExperimentViewConfig,
+  EXPERIMENT_VIEW_PRESETS,
   type ExperimentOutputConfig,
   type ExperimentViewMode,
+  type ExperimentViewPreset,
 } from "./experiment";
 import { useCesiumRuntime } from "./hooks/useCesiumRuntime";
 import { useDataSourceControls } from "./hooks/useDataSourceControls";
@@ -281,7 +284,7 @@ function App() {
       applyPoseView(viewer, experimentViewConfig.camera3D);
       setExperimentViewConfig((config) => ({
         ...config,
-        viewMode: "3D_GLOBE",
+        viewMode: config.camera3D.orthographic ? "3D_ORTHOGRAPHIC" : "3D_GLOBE",
       }));
       setStatus("3D camera pose applied.");
     } catch (error) {
@@ -290,11 +293,6 @@ function App() {
   };
 
   const handleExperimentSceneModeChange = (viewMode: ExperimentViewMode) => {
-    setExperimentViewConfig((config) => ({
-      ...config,
-      viewMode,
-    }));
-
     const viewer = viewerRef.current;
     if (!viewer) {
       setStatus("Viewer is not ready yet.");
@@ -303,11 +301,44 @@ function App() {
 
     try {
       applySceneMode(viewer, viewMode);
+      setExperimentViewConfig((config) => ({
+        ...config,
+        viewMode,
+        camera3D: {
+          ...config.camera3D,
+          orthographic:
+            viewMode === "2D_RECTANGULAR"
+              ? config.camera3D.orthographic
+              : viewMode === "3D_ORTHOGRAPHIC",
+        },
+      }));
       setStatus(
         viewMode === "2D_RECTANGULAR"
           ? "Scene mode set to 2D rectangular."
-          : "Scene mode set to 3D globe.",
+          : viewMode === "3D_ORTHOGRAPHIC"
+            ? "Scene mode set to 3D (orthographic)."
+            : "Scene mode set to 3D (perspective).",
       );
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : String(error));
+    }
+  };
+
+  const handleApplyCameraPreset = (preset: ExperimentViewPreset) => {
+    const viewer = viewerRef.current;
+    if (!viewer) {
+      setStatus("Viewer is not ready yet.");
+      return;
+    }
+
+    try {
+      const camera3D = applyCameraPreset(viewer, preset, experimentViewConfig.camera3D.orthographic);
+      setExperimentViewConfig((config) => ({
+        ...config,
+        viewMode: camera3D.orthographic ? "3D_ORTHOGRAPHIC" : "3D_GLOBE",
+        camera3D,
+      }));
+      setStatus(`Quick view applied: ${EXPERIMENT_VIEW_PRESETS[preset].label}.`);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : String(error));
     }
@@ -385,6 +416,7 @@ function App() {
         onApplyExtentView={handleApplyExtentView}
         onApplyOutputSize={handleApplyOutputSize}
         onApplyPoseView={handleApplyPoseView}
+        onApplyCameraPreset={handleApplyCameraPreset}
         onApplyTransformMode={reconstructActions.handleApplyTransformMode}
         onCaptureScreenshot={experimentIO.handleCaptureScreenshot}
         onClear={reconstructActions.handleClear}

@@ -38,6 +38,19 @@ Turbo 会同时启动四个核心库的监听构建和 Vite demo。三个可选�
 GPlates 参考叠加层、视图与渲染设置、实验导入导出和统计位于三个主步骤之后。
 快照和参考模式直接显示影像，第 3 步会说明为何无需加载重建瓦片。
 
+## 相机与快捷视角
+
+**Camera & Output → Scene mode** 提供 **2D rectangular**、**3D (perspective)**
+和 **3D (orthographic)**。正射模式保留三维球体和重建图层，使用平行投影。
+**Quick view** 可将反经线（±180°）、南极或北极置于画面中心，并按窗口比例完整显示球体。
+快捷视角保留当前三维投影；在二维模式使用时恢复上次选择的三维投影。
+**Detailed** 中仍可手动设置目标经纬度、距离、姿态和输出尺寸。
+
+实验 JSON 区分透视与正射：正射使用 `viewMode: "3D_ORTHOGRAPHIC"` 和
+`projection: "OrthographicGlobe"`，透视保留 `viewMode: "3D_GLOBE"` 并使用
+`projection: "PerspectiveGlobe"`。旧配置中的 `3D_GLOBE` 加 `camera3D.orthographic: true`
+会自动迁移为正射模式；读取投影枚举的外部脚本需支持上述取值。
+
 ## 连接在线影像数据
 
 **Tile map service** 是连接用户服务的工具。**Fill from example** 只把示例的全部连接参数填入表单，

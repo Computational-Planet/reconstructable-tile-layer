@@ -87,6 +87,21 @@ Parameters map to Cesium's [URL template](https://cesium.com/learn/cesiumjs/ref-
 [WMS](https://cesium.com/learn/cesiumjs/ref-doc/WebMapServiceImageryProvider.html) and
 [WMTS](https://cesium.com/learn/cesiumjs/ref-doc/WebMapTileServiceImageryProvider.html) providers.
 
+## Camera views
+
+**Camera & Output → Scene mode** offers **2D rectangular**, **3D (perspective)**,
+and **3D (orthographic)**. Orthographic mode keeps the 3D globe and reconstruction layers
+and uses parallel projection. **Quick view** centers the antimeridian (±180°), South Pole,
+or North Pole and fits the entire globe to the viewport. Presets retain the current 3D projection;
+from 2D they restore the last selected 3D projection. **Detailed** still provides manual target,
+range, orientation, and output controls.
+
+Experiment JSON uses `viewMode: "3D_ORTHOGRAPHIC"` and `projection: "OrthographicGlobe"`
+for orthographic views. Perspective views keep `viewMode: "3D_GLOBE"` and use
+`projection: "PerspectiveGlobe"`. Historical `3D_GLOBE` configs with
+`camera3D.orthographic: true` migrate on import. External scripts reading these enums
+must recognize the new values.
+
 ## Local scientific rasters
 
 1. Choose a local TIFF/COG or NetCDF file in **Imagery data source → Local TIFF / NetCDF → Source settings**. No upload

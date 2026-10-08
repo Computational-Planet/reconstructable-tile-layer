@@ -237,6 +237,9 @@ export function useExperimentIO({
             },
           }
         : experimentViewConfig;
+      if (importedViewConfig && nextViewConfig.viewMode !== "2D_RECTANGULAR") {
+        nextViewConfig.camera3D.orthographic = nextViewConfig.viewMode === "3D_ORTHOGRAPHIC";
+      }
       const shouldApplyImportedView = Boolean(
         importedViewConfig?.viewMode || importedViewConfig?.extent || importedViewConfig?.camera3D,
       );

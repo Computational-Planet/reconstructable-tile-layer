@@ -90,6 +90,7 @@ export function ControlPanel(props: ControlPanelProps) {
           onApplyExtentView={props.onApplyExtentView}
           onApplyOutputSize={props.onApplyOutputSize}
           onApplyPoseView={props.onApplyPoseView}
+          onApplyCameraPreset={props.onApplyCameraPreset}
           onExperimentSceneModeChange={props.onExperimentSceneModeChange}
           onExperimentViewConfigChange={props.onExperimentViewConfigChange}
         />

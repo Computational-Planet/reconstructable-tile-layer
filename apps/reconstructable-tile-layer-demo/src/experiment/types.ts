@@ -42,7 +42,9 @@ export type ExperimentOutputConfig = {
   pixelRatio: number;
 };
 
-export type ExperimentViewMode = "2D_RECTANGULAR" | "3D_GLOBE";
+export type ExperimentViewMode = "2D_RECTANGULAR" | "3D_GLOBE" | "3D_ORTHOGRAPHIC";
+
+export type ExperimentViewPreset = "antimeridian" | "south-pole" | "north-pole";
 
 export type ExperimentViewConfig = {
   caseId: string;
@@ -53,7 +55,11 @@ export type ExperimentViewConfig = {
   output: ExperimentOutputConfig;
 };
 
-export type ExperimentProjection = "PlateCarree" | "WebMercator" | "OrthographicGlobe";
+export type ExperimentProjection =
+  | "PlateCarree"
+  | "WebMercator"
+  | "PerspectiveGlobe"
+  | "OrthographicGlobe";
 
 export type ExperimentExportInfo = {
   schemaVersion: 1;

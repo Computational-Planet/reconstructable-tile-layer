@@ -1,5 +1,5 @@
 /** Builds downloadable experiment metadata from the current demo runtime. */
-import { Math as CesiumMath, SceneMode, type Viewer } from "cesium";
+import { Cartesian2, Math as CesiumMath, SceneMode, type Viewer } from "cesium";
 import type {
   ReconstructableTileLayer,
   ReconstructableTileLayerStats,
@@ -87,6 +87,16 @@ export function createExperimentExportInfo(
   const providerLabel = getServiceLabel(context.serviceConfig);
   const referencePolygonSource = getGplatesReferencePolygonSource(context.referencePolygonKey);
   const orthographic = isOrthographicCamera(context.viewer);
+  const center =
+    scene.mode === SceneMode.SCENE3D
+      ? camera.pickEllipsoid(
+          new Cartesian2(canvas.clientWidth / 2, canvas.clientHeight / 2),
+          scene.globe.ellipsoid,
+        )
+      : undefined;
+  const centralMeridian = center
+    ? CesiumMath.toDegrees(scene.globe.ellipsoid.cartesianToCartographic(center).longitude)
+    : getCentralMeridian(extent);
 
   return {
     schemaVersion: 1,
@@ -98,9 +108,9 @@ export function createExperimentExportInfo(
     rotationFiles: context.rotationFiles,
     platePolygonFile: context.featureUrl,
     timeMa: context.age,
-    viewMode: getExperimentViewMode(scene.mode),
-    projection: getExperimentProjection(scene.mode, context.serviceConfig),
-    centralMeridian: roundNumber(getCentralMeridian(extent)),
+    viewMode: getExperimentViewMode(scene.mode, orthographic),
+    projection: getExperimentProjection(scene.mode, context.serviceConfig, orthographic),
+    centralMeridian: roundNumber(centralMeridian),
     extent,
     camera3D:
       scene.mode === SceneMode.SCENE3D

@@ -1,5 +1,14 @@
 /** Provides default experiment controls for the demo startup state. */
-import type { ExperimentViewConfig } from "./types";
+import type { ExperimentViewConfig, ExperimentViewPreset } from "./types";
+
+export const EXPERIMENT_VIEW_PRESETS: Record<
+  ExperimentViewPreset,
+  { label: string; targetLon: number; targetLat: number }
+> = {
+  antimeridian: { label: "Antimeridian (±180°)", targetLon: 180, targetLat: 0 },
+  "south-pole": { label: "South Pole", targetLon: 0, targetLat: -90 },
+  "north-pole": { label: "North Pole", targetLon: 0, targetLat: 90 },
+};
 
 export function createDefaultExperimentViewConfig(): ExperimentViewConfig {
   const viewportWidth =

@@ -67,7 +67,11 @@ const POLYGON_RENDER_INTENTS: PolygonRenderIntentMode[] = ["classified", "all-po
 
 const PRIMITIVE_TRANSFORM_MODES: PrimitiveTransformMode[] = ["dynamic3D", "bakedInstance"];
 
-const IMPORTABLE_VIEW_MODES: ExperimentViewMode[] = ["2D_RECTANGULAR", "3D_GLOBE"];
+const IMPORTABLE_VIEW_MODES: ExperimentViewMode[] = [
+  "2D_RECTANGULAR",
+  "3D_GLOBE",
+  "3D_ORTHOGRAPHIC",
+];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -259,7 +263,12 @@ export function parseImportedExperimentConfig(value: unknown): ImportedExperimen
 
   const parsedCamera3D = camera3D ? parseCamera3D(camera3D) : undefined;
   if (parsedCamera3D) {
-    viewConfig.camera3D = parsedCamera3D;
+    // 旧版用 3D_GLOBE + orthographic 表示正射；导入时统一迁移到新的场景选项。
+    const orthographic = viewMode === "3D_ORTHOGRAPHIC" || parsedCamera3D.orthographic;
+    viewConfig.camera3D = { ...parsedCamera3D, orthographic };
+    if (viewMode !== "2D_RECTANGULAR") {
+      viewConfig.viewMode = orthographic ? "3D_ORTHOGRAPHIC" : "3D_GLOBE";
+    }
   }
 
   const parsedOutput = output ? parseOutput(output) : undefined;

@@ -5,6 +5,7 @@ import {
   Math as CesiumMath,
   Matrix4,
   OrthographicFrustum,
+  PerspectiveFrustum,
   Rectangle,
   SceneMode,
   type Viewer,
@@ -16,8 +17,10 @@ import type {
   ExperimentProjection,
   ExperimentViewConfig,
   ExperimentViewMode,
+  ExperimentViewPreset,
   GeographicExtent,
 } from "../experiment";
+import { EXPERIMENT_VIEW_PRESETS } from "../experiment/defaults";
 import type { TileServiceConfig } from "./providers";
 
 export function waitForNextPaint() {
@@ -47,19 +50,23 @@ export function getSceneModeName(mode: SceneMode) {
   return "MORPHING";
 }
 
-export function getExperimentViewMode(mode: SceneMode): ExperimentViewMode {
+export function getExperimentViewMode(
+  mode: SceneMode,
+  orthographic = false,
+): ExperimentViewMode {
   if (mode === SceneMode.SCENE2D) {
     return "2D_RECTANGULAR";
   }
-  return "3D_GLOBE";
+  return orthographic ? "3D_ORTHOGRAPHIC" : "3D_GLOBE";
 }
 
 export function getExperimentProjection(
   mode: SceneMode,
   serviceConfig: TileServiceConfig,
+  orthographic = false,
 ): ExperimentProjection {
   if (mode === SceneMode.SCENE3D) {
-    return "OrthographicGlobe";
+    return orthographic ? "OrthographicGlobe" : "PerspectiveGlobe";
   }
   if (serviceConfig.tilingSchemeKey === "web-mercator") {
     return "WebMercator";
@@ -81,7 +88,10 @@ export function getCentralMeridian(extent: GeographicExtent | undefined) {
     return 0;
   }
 
-  return (extent.west + extent.east) / 2;
+  // 跨反经线的范围需要先展开经度，避免把 ±180° 的中心误算成 0°。
+  const east = extent.east < extent.west ? extent.east + 360 : extent.east;
+  const center = (extent.west + east) / 2;
+  return center > 180 ? center - 360 : center;
 }
 
 export function validateExtent(extent: GeographicExtent) {
@@ -143,12 +153,21 @@ export function validateOutputConfig(output: ExperimentOutputConfig) {
 }
 
 export function applySceneMode(viewer: Viewer, viewMode: ExperimentViewMode) {
+  viewer.camera.cancelFlight();
   if (viewMode === "2D_RECTANGULAR") {
     if (viewer.scene.mode !== SceneMode.SCENE2D) {
       viewer.scene.morphTo2D(0);
     }
-  } else if (viewer.scene.mode !== SceneMode.SCENE3D) {
-    viewer.scene.morphTo3D(0);
+  } else {
+    if (viewer.scene.mode !== SceneMode.SCENE3D) {
+      viewer.scene.morphTo3D(0);
+    }
+    // 正射与透视共用三维球体；只切换视锥，不触发二维展开或重建图层。
+    if (viewMode === "3D_ORTHOGRAPHIC") {
+      viewer.camera.switchToOrthographicFrustum();
+    } else {
+      viewer.camera.switchToPerspectiveFrustum();
+    }
   }
 
   viewer.resize();
@@ -174,12 +193,7 @@ export function applyPoseView(viewer: Viewer, camera3D: ExperimentCamera3D) {
     throw new Error(error);
   }
 
-  applySceneMode(viewer, "3D_GLOBE");
-  if (camera3D.orthographic) {
-    viewer.camera.switchToOrthographicFrustum();
-  } else {
-    viewer.camera.switchToPerspectiveFrustum();
-  }
+  applySceneMode(viewer, camera3D.orthographic ? "3D_ORTHOGRAPHIC" : "3D_GLOBE");
 
   const target = Cartesian3.fromDegrees(
     camera3D.targetLon,
@@ -202,13 +216,46 @@ export function applyPoseView(viewer: Viewer, camera3D: ExperimentCamera3D) {
   viewer.scene.requestRender();
 }
 
+export function applyCameraPreset(
+  viewer: Viewer,
+  preset: ExperimentViewPreset,
+  orthographic: boolean,
+): ExperimentCamera3D {
+  applySceneMode(viewer, orthographic ? "3D_ORTHOGRAPHIC" : "3D_GLOBE");
+  const { targetLon, targetLat } = EXPERIMENT_VIEW_PRESETS[preset];
+  const radius = viewer.scene.globe.ellipsoid.maximumRadius;
+  const frustum = viewer.camera.frustum;
+  const aspectRatio = viewer.scene.canvas.clientWidth / Math.max(viewer.scene.canvas.clientHeight, 1);
+
+  // 正射 lookAt 用 range 设置视锥宽度；按短边留白，保证横屏和竖屏都能容纳完整球体。
+  let range = 2 * radius * 1.1 * Math.max(1, aspectRatio);
+  if (frustum instanceof PerspectiveFrustum) {
+    const halfFov = Math.atan(Math.tan(frustum.fovy / 2) * Math.min(1, aspectRatio));
+    range = radius * (1.1 / Math.sin(halfFov) - 1);
+  }
+  const camera3D: ExperimentCamera3D = {
+    targetLon,
+    targetLat,
+    range,
+    heading: 0,
+    pitch: -90,
+    roll: 0,
+    orthographic,
+  };
+  applyPoseView(viewer, camera3D);
+  return camera3D;
+}
+
 export function applyExperimentView(viewer: Viewer, config: ExperimentViewConfig) {
   if (config.viewMode === "2D_RECTANGULAR") {
     applyExtentView(viewer, config.extent);
     return;
   }
 
-  applyPoseView(viewer, config.camera3D);
+  applyPoseView(viewer, {
+    ...config.camera3D,
+    orthographic: config.viewMode === "3D_ORTHOGRAPHIC",
+  });
 }
 
 export function isOrthographicCamera(viewer: Viewer) {

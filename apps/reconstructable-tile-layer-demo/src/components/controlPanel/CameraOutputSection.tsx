@@ -1,7 +1,12 @@
 /** Renders experiment camera, extent, and output viewport controls. */
 import { useState } from "react";
 
-import type { ExperimentViewConfig, ExperimentViewMode } from "../../experiment";
+import {
+  EXPERIMENT_VIEW_PRESETS,
+  type ExperimentViewConfig,
+  type ExperimentViewMode,
+  type ExperimentViewPreset,
+} from "../../experiment";
 import type { ControlPanelProps } from "./ControlPanel.types";
 
 type CameraOutputSectionProps = Pick<
@@ -11,6 +16,7 @@ type CameraOutputSectionProps = Pick<
   | "onApplyExtentView"
   | "onApplyOutputSize"
   | "onApplyPoseView"
+  | "onApplyCameraPreset"
   | "onExperimentSceneModeChange"
   | "onExperimentViewConfigChange"
 >;
@@ -25,6 +31,7 @@ export function CameraOutputSection({
   onApplyExtentView,
   onApplyOutputSize,
   onApplyPoseView,
+  onApplyCameraPreset,
   onExperimentSceneModeChange,
   onExperimentViewConfigChange,
 }: CameraOutputSectionProps) {
@@ -98,7 +105,26 @@ export function CameraOutputSection({
           }
         >
           <option value="2D_RECTANGULAR">2D rectangular</option>
-          <option value="3D_GLOBE">3D globe</option>
+          <option value="3D_GLOBE">3D (perspective)</option>
+          <option value="3D_ORTHOGRAPHIC">3D (orthographic)</option>
+        </select>
+      </label>
+
+      <label>
+        Quick view
+        <select
+          disabled={busy}
+          value=""
+          onChange={(event) => onApplyCameraPreset(event.target.value as ExperimentViewPreset)}
+        >
+          <option value="" disabled>
+            Choose a view…
+          </option>
+          {Object.entries(EXPERIMENT_VIEW_PRESETS).map(([key, preset]) => (
+            <option key={key} value={key}>
+              {preset.label}
+            </option>
+          ))}
         </select>
       </label>
 
@@ -278,16 +304,6 @@ export function CameraOutputSection({
               />
             </label>
           </div>
-          <label className="checkbox-row">
-            <input
-              type="checkbox"
-              checked={experimentViewConfig.camera3D.orthographic}
-              onChange={(event) =>
-                updateCamera3D({ orthographic: event.target.checked })
-              }
-            />
-            Orthographic 3D camera
-          </label>
           <button
             className="secondary-button"
             disabled={busy}
