@@ -277,6 +277,7 @@ export function parseImportedExperimentConfig(value: unknown): ImportedExperimen
   }
 
   if (layers) {
+    result.graticuleEnabled = getBoolean(layers, "graticule");
     const backgroundColor = getString(layers, "backgroundColor");
     if (backgroundColor) {
       result.globeBaseColor = backgroundColor;

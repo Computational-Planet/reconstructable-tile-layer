@@ -19,7 +19,7 @@ export function createDefaultExperimentViewConfig(): ExperimentViewConfig {
   return {
     caseId: "case1",
     modelName: "Matthews static polygons",
-    viewMode: "3D_GLOBE",
+    viewMode: "3D_ORTHOGRAPHIC",
     extent: {
       west: -180,
       south: -90,
@@ -33,7 +33,7 @@ export function createDefaultExperimentViewConfig(): ExperimentViewConfig {
       heading: 0,
       pitch: -90,
       roll: 0,
-      orthographic: false,
+      orthographic: true,
     },
     output: {
       width: viewportWidth,

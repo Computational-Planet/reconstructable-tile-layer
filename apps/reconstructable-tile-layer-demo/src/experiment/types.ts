@@ -154,6 +154,7 @@ export type ImportedExperimentControlState = {
   featurePresetKey?: FeaturePresetKey;
   featureUrl?: string;
   globeBaseColor?: string;
+  graticuleEnabled?: boolean;
   level?: number;
   polygonRenderIntent?: PolygonRenderIntentMode;
   primitiveTransformMode?: PrimitiveTransformMode;

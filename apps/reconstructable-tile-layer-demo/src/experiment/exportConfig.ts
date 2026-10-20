@@ -36,6 +36,7 @@ export type ExperimentExportContext = {
   featurePresetKey: FeaturePresetKey;
   featureUrl: string;
   globeBaseColor: string;
+  graticuleEnabled: boolean;
   initialized: boolean;
   level: number;
   manager: ReconstructableTileLayer | null;
@@ -138,7 +139,7 @@ export function createExperimentExportInfo(
       rtlLayer: providerLabel,
       plateBoundary: context.initialized,
       controlPoints: false,
-      graticule: false,
+      graticule: context.graticuleEnabled,
       gplatesReferencePolygons:
         context.referencePolygonKey !== "off" && Boolean(referencePolygonSource?.url),
       backgroundColor: context.globeBaseColor,

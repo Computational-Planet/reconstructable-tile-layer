@@ -9,11 +9,13 @@ type RenderingSectionProps = Pick<
   | "busy"
   | "debugEnabled"
   | "globeBaseColor"
+  | "graticuleEnabled"
   | "initialized"
   | "primitiveTransformMode"
   | "onApplyTransformMode"
   | "onDebugEnabledChange"
   | "onGlobeBaseColorChange"
+  | "onGraticuleEnabledChange"
   | "onPrimitiveTransformModeChange"
 >;
 
@@ -21,11 +23,13 @@ export function RenderingSection({
   busy,
   debugEnabled,
   globeBaseColor,
+  graticuleEnabled,
   initialized,
   primitiveTransformMode,
   onApplyTransformMode,
   onDebugEnabledChange,
   onGlobeBaseColorChange,
+  onGraticuleEnabledChange,
   onPrimitiveTransformModeChange,
 }: RenderingSectionProps) {
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -43,6 +47,15 @@ export function RenderingSection({
           Detailed
         </button>
       </div>
+
+      <label className="checkbox-row">
+        <input
+          type="checkbox"
+          checked={graticuleEnabled}
+          onChange={(event) => onGraticuleEnabledChange(event.target.checked)}
+        />
+        Show graticule
+      </label>
 
       {detailsOpen ? (
         <div className="source-detail-panel">

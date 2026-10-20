@@ -40,6 +40,11 @@ Local settings collapse after successful application; the online connection form
 expand on demand. Reference overlays, view/render controls, experiment import/export and statistics follow the main workflow.
 Reference and snapshot rasters display directly; the reconstruction section explains why tile loading is disabled.
 
+**Rendering → Show graticule** toggles a 30° latitude/longitude grid with coordinate
+labels (on by default), independently of imagery and reconstruction age. The grid
+uses the demo's sphere in 2D and 3D, appears in screenshots, and is saved/restored
+through the existing experiment JSON field `layers.graticule`.
+
 ## Connect online imagery
 
 **Tile map service** connects user-supplied services. **Fill from example** populates the editable form;
@@ -90,7 +95,7 @@ Parameters map to Cesium's [URL template](https://cesium.com/learn/cesiumjs/ref-
 ## Camera views
 
 **Camera & Output → Scene mode** offers **2D rectangular**, **3D (perspective)**,
-and **3D (orthographic)**. Orthographic mode keeps the 3D globe and reconstruction layers
+and **3D (orthographic)** (default). Orthographic mode keeps the 3D globe and reconstruction layers
 and uses parallel projection. **Quick view** centers the antimeridian (±180°), South Pole,
 or North Pole and fits the entire globe to the viewport. Presets retain the current 3D projection;
 from 2D they restore the last selected 3D projection. **Detailed** still provides manual target,

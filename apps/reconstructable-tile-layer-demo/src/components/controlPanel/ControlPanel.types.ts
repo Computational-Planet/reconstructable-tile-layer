@@ -36,6 +36,7 @@ export type ControlPanelProps = {
   featureSourceLabel: string;
   featureUrl: string;
   globeBaseColor: string;
+  graticuleEnabled: boolean;
   referencePolygonColor: string;
   referencePolygonKey: GplatesReferencePolygonKey;
   referencePolygonSources: GplatesReferencePolygonSource[];
@@ -73,6 +74,7 @@ export type ControlPanelProps = {
   onFeatureUpload: (file: File | null) => void;
   onFeatureUrlChange: (value: string) => void;
   onGlobeBaseColorChange: (value: string) => void;
+  onGraticuleEnabledChange: (value: boolean) => void;
   onImportExperimentConfig: (file: File | null) => void;
   onLevelChange: (value: number) => void;
   onLoadFineInView: () => void;

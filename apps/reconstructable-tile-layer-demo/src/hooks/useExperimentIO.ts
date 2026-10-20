@@ -52,6 +52,7 @@ type UseExperimentIOOptions = {
   featureUrl: string;
   featureSourceLabel: string;
   globeBaseColor: string;
+  graticuleEnabled: boolean;
   initialized: boolean;
   level: number;
   managerRef: MutableRefObject<ReconstructableTileLayer | null>;
@@ -74,6 +75,7 @@ type UseExperimentIOOptions = {
     value: ExperimentViewConfig | ((current: ExperimentViewConfig) => ExperimentViewConfig),
   ) => void;
   setGlobeBaseColor: (value: string) => void;
+  setGraticuleEnabled: (value: boolean) => void;
   setLevel: (value: number) => void;
   setPolygonRenderIntent: (value: PolygonRenderIntentMode) => void;
   setPrimitiveTransformMode: (value: PrimitiveTransformMode) => void;
@@ -103,6 +105,7 @@ export function useExperimentIO({
   featureUrl,
   featureSourceLabel,
   globeBaseColor,
+  graticuleEnabled,
   initialized,
   level,
   managerRef,
@@ -123,6 +126,7 @@ export function useExperimentIO({
   setDebugEnabled,
   setExperimentViewConfig,
   setGlobeBaseColor,
+  setGraticuleEnabled,
   setLevel,
   setPolygonRenderIntent,
   setPrimitiveTransformMode,
@@ -152,6 +156,7 @@ export function useExperimentIO({
         featurePresetKey,
         featureUrl,
         globeBaseColor,
+        graticuleEnabled,
         initialized,
         level,
         manager: managerRef.current,
@@ -252,6 +257,9 @@ export function useExperimentIO({
       }
       if (importedConfig.globeBaseColor) {
         setGlobeBaseColor(importedConfig.globeBaseColor);
+      }
+      if (importedConfig.graticuleEnabled !== undefined) {
+        setGraticuleEnabled(importedConfig.graticuleEnabled);
       }
       if (importedConfig.level !== undefined) {
         setLevel(importedConfig.level);

@@ -99,11 +99,13 @@ export function ControlPanel(props: ControlPanelProps) {
           busy={props.busy}
           debugEnabled={props.debugEnabled}
           globeBaseColor={props.globeBaseColor}
+          graticuleEnabled={props.graticuleEnabled}
           initialized={props.initialized}
           primitiveTransformMode={props.primitiveTransformMode}
           onApplyTransformMode={props.onApplyTransformMode}
           onDebugEnabledChange={props.onDebugEnabledChange}
           onGlobeBaseColorChange={props.onGlobeBaseColorChange}
+          onGraticuleEnabledChange={props.onGraticuleEnabledChange}
           onPrimitiveTransformModeChange={props.onPrimitiveTransformModeChange}
         />
 

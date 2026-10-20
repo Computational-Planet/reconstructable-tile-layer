@@ -16,6 +16,8 @@ import {
   DEMO_ELLIPSOID_CONFIG,
 } from "../cesium/createViewer";
 import type { ExperimentOutputConfig } from "../experiment";
+import { createDefaultExperimentViewConfig } from "../experiment/defaults";
+import { applySceneMode } from "../cesium/cameraControls";
 import { installPerformanceBenchmark } from "../benchmark/performanceBenchmark";
 
 const TILE_OUTPUT_TYPE: TileImageOutputType = "canvas";
@@ -52,6 +54,8 @@ export function useCesiumRuntime({
     }
 
     const viewer = createViewer(containerRef.current, DEMO_ELLIPSOID_CONFIG);
+    // 首次创建时同步应用面板的默认投影，确保实际相机与控件状态一致。
+    applySceneMode(viewer, createDefaultExperimentViewConfig().viewMode);
     const webglProcessor = new WebGLTileProcessor({
       slotCount: 4,
       outputType: TILE_OUTPUT_TYPE,

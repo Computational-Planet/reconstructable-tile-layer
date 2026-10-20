@@ -43,6 +43,7 @@ import {
 import { useCesiumRuntime } from "./hooks/useCesiumRuntime";
 import { useDataSourceControls } from "./hooks/useDataSourceControls";
 import { useExperimentIO } from "./hooks/useExperimentIO";
+import { useGraticuleOverlay } from "./hooks/useGraticuleOverlay";
 import { useReferencePolygonOverlay } from "./hooks/useReferencePolygonOverlay";
 import { useReconstructActions } from "./hooks/useReconstructActions";
 import { DEFAULT_GLOBE_BASE_COLOR } from "./cesium/createViewer";
@@ -57,6 +58,7 @@ function App() {
   const [busy, setBusy] = useState(false);
   const [debugEnabled, setDebugEnabled] = useState(false);
   const [globeBaseColor, setGlobeBaseColor] = useState(DEFAULT_GLOBE_BASE_COLOR);
+  const [graticuleEnabled, setGraticuleEnabled] = useState(true);
   const [initialized, setInitialized] = useState(false);
   const [level, setLevel] = useState(4);
   const [polygonRenderIntent, setPolygonRenderIntent] =
@@ -116,6 +118,8 @@ function App() {
     setStatus,
     viewerRef,
   });
+
+  useGraticuleOverlay({ enabled: graticuleEnabled, viewerRef });
 
   const resolvedAnchorPlateId =
     rotationAnchorMode === "auto"
@@ -218,6 +222,7 @@ function App() {
     featureUrl: dataSourceControls.featureUrl,
     featureSourceLabel: dataSourceControls.featureSourceLabel,
     globeBaseColor,
+    graticuleEnabled,
     initialized,
     level,
     managerRef,
@@ -238,6 +243,7 @@ function App() {
     setDebugEnabled,
     setExperimentViewConfig,
     setGlobeBaseColor,
+    setGraticuleEnabled,
     setLevel,
     setPolygonRenderIntent,
     setPrimitiveTransformMode: setPrimitiveTransformModeState,
@@ -382,6 +388,7 @@ function App() {
         featureSourceLabel={dataSourceControls.featureSourceLabel}
         featureUrl={dataSourceControls.featureUrl}
         globeBaseColor={globeBaseColor}
+        graticuleEnabled={graticuleEnabled}
         anchorPlateIdInput={anchorPlateIdInput}
         initialized={initialized}
         level={level}
@@ -430,6 +437,7 @@ function App() {
         onFeatureUpload={dataSourceControls.handleFeatureUpload}
         onFeatureUrlChange={dataSourceControls.handleFeatureUrlChange}
         onGlobeBaseColorChange={setGlobeBaseColor}
+        onGraticuleEnabledChange={setGraticuleEnabled}
         onImportExperimentConfig={experimentIO.handleImportExperimentConfig}
         onLevelChange={setLevel}
         onLoadFineInView={reconstructActions.handleLoadFineInView}

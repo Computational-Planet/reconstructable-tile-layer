@@ -57,6 +57,7 @@ function createExportContext(viewer: Viewer): ExperimentExportContext {
     featurePresetKey: "custom",
     featureUrl: "",
     globeBaseColor: "#000000",
+    graticuleEnabled: false,
     initialized: false,
     level: 0,
     manager: null,
@@ -76,6 +77,22 @@ function createExportContext(viewer: Viewer): ExperimentExportContext {
 }
 
 describe("3D camera projections", () => {
+  it.each([true, false])("preserves graticule visibility in experiment JSON (%s)", (enabled) => {
+    const context = createExportContext(createCameraViewer());
+    context.graticuleEnabled = enabled;
+    const info = createExperimentExportInfo(context, new Date("2026-01-01T00:00:00Z"), "grid-test");
+    expect(info.layers.graticule).toBe(enabled);
+    expect(
+      parseImportedExperimentConfig(JSON.parse(JSON.stringify(info))).graticuleEnabled,
+    ).toBe(enabled);
+  });
+
+  it("accepts historical configs without a graticule flag and ignores non-boolean flags", () => {
+    for (const layers of [undefined, {}, { graticule: "false" }]) {
+      expect(parseImportedExperimentConfig({ schemaVersion: 1, layers }).graticuleEnabled).toBeUndefined();
+    }
+  });
+
   it("switches the existing globe's frustum without morphing or moving the camera", () => {
     const viewer = createCameraViewer();
     const position = Cartesian3.clone(viewer.camera.positionWC);
@@ -186,6 +203,7 @@ describe("3D camera projections", () => {
     expect(viewer.camera.frustum).toBeInstanceOf(OrthographicFrustum);
     applyExperimentView(viewer, {
       ...config,
+      viewMode: "3D_GLOBE",
       camera3D: { ...config.camera3D, orthographic: true },
     });
     expect(viewer.camera.frustum).toBeInstanceOf(PerspectiveFrustum);
