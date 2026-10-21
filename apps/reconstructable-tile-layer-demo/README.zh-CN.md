@@ -30,13 +30,36 @@ Turbo 会同时启动四个核心库的监听构建和 Vite demo。三个可选�
 
 1. **Plate model**：选择板块域和 ROT；URL、anchor 和多边形模式在 **Model settings** 中配置。
 2. **Imagery data source**：在 **Source type** 选择 **Tile map service** 或 **Local TIFF / NetCDF**，
-   在线服务使用常驻连接表单，本地文件展开 **Source settings** 配置，共用 **Apply source** 按钮。
-   在线服务首次应用会同时初始化模型。**Current source** 显示实际生效来源；切换来源或修改表单不会立即替换地图。
-3. **Reconstruction**：应用成功后加载瓦片，再调整紧邻的年代轴。模型配置改变后需重新应用。
+   在线服务使用常驻连接表单，本地文件展开 **Source settings** 配置，共用 **Add layer** 按钮。
+   每次添加保留已有图层。在线服务可选择重建或固定坐标；**Selected layer** 显示右侧当前选中的图层。
+3. **Timeline & tiles**：瓦片加载和清空作用于选中的重建图层，年代轴统一更新全部重建图层。
 
 本地文件应用成功后自动收起配置；在线连接表单保持可见。空间属性、数据引用、配色和数值 COG 导出按需展开；
 GPlates 参考叠加层、视图与渲染设置、实验导入导出和统计位于三个主步骤之后。
-快照和参考模式直接显示影像，第 3 步会说明为何无需加载重建瓦片。
+普通图层（包括快照和参考模式）使用 Cesium 原生 `ImageryLayer`，添加后随视野自动加载。
+
+## 右侧图层面板
+
+**Layers** 面板可以收起，再通过右上角的按钮打开。面板分为重建图层与普通影像两组，
+组内越靠上越晚绘制，使用箭头在同组内换位；重建图层绘制在原生影像之上。
+每层支持显隐、名称、透明度和删除；仅重建图层提供手动瓦片加载。较窄窗口使用右侧浮动面板。
+
+固定坐标图层可选择 **All ages** 或闭区间 **Youngest / Oldest (Ma)**。
+例如 100–150 Ma 包含两个端点；超出范围自动隐藏，手动关闭的图层不会被时间轴重新开启。
+快照初始范围等于其科学年代，可在面板修改显示范围，坐标始终保持不变。
+添加快照不移动全局年代。经纬网与参考线仍属于辅助叠加。
+
+左侧模型和来源是下一次添加的配置，改变它们不会清除已有图层。
+切换重建瓦片层级或按视野加载时替换选中图层的覆盖，避免多个 LOD 重复叠加透明度；其他图层保留瓦片。
+普通图层的 LOD、视野请求、缓存和纹理释放由 Cesium 原生管理，不经过 RTL 处理器或 demo 的手动瓦片加载。
+要让某个重建层采用新的模型，在右侧点击 **Use current plate model** 后重新加载瓦片。
+**Clear prepared file** 仅清理本地文件编辑器；已添加图层继续持有自己的文件引用。
+删除最后一个使用该文件的图层并清理编辑器后，相关 source、dataset 与 Worker 才会关闭。
+
+模块边界：`src/layers` 管理 demo 的状态、时间、原生影像接入、资源引用和序列化；
+`src/components/layers` 与 `src/styles/layers.css` 管理右侧界面。
+RTL 包仅提供通用图层容器、显隐、透明度和有序表面材质；处理器按 provider 隔离清理。
+普通影像使用 Cesium 的 `ImageryLayerCollection`，重建图层使用独立的 Primitive 容器。
 
 **Rendering → Show graticule** 可开关带坐标标签的 30° 经纬网，默认开启，不依赖影像
 是否加载，也不随重建年代旋转。经纬网使用 demo 的球体，支持二维和三维视图，并随截图导出；
@@ -81,13 +104,13 @@ Web Mercator 为 1×1；覆盖范围只裁剪全球网格，不修改其原点�
 通常保留 min=0，在第 3 步加载 L2/L3。附加参数按每行 `name=value` 填写，不能覆盖已有的协议字段。
 WMS 的 `TIME` 或 WMTS 时间维度保持固定，与地质年代轴分别管理。
 
-先点击 **Test tile connection**，读取覆盖中心的一张样例瓦片并显示预览，再点击 **Apply source**，
+先点击 **Test tile connection**，读取覆盖中心的一张样例瓦片并显示预览，再点击 **Add layer**，
 到第 3 步加载重建瓦片。连接测试使用同一 Provider 构造路径并检查图片解码与 Canvas 读取，
 不会替换已应用来源；它只验证一个位置和层级，不保证所有瓦片可用。服务器仍须允许浏览器跨域读取（CORS）。
 
 实验 JSON 将完整连接写入 `sources.serviceConfig`，保留示例标识和编辑后的字段。
 已有服务生效时，导出记录实际应用配置，未应用的表单修改不混入结果。旧版服务选项和四字段
-`customProviderConfig` 会迁移；重新导入恢复表单，仍需点击 **Apply source**。
+`customProviderConfig` 会迁移；重新导入恢复表单，仍需点击 **Add layer**。
 未完成且未应用的在线表单不导出。旧版 Demo 不认识新增的 `serviceConfig`，编辑后的 WMS/WMTS 连接需用新版恢复。
 
 协议参数对应 Cesium 的 [URL template](https://cesium.com/learn/cesiumjs/ref-doc/UrlTemplateImageryProvider.html)、
@@ -99,20 +122,19 @@ WMS 的 `TIME` 或 WMTS 时间维度保持固定，与地质年代轴分别管�
 1. 在 **Imagery data source → Local TIFF / NetCDF → Source settings** 选择本地 TIFF/COG 或 NetCDF；文件不上传到服务器。
    NetCDF 保留原变量名、维度和单位，选择时间/深度等下标后点击 **Read selected slice**。
 2. 要让用户的 0 Ma 数据随时间轴重建，选择 **Reconstruct from 0 Ma (follows timeline)**，
-   确认现代坐标框架，点击 **Apply source**，再使用 **Load Tiles By Level**。
+   确认现代坐标框架，点击 **Add layer**，再使用 **Load Tiles By Level**。
    应用自动设置建议层级：低分辨率从 L2 开始，较细数据从 L3 开始；更高层级建议使用视野加载。
    本地 `RasterImageryProvider` 直接向 RTL 提供瓦片，复用上方所选板块域、ROT 与 anchor；
    改变时间轴更新板块旋转，不按源文件的 0 Ma 年龄隐藏图层。
-   **Paleo snapshot (visible at one age)** 才是按指定年龄显隐的快照；参考/未知模式按原坐标显示。
+   **Paleo snapshot (visible at one age)** 初始仅在指定年龄显示，可在 Layers 中扩展显示区间；参考/未知模式按原坐标显示。
 3. 展开 **Display style**，可选择单波段/RGB、预览抽样或手动物理值范围、色带。文件声明的缺测值保持透明；
-   额外的原始值缺测选项仅影响显示，不改科学元数据或数值导出。再次应用替换样式。
-   修改板块模型会使现代源重建失效，需要重新确认并应用。
+   额外的原始值缺测选项仅影响显示，不改科学元数据或数值导出。修改样式后再次添加会创建新的图层。
+   修改板块模型后，下一次添加现代源需要重新确认；已有图层保留其模型。
 4. 展开 **Numeric COG export (optional)**，点击 **Create numeric COG** 按需加载 GDAL。TIFF 导出存储数值波段，NetCDF 仅导出已选
    二维切片的物理数值；必须明确确认规则经纬目标网格，高斯纬度同样需要重采样。
    转换显示真实阶段并支持取消。
 5. 同时下载 COG 和溯源 JSON。**Load converted COG** 重新读取结果，再点击
-   **Apply source** 进入已选显示/重建路径。移除/换文件先解除场景引用，再关闭旧
-   provider、source、dataset 和 Worker。
+   **Add layer** 进入已选显示/重建路径。编辑器与图层各自持有文件引用，换文件不会关闭已添加图层的数据。
 
 可直接用 `tmp/paleo-domain-review/Map01_PALEOMAP_1deg_Holocene_0Ma.nc` 测试重建：
 选择 `z` 并读取切片，在上方同时选择 Seton 2012 static polygons 与 Seton 2012 ROT，
@@ -172,7 +194,7 @@ pnpm --filter reconstructable-tile-layer-demo dev
 1. 导入实验 JSON，或保留默认配置。
 2. 选择要素数据源、ROT 模型和影像提供器。
 3. 配置场景、输出、多边形意图和变换模式。
-4. 点击 **Apply source** 应用数据源并初始化图层。
+4. 点击 **Add layer** 应用数据源并初始化图层。
 5. 设置 `Age Ma`，然后加载根瓦片、明确层级或当前视图。
 6. 按需导出运行信息或截图。
 
@@ -181,9 +203,13 @@ pnpm --filter reconstructable-tile-layer-demo dev
 
 ## 导出兼容性
 
-截图导出与既有 JSON 字段保持兼容。JSON 继续使用现有的 `schemaVersion: 1`、
-`geoTileStats` 和 `tileProcesserStats` 字段名，因此以前的实验配置和分析脚本仍然
-兼容。
+新导出使用 `schemaVersion: 2`，通过 `layerStack` 从底到顶保存全部图层的来源、
+显示设置、时间范围和模型。原来的视图字段及 `geoTileStats`、`tileProcesserStats` 仍保留；
+图层统计表示当前选中的重建层，处理器统计表示共享运行时。旧版读取器需要支持版本 2。
+新版仍可读取版本 1 的控件配置。版本 2 导入恢复列表并自动加载普通在线影像；
+重建图层通过 **Load tiles** 加载。旧版交错列表会按绘制路径分组，保留组内顺序。
+本地栅格点击 **Prepare local file** 重选文件、读取已保存的切片，并 **Restore selected layer**。
+本地模型需重选后对对应图层使用 **Use current plate model**。
 
 本地上传的模型文件导入后需要重新选择，见前述说明；旧配置中失效的 `blob:` 地址也会被清空。
 

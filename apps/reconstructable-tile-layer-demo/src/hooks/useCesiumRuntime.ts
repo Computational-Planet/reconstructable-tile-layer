@@ -5,29 +5,21 @@ import type {
   ReconstructableTileLayer,
   ReconstructableTileLayerStats,
 } from "reconstructable-tile-layer";
-import {
-  WebGLTileProcessor,
-  type TileImageOutputType,
-} from "rtl-webgl-tile-processor";
+import { WebGLTileProcessor, type TileImageOutputType } from "rtl-webgl-tile-processor";
 
-import {
-  applyGlobeBaseColor,
-  createViewer,
-  DEMO_ELLIPSOID_CONFIG,
-} from "../cesium/createViewer";
+import { applyGlobeBaseColor, createViewer, DEMO_ELLIPSOID_CONFIG } from "../cesium/createViewer";
 import type { ExperimentOutputConfig } from "../experiment";
 import { createDefaultExperimentViewConfig } from "../experiment/defaults";
 import { applySceneMode } from "../cesium/cameraControls";
 import { installPerformanceBenchmark } from "../benchmark/performanceBenchmark";
+import { LayerController } from "../layers/LayerController";
 
 const TILE_OUTPUT_TYPE: TileImageOutputType = "canvas";
 
 declare global {
   interface Window {
     __simpleGeoReconstructStats?: () => ReconstructableTileLayerStats;
-    __tileProcesserStats?: () => ReturnType<
-      WebGLTileProcessor["getRuntimeStats"]
-    >;
+    __tileProcesserStats?: () => ReturnType<WebGLTileProcessor["getRuntimeStats"]>;
   }
 }
 
@@ -46,6 +38,7 @@ export function useCesiumRuntime({
   const viewerRef = useRef<Viewer | null>(null);
   const webglProcessorRef = useRef<WebGLTileProcessor | null>(null);
   const managerRef = useRef<ReconstructableTileLayer | null>(null);
+  const layerControllerRef = useRef<LayerController | null>(null);
   const sceneModeCleanupRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
@@ -62,11 +55,22 @@ export function useCesiumRuntime({
     });
     viewerRef.current = viewer;
     webglProcessorRef.current = webglProcessor;
+    const layerController = new LayerController(viewer, webglProcessor);
+    layerControllerRef.current = layerController;
+    const removeStatsSubscription = layerController.subscribe(() => {
+      const selected = layerController.selectedManager;
+      if (selected) window.__simpleGeoReconstructStats = () => selected.getRuntimeStats();
+      else delete window.__simpleGeoReconstructStats;
+    });
     window.__tileProcesserStats = () => webglProcessor.getRuntimeStats();
     const removePerformanceBenchmark = installPerformanceBenchmark({
       viewer,
-      getActiveManager: () => managerRef.current,
+      getActiveManager: () => layerController.firstManager,
       prepareExclusiveRuntime: () => {
+        if (layerController.hasLayers)
+          throw new Error("Remove all layers before running an exclusive benchmark.");
+        layerController.destroy();
+        layerControllerRef.current = null;
         webglProcessor.destroy();
         if (webglProcessorRef.current === webglProcessor) {
           webglProcessorRef.current = null;
@@ -74,17 +78,19 @@ export function useCesiumRuntime({
         delete window.__tileProcesserStats;
       },
     });
-    onStatusChange("Viewer ready. Choose a plate model and apply an imagery source.");
+    onStatusChange("Viewer ready. Prepare an imagery source, then add a layer.");
 
     return () => {
       removePerformanceBenchmark();
+      removeStatsSubscription();
       sceneModeCleanupRef.current?.();
-      managerRef.current?.destroy(viewer);
+      layerController.destroy();
       webglProcessor.destroy();
       viewer.destroy();
       delete window.__simpleGeoReconstructStats;
       delete window.__tileProcesserStats;
       managerRef.current = null;
+      layerControllerRef.current = null;
       webglProcessorRef.current = null;
       viewerRef.current = null;
     };
@@ -117,6 +123,7 @@ export function useCesiumRuntime({
   return {
     containerRef,
     managerRef,
+    layerControllerRef,
     sceneModeCleanupRef,
     webglProcessorRef,
     viewerRef,

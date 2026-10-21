@@ -196,6 +196,25 @@ changes.
 
 ## Lifecycle and diagnostics
 
+Independent RTL instances can share one processor. Give each instance its own
+caller-owned `primitiveCollection`, set `orderedRendering: true`, and opt out of
+global cache resets with `clearProcessorOnReset: false`. Order those containers
+to stack raster surfaces. `rtl.show` and `rtl.opacity` control layer presentation
+and survive age updates, clearing and reloading. RTL only destroys its own child
+collection, leaving the caller's parent intact.
+
+`createTileSurfaceAppearance(image, { ordered: true, opacity })` gives other
+fixed-coordinate surfaces the same alpha blending behavior. Ordered rendering
+targets coincident raster surfaces on an ellipsoid, not general 3D transparency.
+Opacity is applied per surface; applications should replace old LOD coverage
+before loading a different level to avoid blending overlapping levels twice.
+
+In shared mode, clearing one RTL leaves other sources' caches intact. Before
+closing a source, destroy its referencing layers, call
+`processor.clearProvider(provider)`, then close the provider. Destroy the processor
+when the whole shared runtime ends. Layer lists, visibility age ranges and local
+file ownership remain application responsibilities.
+
 `clear(viewer)` removes layer-owned primitives and processed tile state while
 keeping imported plate-domain and finite-rotation data ready. `destroy(viewer)`
 also removes listeners and releases all layer-owned image references. It does

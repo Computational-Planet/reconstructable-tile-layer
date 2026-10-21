@@ -6,6 +6,7 @@ import type {
 } from "reconstructable-tile-layer";
 import type { WebGLTileProcessor } from "rtl-webgl-tile-processor";
 import type { LocalRasterDescriptor } from "../raster/context";
+import type { LayerDefinition } from "../layers/types";
 
 import type {
   ProviderKey,
@@ -62,7 +63,8 @@ export type ExperimentProjection =
   | "OrthographicGlobe";
 
 export type ExperimentExportInfo = {
-  schemaVersion: 1;
+  schemaVersion: 1 | 2;
+  layerStack?: LayerDefinition[];
   exportedAt: string;
   exportBaseName: string;
   caseId: string;
@@ -140,6 +142,7 @@ export type ExperimentExportInfo = {
 };
 
 export type ImportedExperimentControlState = {
+  layerStack?: LayerDefinition[];
   localRasterFileName?: string;
   requiresLocalModelFiles?: boolean;
   age?: number;

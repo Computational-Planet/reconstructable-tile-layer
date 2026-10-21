@@ -1,5 +1,6 @@
 /** Shares control panel props across the grouped section components. */
 import type { LocalRasterControls } from "../../hooks/useLocalRaster";
+import type { LayerMode, LayerView } from "../../layers/types";
 import type {
   ReconstructableTileLayerStats,
   PolygonRenderIntentMode,
@@ -23,6 +24,9 @@ import type {
 } from "../../experiment";
 
 export type ControlPanelProps = {
+  selectedLayer: LayerView | null;
+  serviceMode: LayerMode;
+  onServiceModeChange: (mode: LayerMode) => void;
   localRaster: LocalRasterControls;
   sourceKind: ImagerySourceKind;
   appliedService: AppliedService | null;

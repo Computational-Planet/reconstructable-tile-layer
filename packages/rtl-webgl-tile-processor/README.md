@@ -92,6 +92,9 @@ Every non-null `ProcessedTileImage` is retained for the caller. Call
 `release()` exactly once for every returned reference, including cache hits.
 The `source` is a blob URL, data URL, or canvas according to `outputType`.
 
+`clearProvider(provider)` invalidates only that provider's cached, deferred and queued work.
+Call it after detaching all layers using that provider; other providers and caller-retained assets remain valid.
+
 `clearBuffer()` releases cached results and cancels queued work while leaving
 the processor usable. `destroy()` permanently releases its WebGL contexts,
 render slots, textures, programs, buffers, canvases, and caches.

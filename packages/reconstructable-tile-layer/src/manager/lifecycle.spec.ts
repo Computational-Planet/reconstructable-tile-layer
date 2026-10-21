@@ -1,14 +1,75 @@
 import {
   GeographicTilingScheme,
   Matrix4,
+  Primitive,
   PrimitiveCollection,
   Rectangle,
   type ImageryProvider,
   type Viewer,
 } from "cesium";
 import type { CesiumTileProcessor } from "rtl-webgl-tile-processor";
-import { expect, it, vi } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
 import { SimpleGeoReconstructManager } from "../SimpleGeoReconstructManager.js";
+import { createTileSurfaceAppearance } from "../surfaceAppearance.js";
+
+afterEach(() => vi.unstubAllGlobals());
+
+it("a managed layer preserves its caller-owned parent and shared processor", async () => {
+  const clearBuffer = vi.fn();
+  const parent = new PrimitiveCollection();
+  const neighbor = parent.add(new PrimitiveCollection());
+  const manager = new SimpleGeoReconstructManager({
+    provider: { tilingScheme: new GeographicTilingScheme() } as ImageryProvider,
+    processor: { clearBuffer } as unknown as CesiumTileProcessor,
+    featureSource: "memory.json",
+    rotationSources: ["memory.rot"],
+    primitiveCollection: parent,
+    clearProcessorOnReset: false,
+    show: false,
+    opacity: 0.4,
+  });
+  vi.spyOn(manager, "getPaleoDataFlatten").mockResolvedValue({
+    items: [],
+    diagnostics: undefined,
+  } as never);
+  vi.spyOn(manager.rotationOperator, "init").mockResolvedValue(undefined);
+  const viewer = {
+    scene: { primitives: new PrimitiveCollection(), requestRender: vi.fn() },
+  } as unknown as Viewer;
+  await manager.initialize();
+  const root = (
+    manager as unknown as {
+      getOrCreateTileRootPrimitiveCollection(viewer: Viewer): PrimitiveCollection;
+    }
+  ).getOrCreateTileRootPrimitiveCollection(viewer);
+  expect(root.show).toBe(false);
+  manager.show = true;
+  expect(root.show).toBe(true);
+  manager.show = false;
+  await manager.setReconstructionAge(100);
+  expect(root.show).toBe(false);
+  // Node 中只补材质类型识别用的构造器；资源释放仍由真实 Cesium 对象执行。
+  vi.stubGlobal("HTMLCanvasElement", class {});
+  vi.stubGlobal("HTMLImageElement", class {});
+  const appearance = createTileSurfaceAppearance("memory.png", { ordered: true });
+  const primitives = [new Primitive({ appearance }), new Primitive({ appearance })];
+  primitives.forEach((primitive) => root.add(primitive));
+  const release = vi.fn();
+  const destroyMaterial = vi.spyOn(appearance.material, "destroy");
+  (manager as unknown as { _compositeTileRecords: Map<string, unknown> })._compositeTileRecords.set(
+    "shared-material",
+    { primitives, imageAsset: { release } },
+  );
+  manager.clear(viewer);
+  expect(destroyMaterial).toHaveBeenCalledTimes(1);
+  expect(release).toHaveBeenCalledTimes(1);
+  expect(parent.contains(neighbor)).toBe(true);
+  manager.destroy(viewer);
+  expect(clearBuffer).not.toHaveBeenCalled();
+  expect(parent.isDestroyed()).toBe(false);
+  expect(manager.opacity).toBe(0.4);
+  parent.destroy();
+});
 
 it("destroy during feature loading cannot resurrect a ready manager", async () => {
   const manager = new SimpleGeoReconstructManager({

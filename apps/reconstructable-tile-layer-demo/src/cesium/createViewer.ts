@@ -3,7 +3,9 @@ import {
   Color,
   DynamicAtmosphereLightingType,
   Ellipsoid,
+  ImageryLayer,
   ShadowMode,
+  SingleTileImageryProvider,
   Viewer,
 } from "cesium";
 
@@ -76,9 +78,22 @@ export function createViewer(
 ) {
   Ellipsoid.default = config.ellipsoid;
 
+  // Cesium 会把最底层影像的边缘延伸到全球。用透明原生底层承接该行为，
+  // 使区域栅格即使是第一个数据图层，也只在自身覆盖范围内显示。
+  const background = document.createElement("canvas");
+  background.width = background.height = 1;
+  const baseLayer = new ImageryLayer(
+    new SingleTileImageryProvider({
+      url: background.toDataURL(),
+      tileWidth: 1,
+      tileHeight: 1,
+      ellipsoid: config.ellipsoid,
+    }),
+  );
+
   const viewer = new Viewer(container, {
     animation: false,
-    baseLayer: false,
+    baseLayer,
     baseLayerPicker: false,
     ellipsoid: config.ellipsoid,
     fullscreenButton: false,
@@ -108,12 +123,8 @@ export function createViewer(
 
   disableDecorativeSceneEffects(viewer);
   applyGlobeBaseColor(viewer, DEFAULT_GLOBE_BASE_COLOR);
-  viewer.scene.morphStart.addEventListener(() =>
-    disableDecorativeSceneEffects(viewer),
-  );
-  viewer.scene.morphComplete.addEventListener(() =>
-    disableDecorativeSceneEffects(viewer),
-  );
+  viewer.scene.morphStart.addEventListener(() => disableDecorativeSceneEffects(viewer));
+  viewer.scene.morphComplete.addEventListener(() => disableDecorativeSceneEffects(viewer));
 
   return viewer;
 }

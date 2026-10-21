@@ -32,13 +32,39 @@ command after editing their code or worker assets. Use the local URL printed by 
 
 1. **Plate model**: choose plate domains and ROT files. Use **Model settings** for URLs, anchor and polygon mode.
 2. **Imagery data source**: choose **Tile map service** or **Local TIFF / NetCDF**. Services have a visible connection
-   form; local files use **Source settings**. Both share **Apply source**, which also initializes the selected model for services.
-   **Current source** identifies the applied source; changing the source type or editing the form keeps existing imagery active.
-3. **Reconstruction**: load tiles and adjust the adjacent age controls. Reapply after changing the plate model.
+   form; local files use **Source settings**. **Add layer** preserves existing layers.
+   Services can reconstruct or use fixed coordinates. **Selected layer** identifies the selection in the right panel.
+3. **Timeline & tiles**: tile actions apply to the selected reconstruction layer; the age control updates every reconstruction layer.
 
 Local settings collapse after successful application; the online connection form stays visible. Spatial metadata, citations, display style and optional COG export
 expand on demand. Reference overlays, view/render controls, experiment import/export and statistics follow the main workflow.
-Reference and snapshot rasters display directly; the reconstruction section explains why tile loading is disabled.
+Ordinary imagery, including reference and snapshot rasters, uses Cesium's native `ImageryLayer` and loads automatically as you navigate.
+
+## Right-hand Layers panel
+
+Hide the panel with **Hide**, then reopen it with the top-right **Layers** button.
+Layers are grouped into reconstruction and ordinary imagery. Higher entries within a group draw on top;
+reconstruction layers draw above native imagery. Move layers within their group using the arrows.
+Each layer has visibility, a name, opacity and removal. Only reconstruction layers have manual tile controls.
+Narrow windows use a floating right panel.
+
+Fixed-coordinate layers support **All ages** or an inclusive **Youngest / Oldest (Ma)** interval.
+For example, 100–150 Ma includes both endpoints. Timeline changes never override a user's hidden state.
+Snapshots initially use their scientific age as both endpoints; editing their display range does not rotate their coordinates.
+Adding a snapshot does not move the timeline. Graticules and reference outlines remain auxiliary overlays.
+
+Changing the source form or plate model prepares the next addition without clearing existing layers.
+Use **Use current plate model** on a reconstruction layer to explicitly replace its model, then reload its tiles.
+Switching reconstruction tile levels or loading the current view replaces that layer's coverage, preventing
+overlapping LODs from applying opacity twice. Other layers keep their tiles.
+Cesium handles ordinary imagery LOD, view-dependent requests, caching and texture cleanup directly;
+ordinary layers do not use the RTL processor or the demo's manual tile loader.
+**Clear prepared file** releases only the local editor's file reference. Added layers retain independent references;
+the source, dataset and Worker close after their last editor/layer owner releases them.
+
+Demo business logic lives in `src/layers`, with UI in `src/components/layers` and `src/styles/layers.css`.
+The RTL package supplies reusable containers, visibility, opacity and ordered surface appearances;
+the processor supports provider-scoped cache invalidation. Sources keep independent tiles.
 
 **Rendering → Show graticule** toggles a 30° latitude/longitude grid with coordinate
 labels (on by default), independently of imagery and reconstruction age. The grid
@@ -76,7 +102,7 @@ four tiles at its minimum level; normally retain min=0 and load L2/L3 in step 3.
 one `name=value` per line and cannot override controlled protocol fields. Service `TIME` / WMTS dimensions
 stay fixed independently of the geological age slider.
 
-Use **Test tile connection** to read and preview one tile at the coverage center, then **Apply source**
+Use **Test tile connection** to read and preview one tile at the coverage center, then **Add layer**
 and load reconstruction tiles in step 3. Testing uses the same provider configuration, including image decoding
 and Canvas readback, without replacing the active source. It checks one position/level, not all tiles.
 The server must allow browser access (CORS).
@@ -84,7 +110,7 @@ The server must allow browser access (CORS).
 Experiment JSON saves the complete connection in `sources.serviceConfig`, including edited example values.
 When a service is active, export records the applied connection, excluding pending form edits.
 Old preset selections and four-field `customProviderConfig` values migrate on import. Import restores the form;
-click **Apply source** to activate it.
+click **Add layer** to activate it.
 Incomplete, unapplied connection forms are omitted from export. Older Demo versions do not understand
 `serviceConfig`; restore edited WMS/WMTS connections with this version or newer.
 
@@ -113,25 +139,25 @@ must recognize the new values.
    endpoint is used. NetCDF variables retain their names, dimensions and units;
    choose time/depth indices and click **Read selected slice**.
 2. For a present-day source that follows the timeline, select **Reconstruct from
-   0 Ma (follows timeline)**, confirm the frame, click **Apply source**, then
-   **Load Tiles By Level**. Apply selects L2 for low-resolution rasters and L3 for
+   0 Ma (follows timeline)**, confirm the frame, click **Add layer**, then
+   **Load Tiles By Level**. Adding selects L2 for low-resolution rasters and L3 for
    finer ones; prefer view loading for higher levels. The local `RasterImageryProvider`
    supplies RTL tiles using the selected plate domains, ROT files and anchor.
    The timeline rotates the plates; it does not hide the source beyond 0 Ma.
    **Paleo snapshot (visible at one age)** displays an explicitly dated snapshot
-   only at that age. **Reference / unknown** displays stored coordinates.
+   initially at that age; edit its visible interval in Layers. **Reference / unknown** displays stored coordinates.
 3. Expand **Display style** to configure single-band/RGB, a sampled or manual physical range, and the color
    ramp. Declared missing values stay transparent. Extra raw NoData exclusions
    affect display only; they do not alter scientific metadata or numeric exports.
-   Apply again to replace the style. Changing the selected plate model invalidates
-   an active modern reconstruction until explicitly reapplied.
+   Adding again creates a separate styled layer. A changed plate model requires confirmation
+   for the next modern source; existing layers retain their applied models.
 4. Expand **Numeric COG export (optional)**. **Create numeric COG** loads GDAL resources only when requested. TIFF exports
    stored numeric bands; NetCDF exports the selected 2D slice in physical units.
    Confirm the explicit regular geographic target grid for NetCDF, including
    Gaussian latitude. Conversion exposes real stages and supports cancellation.
 5. Download both COG and provenance JSON. **Load converted COG** reopens the result;
-   **Apply source** uses the chosen scientific path. Removing/replacing a file
-   detaches old imagery/reconstruction before closing its provider, source and Worker.
+   **Add layer** uses the chosen scientific path. Replacing the editor's file leaves
+   added layers' providers, sources and datasets alive.
 
 To test reconstruction, open `tmp/paleo-domain-review/Map01_PALEOMAP_1deg_Holocene_0Ma.nc`,
 read variable `z`, and select both Seton 2012 static polygons and Seton 2012 ROT.
@@ -205,7 +231,7 @@ pnpm --filter reconstructable-tile-layer-demo dev
 1. Import an experiment JSON or keep the default configuration.
 2. Select the feature source, ROT model, and imagery provider.
 3. Configure the scene, output, polygon intent, and transform mode.
-4. Click **Apply source** to apply the source and initialize the layer.
+4. Click **Add layer** to apply the source and initialize the layer.
 5. Set `Age Ma` and load root tiles, an explicit level, or the current view.
 6. Export runtime information or a screenshot when needed.
 
@@ -214,10 +240,14 @@ state but do not automatically initialize or load the layer.
 
 ## Export compatibility
 
-The screenshot export and existing JSON fields remain compatible. The JSON keeps the
-existing `schemaVersion: 1`, `geoTileStats`, and `tileProcesserStats`
-field names so previous experiment configurations and analysis scripts remain
-compatible.
+New exports use `schemaVersion: 2` and a bottom-to-top `layerStack` containing all layer sources,
+display settings, age ranges and models. Existing view fields and `geoTileStats` / `tileProcesserStats`
+remain: layer statistics describe the selected reconstruction layer, and processor statistics describe the shared runtime.
+Older readers need version-2 support. Version-1 control configurations remain importable.
+Version-2 imports restore the list and automatically activate ordinary online imagery;
+use **Load tiles** for reconstruction layers. Older interleaved lists are grouped while preserving order within each group.
+For local layers, use **Prepare local file**, reselect the file and saved slice, then **Restore selected layer**.
+Reselect local plate-model files and use **Use current plate model** on the affected layer.
 
 Uploaded model files now require reselection on import, as described above; expired
 `blob:` URLs in older configurations are cleared as well.

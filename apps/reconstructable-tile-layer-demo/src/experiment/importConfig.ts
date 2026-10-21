@@ -1,5 +1,6 @@
 /** Converts exported experiment JSON back into editable control state. */
 import type { PolygonRenderIntentMode, PrimitiveTransformMode } from "reconstructable-tile-layer";
+import { parseLayerDefinitions } from "../layers/serialization";
 
 import {
   getServicePreset,
@@ -218,7 +219,7 @@ export function parseImportedExperimentConfig(value: unknown): ImportedExperimen
   if (!isRecord(value)) {
     throw new Error("Imported file is not a valid experiment JSON object.");
   }
-  if (value.schemaVersion !== 1) {
+  if (value.schemaVersion !== 1 && value.schemaVersion !== 2) {
     throw new Error("Unsupported experiment config schema version.");
   }
 
@@ -234,6 +235,7 @@ export function parseImportedExperimentConfig(value: unknown): ImportedExperimen
     rotationAnchorMode: DEFAULT_ROTATION_ANCHOR_MODE,
     anchorPlateId: DEFAULT_ANCHOR_PLATE_ID,
   };
+  if (value.schemaVersion === 2) result.layerStack = parseLayerDefinitions(value.layerStack);
   const viewConfig: ImportedExperimentControlState["experimentViewConfig"] = {};
 
   const caseId = getString(value, "caseId");

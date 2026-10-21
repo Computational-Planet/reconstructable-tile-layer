@@ -70,3 +70,4 @@ export type {
 } from "./gplates/index.js";
 
 export type { AnchorPlateId } from "rtl-finite-rotation";
+export { createTileSurfaceAppearance } from "./surfaceAppearance.js";

@@ -2,10 +2,8 @@
   BoundingSphere,
   Cartesian3,
   type Ellipsoid,
-  EllipsoidSurfaceAppearance,
   GeometryInstance,
   ImageryProvider,
-  Material,
   Matrix4,
   Primitive,
   PrimitiveCollection,
@@ -25,6 +23,7 @@ import {
   type SimpleGeoReconstructBenchmarkObserver,
 } from "./renderRectangleSubdivision.js";
 import { resolveFeatureFiles, resolveTileProcessor } from "./manager/options.js";
+import { createTileSurfaceAppearance } from "./surfaceAppearance.js";
 import {
   comparePlateIds,
   createFrameRenderScheduler,
@@ -111,6 +110,11 @@ export type {
  */
 export class SimpleGeoReconstructManager {
   private _provider: ImageryProvider;
+  private _primitiveParent?: PrimitiveCollection;
+  private _orderedRendering = false;
+  private _clearProcessorOnReset = true;
+  private _show = true;
+  private _opacity = 1;
   /**
    * Tile processor used by this manager.
    * @deprecated Use processor. This misspelled property remains for compatibility.
@@ -202,6 +206,11 @@ export class SimpleGeoReconstructManager {
   /** Creates an uninitialized manager. Call init before requesting tiles. */
   constructor(data: SimpleGeoReconstructManagerOptions) {
     this._provider = data.provider;
+    this._primitiveParent = data.primitiveCollection;
+    this._orderedRendering = data.orderedRendering ?? false;
+    this._clearProcessorOnReset = data.clearProcessorOnReset ?? true;
+    this._show = data.show ?? true;
+    this.opacity = data.opacity ?? 1;
     this.processer = resolveTileProcessor(data);
     this._files = resolveFeatureFiles(data);
     this._referenceEllipsoid = data.referenceEllipsoid ?? data.provider.tilingScheme.ellipsoid;
@@ -252,6 +261,38 @@ export class SimpleGeoReconstructManager {
   /** Whether feature and rotation sources have finished initializing. */
   get ready() {
     return this._ready;
+  }
+
+  /** Whole-layer visibility survives age changes and tile rebuilds. */
+  get show() {
+    return this._show;
+  }
+  set show(value: boolean) {
+    this._show = value;
+    if (this._tileRootPrimitiveCollection) this._tileRootPrimitiveCollection.show = value;
+    this._boundViewer?.scene.requestRender();
+  }
+
+  get opacity() {
+    return this._opacity;
+  }
+  set opacity(value: number) {
+    if (!Number.isFinite(value) || value < 0 || value > 1) {
+      throw new RangeError("Layer opacity must be between 0 and 1.");
+    }
+    this._opacity = value;
+    this._compositeTileRecords.forEach((record) =>
+      record.primitives.forEach((primitive) => {
+        if (primitive.appearance.material)
+          primitive.appearance.material.uniforms.color.alpha = value;
+      }),
+    );
+    this._boundViewer?.scene.requestRender();
+  }
+
+  private resetProcessorCache() {
+    // 多图层共享处理器时，由所有者统一回收缓存；本层的 generation 负责拒绝旧交付。
+    if (this._clearProcessorOnReset) this.processer.clearBuffer();
   }
 
   /** Ellipsoid shared by the provider, rotations, and generated geometry. */
@@ -334,7 +375,7 @@ export class SimpleGeoReconstructManager {
     this._ageUpdateToken++;
     this._primitiveRebuildToken++;
     this._pendingTileTokens.clear();
-    this.processer.clearBuffer();
+    this.resetProcessorCache();
     if (this._boundViewer) this.removeAllPrimitives(this._boundViewer);
     else this.releaseAllTileAssets();
     this.plates.clear();
@@ -683,16 +724,14 @@ export class SimpleGeoReconstructManager {
   }
 
   private getOrCreateTileRootPrimitiveCollection(viewer: Viewer): PrimitiveCollection {
-    if (
-      this._tileRootPrimitiveCollection &&
-      viewer.scene.primitives.contains(this._tileRootPrimitiveCollection)
-    ) {
+    const parent = this._primitiveParent ?? viewer.scene.primitives;
+    if (this._tileRootPrimitiveCollection && parent.contains(this._tileRootPrimitiveCollection)) {
       return this._tileRootPrimitiveCollection;
     }
 
     this._platePrimitiveCollections.clear();
-    const rootCollection = viewer.scene.primitives.add(
-      new PrimitiveCollection(),
+    const rootCollection = parent.add(
+      new PrimitiveCollection({ show: this._show }),
     ) as PrimitiveCollection;
     this._tileRootPrimitiveCollection = rootCollection;
     return rootCollection;
@@ -735,12 +774,14 @@ export class SimpleGeoReconstructManager {
 
   private removeTilePrimitiveCollections(viewer: Viewer) {
     const rootCollection = this._tileRootPrimitiveCollection;
+    const parent = this._primitiveParent ?? viewer.scene.primitives;
     if (
       rootCollection &&
       !rootCollection.isDestroyed() &&
-      viewer.scene.primitives.contains(rootCollection)
+      !parent.isDestroyed() &&
+      parent.contains(rootCollection)
     ) {
-      viewer.scene.primitives.remove(rootCollection);
+      parent.remove(rootCollection);
     } else {
       this._platePrimitiveCollections.forEach((plateCollection) => {
         if (!plateCollection.isDestroyed()) {
@@ -837,7 +878,7 @@ export class SimpleGeoReconstructManager {
     this._ageUpdateToken++;
     this._primitiveRebuildToken++;
     this._pendingTileTokens.clear();
-    this.processer.clearBuffer();
+    this.resetProcessorCache();
     this.plates.forEach((plateItem) => {
       plateItem.polygonQuadTrees.forEach((polygonItem) => {
         polygonItem.quadTree.updateProvider(provider);
@@ -868,7 +909,7 @@ export class SimpleGeoReconstructManager {
     this._ageUpdateToken++;
     this._primitiveRebuildToken++;
     this._pendingTileTokens.clear();
-    this.processer.clearBuffer();
+    this.resetProcessorCache();
     this.removeAllPrimitives(viewer);
     viewer.scene.requestRender();
   }
@@ -894,7 +935,7 @@ export class SimpleGeoReconstructManager {
     this._pendingTileTokens.clear();
     this._tileListCache.clear();
     this._rotationMatrixCache.clear();
-    this.processer.clearBuffer();
+    this.resetProcessorCache();
 
     if (targetViewer) {
       this.removeAllPrimitives(targetViewer);
@@ -1213,12 +1254,12 @@ export class SimpleGeoReconstructManager {
     };
 
     const visibleLoadedCount = await processTasks(currentVisibleTasks, "currentVisible", true);
-    if (
-      visibleLoadedCount > 0 &&
-      generationToken === this._generationToken &&
-      loadAge === this._currentAge
-    ) {
-      await this.revealLoadedPrimitivesForAge(viewer, loadAge, generationToken);
+    if (visibleLoadedCount > 0 && generationToken === this._generationToken) {
+      if (this._transformMode === "bakedInstance" && loadAge !== this._currentAge) {
+        await this.updateAge(this._currentAge);
+      } else {
+        await this.revealLoadedPrimitivesForAge(viewer, this._currentAge, generationToken);
+      }
     }
     // Capture the processor at the exact foreground boundary. Sampling only
     // after the public Promise resolves can already include prewarm activity.
@@ -1229,8 +1270,10 @@ export class SimpleGeoReconstructManager {
       generationReport.backgroundComplete = true;
     } else if (prewarmTasks.length > 0) {
       void processTasks(prewarmTasks, "prewarm", false)
-        .then(() => {
+        .then(async () => {
           if (generationToken === this._generationToken) {
+            // 后台瓦片可能在时间轴已改变后完成，也必须收敛到最新年代。
+            await this.updateAge(this._currentAge);
             viewer.scene.requestRender();
           }
         })
@@ -1384,14 +1427,9 @@ export class SimpleGeoReconstructManager {
     const parts = subdivideRenderRectangle(parentRectangle, this._renderRectangleSubdivision);
     // All parts share one material, so the controlled experiment changes only
     // rectangle extent and Primitive topology, not retained image resources.
-    const appearance = new EllipsoidSurfaceAppearance({
-      flat: true,
-      material: this.createImageMaterial(image),
-      renderState: {
-        depthTest: {
-          enabled: false,
-        },
-      },
+    const appearance = createTileSurfaceAppearance(image, {
+      opacity: this._opacity,
+      ordered: this._orderedRendering,
     });
 
     return parts.map((part, partIndex) => {
@@ -1420,17 +1458,6 @@ export class SimpleGeoReconstructManager {
       primitive.show = visible;
       this._primitiveCreatedCount++;
       return primitive;
-    });
-  }
-
-  private createImageMaterial(image: string | HTMLCanvasElement) {
-    return new Material({
-      fabric: {
-        type: "Image",
-        uniforms: {
-          image,
-        },
-      },
     });
   }
 
@@ -1668,6 +1695,7 @@ export class SimpleGeoReconstructManager {
   }
 
   private removePrimitiveInstances(viewer: Viewer) {
+    this.releaseTileMaterials();
     if (this._tileRootPrimitiveCollection) {
       this._platePrimitiveCollections.forEach((plateCollection) => {
         if (!plateCollection.isDestroyed()) {
@@ -1696,6 +1724,7 @@ export class SimpleGeoReconstructManager {
   }
 
   private removeAllPrimitives(viewer: Viewer) {
+    this.releaseTileMaterials();
     this.removeTilePrimitiveCollections(viewer);
     this._compositeTileRecords.forEach((tileRecord) => {
       this._primitiveRemovedCount += tileRecord.primitives.length;
@@ -1711,6 +1740,7 @@ export class SimpleGeoReconstructManager {
   }
 
   private releaseAllTileAssets() {
+    this.releaseTileMaterials();
     this.clearTilePrimitiveCollectionReferences();
     this._compositeTileRecords.forEach((tileRecord) => {
       tileRecord.primitives = [];
@@ -1727,5 +1757,15 @@ export class SimpleGeoReconstructManager {
   private getTilingSchemeKey() {
     const tilingScheme = this._provider.tilingScheme;
     return [tilingScheme.constructor.name, getEllipsoidKey(tilingScheme.ellipsoid)].join(":");
+  }
+
+  private releaseTileMaterials() {
+    // 分片图元可共用材质，统一去重释放；Primitive 销毁不会替调用方释放这些纹理。
+    const materials = new Set(
+      this.getAllTilePrimitiveRecords().flatMap((record) =>
+        record.primitives.map((primitive) => primitive.appearance.material),
+      ),
+    );
+    for (const material of materials) if (material && !material.isDestroyed()) material.destroy();
   }
 }

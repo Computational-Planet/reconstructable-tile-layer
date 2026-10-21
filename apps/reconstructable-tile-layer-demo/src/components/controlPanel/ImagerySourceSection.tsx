@@ -25,6 +25,9 @@ type Props = Pick<
   | "modelNeedsApply"
   | "serviceConfig"
   | "onServiceConfigChange"
+  | "selectedLayer"
+  | "serviceMode"
+  | "onServiceModeChange"
 >;
 
 export function ImagerySourceSection({
@@ -41,14 +44,13 @@ export function ImagerySourceSection({
   modelNeedsApply,
   serviceConfig,
   onServiceConfigChange,
+  selectedLayer,
+  serviceMode,
+  onServiceModeChange,
 }: Props) {
   const [settingsOpen, setSettingsOpen] = useState(true);
   const local = sourceKind === "local-raster";
-  const activeRaster =
-    raster.applied?.context.role === "modern-reconstructable" && !initialized
-      ? null
-      : raster.applied;
-  const serviceActive = initialized && !activeRaster && appliedService;
+  const serviceActive = initialized && selectedLayer?.source.kind === "service" && appliedService;
   const disabledReason = busy
     ? "Wait for the current operation to finish."
     : local
@@ -57,12 +59,13 @@ export function ImagerySourceSection({
 
   useEffect(() => {
     // 仅在应用成功后收起配置，给下方瓦片加载和时间轴留出空间；失败时保留编辑现场。
-    setSettingsOpen(!raster.applied && !appliedService);
-  }, [raster.applied, appliedService]);
+    setSettingsOpen(!raster.applied);
+  }, [raster.applied]);
 
   return (
     <section
       className="panel-section imagery-source-section"
+      id="imagery-source"
       aria-label="Imagery data source"
       aria-busy={busy}
     >
@@ -70,29 +73,20 @@ export function ImagerySourceSection({
         <span className="workflow-step">2</span> Imagery data source
       </h2>
       <div className="active-source" data-testid="active-source" aria-live="polite">
-        <span className="active-source-label">Current source</span>
-        {activeRaster ? (
+        <span className="active-source-label">Selected layer</span>
+        {selectedLayer ? (
           <div data-testid="raster-applied">
-            <strong>{activeRaster.descriptor.file.name}</strong>
+            <strong>{selectedLayer.name}</strong>
             <p className="field-hint">
-              {activeRaster.context.role === "modern-reconstructable"
-                ? `Reconstruct from 0 Ma · reconstruction: ${age} Ma`
-                : activeRaster.context.role === "paleo-snapshot"
-                  ? `Paleo snapshot · ${activeRaster.context.displayAgeMa} Ma (${age === activeRaster.context.displayAgeMa ? "visible" : "hidden at current age"})`
-                  : "Reference only · fixed coordinates"}
-              {activeRaster.provider.style.domains.map((domain) => ` · [${domain.join(", ")}]`)}
+              {selectedLayer.mode === "reconstructable"
+                ? `Reconstruction · ${age} Ma`
+                : "Fixed coordinates"}
+              {" · "}
+              {selectedLayer.effectiveVisible ? "enabled at current age" : "hidden"}
             </p>
           </div>
-        ) : serviceActive ? (
-          <>
-            <strong>{appliedService.label}</strong>
-            <code className="active-service-url">{appliedService.config.url}</code>
-            <p className="field-hint">
-              {appliedService.config.protocol.toUpperCase()} · follows reconstruction age
-            </p>
-          </>
         ) : (
-          <strong>No source applied</strong>
+          <strong>No layer selected</strong>
         )}
         {modelNeedsApply && (
           <p className="field-hint">Plate model changed. Apply source to use the new model.</p>
@@ -102,6 +96,7 @@ export function ImagerySourceSection({
       <label>
         Source type
         <select
+          id="source-kind"
           aria-label="Imagery source type"
           value={sourceKind}
           disabled={busy}
@@ -128,20 +123,36 @@ export function ImagerySourceSection({
           <LocalRasterSection raster={raster} busy={busy} />
         </details>
       ) : (
-        <ServiceConnectionForm
-          config={serviceConfig}
-          exampleKey={providerKey}
-          busy={busy}
-          onChange={onServiceConfigChange}
-          onExampleChange={onProviderKeyChange}
-        />
+        <>
+          <label>
+            Coordinates
+            <select
+              aria-label="Service layer coordinates"
+              value={serviceMode}
+              disabled={busy}
+              onChange={(event) =>
+                onServiceModeChange(event.target.value as "reconstructable" | "static")
+              }
+            >
+              <option value="reconstructable">Reconstruct from 0 Ma</option>
+              <option value="static">Fixed coordinates</option>
+            </select>
+          </label>
+          <ServiceConnectionForm
+            config={serviceConfig}
+            exampleKey={providerKey}
+            busy={busy}
+            onChange={onServiceConfigChange}
+            onExampleChange={onProviderKeyChange}
+          />
+        </>
       )}
 
       {!local &&
         serviceActive &&
         JSON.stringify(serviceConfig) !== JSON.stringify(appliedService.config) && (
           <p className="field-hint" data-testid="service-pending">
-            Form changes are pending. Apply source to replace the current connection.
+            Add this connection as another layer. Existing layers keep their applied settings.
           </p>
         )}
       <div className="source-apply-actions">
@@ -151,7 +162,7 @@ export function ImagerySourceSection({
           aria-describedby="source-apply-help"
           onClick={() => (local ? void raster.apply() : onApplyProvider())}
         >
-          Apply source
+          {local && selectedLayer?.status === "needs-file" ? "Restore selected layer" : "Add layer"}
         </button>
         {local && raster.entry && (
           <button
@@ -163,15 +174,15 @@ export function ImagerySourceSection({
               setSettingsOpen(true);
             }}
           >
-            Remove local raster
+            Clear prepared file
           </button>
         )}
       </div>
       <p id="source-apply-help" className="field-hint">
         {disabledReason ??
           (local && raster.context.role !== "modern-reconstructable"
-            ? "Apply displays this file directly. Tile loading is used only for reconstructable sources."
-            : "Apply the selected source, then load tiles in step 3.")}
+            ? "Add a fixed-coordinate layer, then set its visible age range in Layers."
+            : "Add the source as a new layer, then load its tiles in step 3 or the Layers panel.")}
       </p>
       {local && (
         <>

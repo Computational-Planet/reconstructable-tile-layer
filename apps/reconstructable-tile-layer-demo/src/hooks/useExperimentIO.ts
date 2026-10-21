@@ -31,8 +31,11 @@ import {
 } from "../experiment";
 import { canvasToPngBlob, downloadBlob, downloadJson } from "../utils/downloads";
 import type { LocalRasterDescriptor } from "../raster/context";
+import type { LayerController } from "../layers/LayerController";
+import { exportLayerDefinitions } from "../layers/serialization";
 
 type UseExperimentIOOptions = {
+  layerControllerRef: MutableRefObject<LayerController | null>;
   localRaster?: LocalRasterDescriptor;
   appliedService: { config: TileServiceConfig; exampleKey: ProviderKey } | null;
   onImportSources: (hasLocalRaster: boolean) => void;
@@ -92,6 +95,7 @@ type UseExperimentIOOptions = {
 };
 
 export function useExperimentIO({
+  layerControllerRef,
   localRaster,
   appliedService,
   onImportSources,
@@ -177,6 +181,8 @@ export function useExperimentIO({
       exportedAt,
       exportBaseName,
     );
+    info.schemaVersion = 2;
+    info.layerStack = exportLayerDefinitions(layerControllerRef.current?.definitions ?? []);
     if (localRaster) {
       info.sources.localRaster = localRaster;
       info.sources.providerLabel = `Local raster: ${localRaster.file.name}`;
@@ -217,11 +223,15 @@ export function useExperimentIO({
       const parsedJson = JSON.parse(await file.text()) as unknown;
       const importedConfig = parseImportedExperimentConfig(parsedJson);
       onImportSources(!!importedConfig.localRasterFileName);
+      if (importedConfig.layerStack) layerControllerRef.current?.restore(importedConfig.layerStack);
       const rasterNotice = importedConfig.localRasterFileName
         ? ` Reselect the local file ${importedConfig.localRasterFileName} and apply its slice/context; local files are not embedded.`
         : "";
       const modelNotice = importedConfig.requiresLocalModelFiles
         ? " Reselect the local plate-domain/ROT files before initializing the model."
+        : "";
+      const layerNotice = importedConfig.layerStack
+        ? ` ${importedConfig.layerStack.length} layers restored to the panel. Ordinary online imagery loads automatically; load reconstruction tiles and reselect local files where indicated.`
         : "";
       const importedViewConfig = importedConfig.experimentViewConfig;
       const nextViewConfig: ExperimentViewConfig = importedViewConfig
@@ -269,6 +279,7 @@ export function useExperimentIO({
       }
       if (importedConfig.primitiveTransformMode) {
         setPrimitiveTransformMode(importedConfig.primitiveTransformMode);
+        await layerControllerRef.current?.setTransformMode(importedConfig.primitiveTransformMode);
       }
       if (importedConfig.serviceConfig) {
         setServiceConfig(importedConfig.serviceConfig);
@@ -313,12 +324,14 @@ export function useExperimentIO({
       if (shouldApplyImportedView && viewerRef.current) {
         applyExperimentView(viewerRef.current, nextViewConfig);
         setStatus(
-          `Experiment config imported and view applied: ${file.name}.${rasterNotice}${modelNotice}`,
+          `Experiment config imported and view applied: ${file.name}.${rasterNotice}${modelNotice}${layerNotice}`,
         );
         return;
       }
 
-      setStatus(`Experiment config imported: ${file.name}.${rasterNotice}${modelNotice}`);
+      setStatus(
+        `Experiment config imported: ${file.name}.${rasterNotice}${modelNotice}${layerNotice}`,
+      );
     } catch (error) {
       console.error(error);
       setStatus(error instanceof Error ? error.message : String(error));

@@ -1,29 +1,12 @@
 import { useEffect, useRef, useState, type MutableRefObject } from "react";
-import {
-  ImageryLayer,
-  Rectangle,
-  type ImageryProvider,
-  type Viewer,
-} from "cesium";
-import {
-  getGeographicBounds,
-  openRasterSource,
-  type RasterSource,
-} from "rtl-raster-source";
-import type {
-  NetCDFDataset,
-  NetCDFSliceLayout,
-} from "rtl-raster-source/netcdf";
-import {
-  RasterImageryProvider,
-  type RasterStyle,
-} from "rtl-raster-imagery-provider";
-import type {
-  RasterConversionResult,
-  RasterConverter,
-} from "rtl-raster-converter";
+import { Rectangle, type Viewer } from "cesium";
+import { getGeographicBounds, openRasterSource, type RasterSource } from "rtl-raster-source";
+import type { NetCDFDataset, NetCDFSliceLayout } from "rtl-raster-source/netcdf";
+import { RasterImageryProvider, type RasterStyle } from "rtl-raster-imagery-provider";
+import type { RasterConversionResult, RasterConverter } from "rtl-raster-converter";
 import { DEMO_ELLIPSOID_CONFIG } from "../cesium/createViewer";
 import { downloadBlob } from "../utils/downloads";
+import { retainResources } from "../layers/resourceLeases";
 import {
   describeLocalRaster,
   emptyRasterContext,
@@ -43,7 +26,7 @@ interface RasterEntry {
 }
 interface AppliedRaster {
   provider: RasterImageryProvider;
-  layer?: ImageryLayer;
+  layerId: string;
   context: ScientificRasterContext;
   descriptor: LocalRasterDescriptor;
   modelKey: string;
@@ -66,23 +49,18 @@ const initialStyle: RasterStyleDraft = {
   palette: "gray",
   additionalNoData: "",
 };
-const message = (error: unknown) =>
-  error instanceof Error ? error.message : String(error);
+const message = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
 function makeStyle(draft: RasterStyleDraft): RasterStyle {
   const additionalNoData = draft.additionalNoData.trim()
     ? draft.additionalNoData.split(",").map((value) => {
         if (!value.trim() || !Number.isFinite(Number(value)))
-          throw new Error(
-            "Additional NoData values must be comma-separated raw numbers.",
-          );
+          throw new Error("Additional NoData values must be comma-separated raw numbers.");
         return Number(value);
       })
     : undefined;
   const domain: [number, number] | undefined =
-    draft.range === "manual"
-      ? [Number(draft.min), Number(draft.max)]
-      : undefined;
+    draft.range === "manual" ? [Number(draft.min), Number(draft.max)] : undefined;
   if (
     domain &&
     (!draft.min.trim() ||
@@ -90,9 +68,7 @@ function makeStyle(draft: RasterStyleDraft): RasterStyle {
       !domain.every(Number.isFinite) ||
       domain[0] >= domain[1])
   )
-    throw new Error(
-      "The display range needs finite values with maximum greater than minimum.",
-    );
+    throw new Error("The display range needs finite values with maximum greater than minimum.");
   return draft.kind === "rgb"
     ? {
         kind: "rgb",
@@ -135,23 +111,21 @@ function resolvedStyle(provider: RasterImageryProvider): RasterStyle {
     : {
         kind: "rgb",
         bands: [...style.bands] as [number, number, number],
-        domains: [...style.domains] as [
-          [number, number],
-          [number, number],
-          [number, number],
-        ],
+        domains: [...style.domains] as [[number, number], [number, number], [number, number]],
         additionalNoData: style.additionalNoData,
       };
 }
 
 interface Options {
   viewerRef: MutableRefObject<Viewer | null>;
-  age: number;
-  setAge: (age: number) => void;
-  setLevel: (level: number) => void;
   model: ModelSelection;
-  clearReconstruction: () => void;
-  applyReconstruction: (provider: ImageryProvider) => Promise<boolean>;
+  addLayer: (
+    provider: RasterImageryProvider,
+    descriptor: LocalRasterDescriptor,
+    model: ModelSelection,
+    release: () => void,
+    signal: AbortSignal,
+  ) => Promise<string | null>;
 }
 
 export function useLocalRaster(options: Options) {
@@ -159,23 +133,21 @@ export function useLocalRaster(options: Options) {
   callbacks.current = options;
   const [entry, setEntry] = useState<RasterEntry | null>(null);
   const entryRef = useRef<RasterEntry | null>(null);
+  const releaseEntryRef = useRef<(() => void) | null>(null);
+  const restoreDescriptorRef = useRef<LocalRasterDescriptor | null>(null);
+  const restoredStyleRef = useRef<RasterStyle | null>(null);
   const [applied, setApplied] = useState<AppliedRaster | null>(null);
   const appliedRef = useRef<AppliedRaster | null>(null);
-  const [context, setContext] =
-    useState<RasterContextDraft>(emptyRasterContext);
+  const [context, setContext] = useState<RasterContextDraft>(emptyRasterContext);
   const [style, setStyle] = useState<RasterStyleDraft>(initialStyle);
   const [variable, setVariable] = useState("");
   const [indices, setIndices] = useState<Record<string, number>>({});
-  const [coordinates, setCoordinates] = useState<
-    Record<string, readonly number[]>
-  >({});
+  const [coordinates, setCoordinates] = useState<Record<string, readonly number[]>>({});
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState(
     "Choose a local GeoTIFF or NetCDF file. Processing stays in this browser.",
   );
-  const [conversion, setConversion] = useState<RasterConversionResult | null>(
-    null,
-  );
+  const [conversion, setConversion] = useState<RasterConversionResult | null>(null);
   const conversionOrigin = useRef<LocalRasterDescriptor>();
   const [grid, setGrid] = useState({
     bounds: "-180, -90, 180, 90",
@@ -187,26 +159,35 @@ export function useLocalRaster(options: Options) {
   const converter = useRef<RasterConverter | null>(null);
   const alive = useRef(true);
   const modelKey = JSON.stringify(options.model);
+  const restoreDraft = (descriptor: LocalRasterDescriptor) => {
+    const saved = descriptor.context;
+    setContext({
+      role: saved.role,
+      displayAge: saved.displayAgeMa === null ? "" : String(saved.displayAgeMa),
+      ageSource: saved.ageSource,
+      experiment: saved.experiment,
+      citation: saved.citation,
+      referenceFrame: saved.referenceFrame,
+      modelConfirmed: false,
+    });
+    const savedStyle = descriptor.style;
+    const domain = savedStyle.kind === "single-band" ? savedStyle.domain : savedStyle.domains?.[0];
+    setStyle({
+      ...initialStyle,
+      kind: savedStyle.kind,
+      bands: savedStyle.kind === "rgb" ? [...savedStyle.bands] : [savedStyle.band, 1, 2],
+      range: domain ? "manual" : "preview",
+      min: String(domain?.[0] ?? 0),
+      max: String(domain?.[1] ?? 1),
+      additionalNoData: savedStyle.additionalNoData?.join(", ") ?? "",
+    });
+    restoredStyleRef.current = savedStyle;
+  };
 
-  const releaseApplied = (
-    managerAlreadyDetached = false,
-    updateState = true,
-  ) => {
-    const current = appliedRef.current;
-    if (!current) return;
-    const viewer = callbacks.current.viewerRef.current;
-    // 先让场景/RTL 失去引用，再终止 provider 的读取；dataset 由导入会话独立拥有。
-    if (
-      !managerAlreadyDetached &&
-      current.context.role === "modern-reconstructable"
-    )
-      callbacks.current.clearReconstruction();
-    if (current.layer && viewer && !viewer.isDestroyed())
-      viewer.imageryLayers.remove(current.layer, true);
-    current.provider.destroy();
+  const releaseApplied = (updateState = true) => {
+    // 此处只清理编辑器摘要；已添加图层的资源归 layers 模块所有。
     appliedRef.current = null;
     if (updateState) setApplied(null);
-    if (viewer && !viewer.isDestroyed()) viewer.scene.requestRender();
   };
   const closeEntry = (current: RasterEntry | null) => {
     current?.source?.close();
@@ -214,12 +195,13 @@ export function useLocalRaster(options: Options) {
   };
   const replaceEntry = (next: RasterEntry) => {
     releaseApplied();
-    const previous = entryRef.current;
-    if (previous?.source !== next.source) previous?.source?.close();
-    if (previous?.dataset !== next.dataset) previous?.dataset?.close();
+    const releaseNext = retainResources([next.source, next.dataset]);
+    releaseEntryRef.current?.();
+    releaseEntryRef.current = releaseNext;
     entryRef.current = next;
     setEntry(next);
     setStyle(initialStyle);
+    restoredStyleRef.current = null;
     setConversion(null);
     conversionOrigin.current = undefined;
     if (next.source) {
@@ -239,37 +221,23 @@ export function useLocalRaster(options: Options) {
       alive.current = false;
       operation.current?.abort();
       converter.current?.dispose();
-      // Cesium runtime 的清理负责 manager；这里释放本地文件与独立图层。
-      releaseApplied(true, false);
-      closeEntry(entryRef.current);
+      releaseApplied(false);
+      releaseEntryRef.current?.();
+      releaseEntryRef.current = null;
       entryRef.current = null;
     };
   }, []);
 
   useEffect(() => {
     const current = appliedRef.current;
-    if (
-      current?.context.role === "modern-reconstructable" &&
-      current.modelKey !== modelKey
-    ) {
+    if (current?.context.role === "modern-reconstructable" && current.modelKey !== modelKey) {
       releaseApplied();
       setContext((draft) => ({ ...draft, modelConfirmed: false }));
       setStatus(
-        "Plate model settings changed. Confirm the frame and apply the raster again.",
+        "Plate model settings changed. Confirm the frame before adding another layer. Existing layers keep their applied model.",
       );
     }
   }, [modelKey]);
-
-  useEffect(() => {
-    const current = appliedRef.current;
-    const viewer = options.viewerRef.current;
-    if (current?.layer && viewer && !viewer.isDestroyed()) {
-      current.layer.show =
-        current.context.role !== "paleo-snapshot" ||
-        current.context.displayAgeMa === options.age;
-      viewer.scene.requestRender();
-    }
-  }, [options.age, applied]);
 
   const run = async (task: (signal: AbortSignal) => Promise<void>) => {
     if (operation.current) return;
@@ -291,18 +259,13 @@ export function useLocalRaster(options: Options) {
     }
   };
 
-  const selectVariable = (
-    name: string,
-    dataset = entryRef.current?.dataset,
-  ) => {
+  const selectVariable = (name: string, dataset = entryRef.current?.dataset) => {
     setVariable(name);
     setCoordinates({});
     try {
       const layout = dataset?.describeVariable(name);
       setIndices(
-        Object.fromEntries(
-          layout?.selectors.map((selector) => [selector.dimension, 0]) ?? [],
-        ),
+        Object.fromEntries(layout?.selectors.map((selector) => [selector.dimension, 0]) ?? []),
       );
     } catch {
       setIndices({});
@@ -325,15 +288,16 @@ export function useLocalRaster(options: Options) {
           const { openNetCDFSource } = await import("rtl-raster-source/netcdf");
           signal.throwIfAborted();
           next = { file, dataset: await openNetCDFSource(file, { signal }) };
-        } else
-          next = { file, source: await openRasterSource(file, { signal }) };
+        } else next = { file, source: await openRasterSource(file, { signal }) };
         signal.throwIfAborted();
         replaceEntry(next);
-        setContext({ ...emptyRasterContext });
+        if (restoreDescriptorRef.current) restoreDraft(restoreDescriptorRef.current);
+        else {
+          restoredStyleRef.current = null;
+          setContext({ ...emptyRasterContext });
+        }
         const variables =
-          next.dataset?.metadata.variables.filter(
-            (candidate) => candidate.shape.length >= 2,
-          ) ?? [];
+          next.dataset?.metadata.variables.filter((candidate) => candidate.shape.length >= 2) ?? [];
         const preferred =
           variables.find((candidate) => {
             try {
@@ -343,7 +307,12 @@ export function useLocalRaster(options: Options) {
               return false;
             }
           }) ?? variables[0];
-        selectVariable(preferred?.name ?? "", next.dataset);
+        selectVariable(
+          restoreDescriptorRef.current?.source.slice?.variable ?? preferred?.name ?? "",
+          next.dataset,
+        );
+        if (restoreDescriptorRef.current?.source.slice)
+          setIndices({ ...restoreDescriptorRef.current.source.slice.indices });
         setStatus(
           next.dataset
             ? "Select a variable and time/depth indices, then read the slice."
@@ -368,8 +337,7 @@ export function useLocalRaster(options: Options) {
   const slicePending =
     !!entry?.dataset &&
     (entry.source?.metadata.slice?.variable !== variable ||
-      JSON.stringify(entry.source?.metadata.slice?.indices) !==
-        JSON.stringify(indices));
+      JSON.stringify(entry.source?.metadata.slice?.indices) !== JSON.stringify(indices));
 
   const readSlice = () =>
     run(async (signal) => {
@@ -387,6 +355,7 @@ export function useLocalRaster(options: Options) {
         signal.throwIfAborted();
       }
       replaceEntry({ ...current, source });
+      if (restoreDescriptorRef.current) restoreDraft(restoreDescriptorRef.current);
       const coordinateValues: Record<string, readonly number[]> = {};
       for (const selector of layout.selectors) {
         // 只读有界的一维选择轴；大轴仍按原始下标选片，不把模型日历转成公历日期。
@@ -400,9 +369,7 @@ export function useLocalRaster(options: Options) {
       }
       signal.throwIfAborted();
       setCoordinates(coordinateValues);
-      setStatus(
-        `Slice ready: ${variable}. Values retain their original units and CF scaling.`,
-      );
+      setStatus(`Slice ready: ${variable}. Values retain their original units and CF scaling.`);
     });
 
   const apply = () =>
@@ -412,79 +379,63 @@ export function useLocalRaster(options: Options) {
         throw new Error("Read the selected slice before applying it.");
       const scientificContext = makeScientificContext(context, options.model);
       const viewer = options.viewerRef.current;
-      if (!viewer || viewer.isDestroyed())
-        throw new Error("Viewer is not ready.");
+      if (!viewer || viewer.isDestroyed()) throw new Error("Viewer is not ready.");
       setStatus("Preparing imagery from the selected numeric source…");
       const provider = await RasterImageryProvider.fromSource(current.source, {
-        style: makeStyle(style),
+        style: restoredStyleRef.current ?? makeStyle(style),
         signal,
         ellipsoid: DEMO_ELLIPSOID_CONFIG.ellipsoid,
         credit: current.file.name,
       });
-      let layer: ImageryLayer | undefined;
+      const releaseResources = retainResources([current.source, current.dataset]);
+      let released = false;
+      const release = () => {
+        if (released) return;
+        released = true;
+        provider.destroy();
+        releaseResources();
+      };
       try {
         signal.throwIfAborted();
-        if (scientificContext.role === "modern-reconstructable") {
-          if (modelKey !== JSON.stringify(callbacks.current.model))
-            throw new Error(
-              "Plate model settings changed. Apply the raster again.",
-            );
-          const initialized =
-            await callbacks.current.applyReconstruction(provider);
-          // 初始化会替换旧 manager；失败时也不能继续把旧来源标记为正在重建。
-          releaseApplied(true);
-          if (!initialized)
-            throw new Error(
-              "Plate model initialization failed. See the reconstruction status.",
-            );
-          if (modelKey !== JSON.stringify(callbacks.current.model)) {
-            callbacks.current.clearReconstruction();
-            throw new Error(
-              "Plate model settings changed. Apply the raster again.",
-            );
-          }
-          if (signal.aborted) {
-            callbacks.current.clearReconstruction();
-            signal.throwIfAborted();
-          }
-          // 低分辨率源先用 L2，较细源先用 L3；源像元较少也不强制回退到 L0/L1。
-          callbacks.current.setLevel(provider.recommendedReconstructionLevel);
-        } else {
-          // 用户选择的快照按年龄显隐；0 Ma PaleoDEM 也可以显式选择上面的 RTL 重建路径。
-          layer = viewer.imageryLayers.addImageryProvider(provider);
-          callbacks.current.clearReconstruction();
-          releaseApplied(true);
-          if (scientificContext.displayAgeMa !== null)
-            options.setAge(scientificContext.displayAgeMa);
-        }
+        if (modelKey !== JSON.stringify(callbacks.current.model))
+          throw new Error("Plate model changed while preparing the raster. Try adding it again.");
+        const descriptor = describeLocalRaster(
+          current.file,
+          current.source.metadata,
+          scientificContext,
+          resolvedStyle(provider),
+          true,
+          current.convertedFrom,
+        );
+        const layerId = await callbacks.current.addLayer(
+          provider,
+          descriptor,
+          options.model,
+          release,
+          signal,
+        );
+        if (!layerId)
+          throw new Error("Layer was cancelled or could not be initialized. See the Layers panel.");
         const next = {
           provider,
-          layer,
+          layerId,
           context: scientificContext,
           modelKey,
-          descriptor: describeLocalRaster(
-            current.file,
-            current.source.metadata,
-            scientificContext,
-            resolvedStyle(provider),
-            true,
-            current.convertedFrom,
-          ),
+          descriptor,
         };
         appliedRef.current = next;
+        restoreDescriptorRef.current = null;
         setApplied(next);
         viewer.scene.requestRender();
         setStatus(
           scientificContext.role === "modern-reconstructable"
-            ? `Modern source bound to the selected plate model. Tile level is set to ${provider.recommendedReconstructionLevel}; available L0–L${provider.maximumLevel}. Load tiles to reconstruct it; use view loading for finer levels.`
+            ? `Reconstruction layer added. Load tiles for it in the Layers panel or step 3. Available L0–L${provider.maximumLevel}.`
             : scientificContext.role === "paleo-snapshot"
-              ? `Snapshot displayed at ${scientificContext.displayAgeMa} Ma without additional rotation.`
-              : "Reference layer displayed in its stored coordinates.",
+              ? `Snapshot added at ${scientificContext.displayAgeMa} Ma. Edit its visible age range in Layers.`
+              : "Fixed-coordinate layer added. Edit its visible age range in Layers.",
         );
       } catch (error) {
-        if (layer && !viewer.isDestroyed())
-          viewer.imageryLayers.remove(layer, true);
-        provider.destroy();
+        release();
         throw error;
       }
     });
@@ -499,7 +450,7 @@ export function useLocalRaster(options: Options) {
         current.file,
         current.source.metadata,
         scientificContext,
-        makeStyle(style),
+        restoredStyleRef.current ?? makeStyle(style),
         false,
         current.convertedFrom,
       );
@@ -510,39 +461,34 @@ export function useLocalRaster(options: Options) {
         );
       const bounds = grid.bounds.split(",").map(Number);
       if (needsGrid && (bounds.length !== 4 || !bounds.every(Number.isFinite)))
-        throw new Error(
-          "Enter four numeric grid bounds: west, south, east, north.",
-        );
+        throw new Error("Enter four numeric grid bounds: west, south, east, north.");
       setStatus("Loading conversion resources…");
       const { createDemoConverter } = await import("../raster/conversion");
       signal.throwIfAborted();
       const engine = await createDemoConverter();
       converter.current = engine;
       try {
-        const result = await engine.toCOG(
-          current.dataset ? current.source : current.file,
-          {
-            signal,
-            grid: needsGrid
-              ? {
-                  bounds: bounds as [number, number, number, number],
-                  width: grid.width,
-                  height: grid.height,
-                  resampling: "nearest",
-                }
-              : undefined,
-            provenance: {
-              scientificContext,
-              inputDescription: JSON.parse(stringifyScientific(descriptor)),
-            },
-            onProgress: (progress) => {
-              if (!signal.aborted && alive.current)
-                setStatus(
-                  `COG: ${progress.stage}${progress.total ? ` (${progress.completed}/${progress.total} rows)` : ""}`,
-                );
-            },
+        const result = await engine.toCOG(current.dataset ? current.source : current.file, {
+          signal,
+          grid: needsGrid
+            ? {
+                bounds: bounds as [number, number, number, number],
+                width: grid.width,
+                height: grid.height,
+                resampling: "nearest",
+              }
+            : undefined,
+          provenance: {
+            scientificContext,
+            inputDescription: JSON.parse(stringifyScientific(descriptor)),
           },
-        );
+          onProgress: (progress) => {
+            if (!signal.aborted && alive.current)
+              setStatus(
+                `COG: ${progress.stage}${progress.total ? ` (${progress.completed}/${progress.total} rows)` : ""}`,
+              );
+          },
+        });
         signal.throwIfAborted();
         conversionOrigin.current = descriptor;
         setConversion(result);
@@ -583,16 +529,19 @@ export function useLocalRaster(options: Options) {
     operation.current?.abort();
     converter.current?.dispose();
     releaseApplied();
-    closeEntry(entryRef.current);
+    releaseEntryRef.current?.();
+    releaseEntryRef.current = null;
     entryRef.current = null;
     setEntry(null);
     setConversion(null);
     conversionOrigin.current = undefined;
+    restoreDescriptorRef.current = null;
+    restoredStyleRef.current = null;
     setVariable("");
     setIndices({});
     setCoordinates({});
     setContext({ ...emptyRasterContext });
-    setStatus("Local raster removed and file resources released.");
+    setStatus("Prepared file cleared. Layers already added remain on the map.");
   };
 
   // 统一应用按钮需要可解释的就绪状态；校验与真正应用复用同一规则。
@@ -619,7 +568,10 @@ export function useLocalRaster(options: Options) {
     context,
     setContext,
     style,
-    setStyle,
+    setStyle: (value: RasterStyleDraft) => {
+      restoredStyleRef.current = null;
+      setStyle(value);
+    },
     variable,
     selectVariable,
     indices,
@@ -639,6 +591,14 @@ export function useLocalRaster(options: Options) {
     convert,
     loadConverted,
     remove,
+    prepareRestore: (descriptor: LocalRasterDescriptor) => {
+      remove();
+      restoreDescriptorRef.current = descriptor;
+      restoreDraft(descriptor);
+      setStatus(
+        `Reselect ${descriptor.file.name}, read its saved slice if needed, then restore the selected layer.`,
+      );
+    },
     cancel: () => {
       operation.current?.abort();
     },
@@ -648,22 +608,15 @@ export function useLocalRaster(options: Options) {
       if (!source || !viewer || viewer.isDestroyed()) return;
       const [west, south, east, north] = getGeographicBounds(source.metadata);
       viewer.camera.flyTo({
-        destination: Rectangle.fromDegrees(
-          west,
-          south,
-          east > 180 ? east - 360 : east,
-          north,
-        ),
+        destination: Rectangle.fromDegrees(west, south, east > 180 ? east - 360 : east, north),
         duration: 0.5,
       });
     },
-    detachForService: () => releaseApplied(true),
     downloadCOG: () => {
       if (conversion) downloadBlob(conversion.blob, conversion.filename);
     },
     downloadProvenance: () => {
-      if (conversion)
-        downloadBlob(conversion.provenanceBlob, conversion.provenanceFilename);
+      if (conversion) downloadBlob(conversion.provenanceBlob, conversion.provenanceFilename);
     },
     descriptor: applied?.descriptor,
   };

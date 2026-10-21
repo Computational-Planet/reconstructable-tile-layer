@@ -1,0 +1,209 @@
+/* 图层面板是 demo 的独立侧栏；复用左侧表单与配色，不挤占来源配置。 */
+.app-shell.has-layer-panel {
+  grid-template-columns: minmax(400px, 460px) minmax(0, 1fr) 310px;
+}
+.layer-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  height: 100%;
+  overflow-y: auto;
+  padding: 18px 14px;
+  border-left: 1px solid rgb(255 255 255 / 12%);
+  background: #0c1118;
+  scrollbar-color: #3d4654 #0c1118;
+  scrollbar-width: thin;
+}
+.layer-panel[hidden],
+.layer-panel-toggle[hidden] {
+  display: none;
+}
+.layer-panel h2 {
+  margin: 4px 0 0;
+  font-size: 20px;
+}
+.layer-panel h2 span,
+.layer-panel-toggle span {
+  color: #9fb3c8;
+  font-size: 12px;
+}
+.layer-panel .field-hint {
+  margin: 0;
+  color: #bbc8d8;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.layer-panel-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.layer-panel button {
+  padding: 0 10px;
+  font-size: 12px;
+}
+.layer-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.layer-group h3 {
+  margin: 0 0 10px;
+  color: #bbc8d8;
+  font-size: 12px;
+  font-weight: 500;
+}
+.layer-card {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: 8px;
+  background: rgb(255 255 255 / 4%);
+}
+.layer-card.is-selected {
+  border-color: rgb(143 182 255 / 55%);
+  background: rgb(143 182 255 / 6%);
+}
+.layer-card-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.layer-card-heading > input {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  accent-color: #f17922;
+}
+.layer-card .layer-select {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  gap: 5px;
+  padding: 2px 0;
+  text-align: left;
+  background: transparent;
+  font-weight: 400;
+}
+.layer-select strong {
+  overflow-wrap: anywhere;
+  color: #f1f5f9;
+  font-size: 13px;
+}
+.layer-select span {
+  color: #9fb3c8;
+  font-size: 11px;
+}
+.layer-order-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.layer-order-actions button {
+  min-height: 24px;
+  width: 26px;
+  padding: 0;
+}
+.layer-details {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgb(255 255 255 / 10%);
+}
+.layer-details label {
+  display: grid;
+  gap: 6px;
+  color: #d9e2ec;
+  font-size: 12px;
+}
+.layer-details .checkbox-row {
+  display: flex;
+}
+.layer-opacity {
+  grid-template-columns: 1fr auto;
+}
+.layer-opacity input {
+  grid-column: 1 / -1;
+}
+.layer-age-range {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  margin: 0;
+  padding: 10px;
+  border: 1px solid rgb(255 255 255 / 14%);
+  border-radius: 6px;
+}
+.layer-age-range legend {
+  color: #a9d1ff;
+  font-size: 12px;
+  padding: 0 4px;
+}
+.layer-source-name {
+  max-height: 60px;
+  overflow: auto;
+}
+.layer-status {
+  margin: 0;
+  color: #a9d1ff;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.layer-status.is-error {
+  color: #ffc58e;
+}
+.layer-load-row {
+  display: grid;
+  grid-template-columns: 68px 1fr;
+  gap: 10px;
+  align-items: end;
+}
+.layer-details .layer-remove {
+  color: #ffc58e;
+}
+.layer-panel-toggle {
+  position: absolute;
+  z-index: 5;
+  top: 16px;
+  right: 16px;
+  padding: 0 14px;
+  background: #121923;
+}
+.layer-empty {
+  font-size: 13px;
+  line-height: 1.5;
+  color: #bbc8d8;
+}
+.layer-empty p,
+.layer-empty h3 {
+  margin: 0;
+}
+@media (max-width: 1250px) {
+  .app-shell.has-layer-panel {
+    grid-template-columns: minmax(400px, 460px) minmax(0, 1fr);
+  }
+  .layer-panel {
+    position: absolute;
+    z-index: 6;
+    top: 0;
+    right: 0;
+    width: min(310px, 90vw);
+    box-shadow: -12px 0 30px rgb(0 0 0 / 35%);
+  }
+}
+@media (max-width: 900px) {
+  .app-shell.has-layer-panel {
+    grid-template-columns: 1fr;
+  }
+  .layer-panel {
+    position: fixed;
+    height: 100dvh;
+  }
+}

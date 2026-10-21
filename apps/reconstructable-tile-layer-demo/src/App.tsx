@@ -1,10 +1,6 @@
 /** Composes demo state, Cesium runtime hooks, and the control panel UI. */
 import { useEffect, useState, type CSSProperties } from "react";
-import type {
-  ReconstructableTileLayerStats,
-  PolygonRenderIntentMode,
-  PrimitiveTransformMode,
-} from "reconstructable-tile-layer";
+import type { PolygonRenderIntentMode, PrimitiveTransformMode } from "reconstructable-tile-layer";
 
 import {
   applyCameraPreset,
@@ -17,7 +13,6 @@ import {
 import {
   DEFAULT_PROVIDER_KEY,
   getServicePreset,
-  getServiceLabel,
   type ProviderKey,
   type TileServiceConfig,
 } from "./cesium/providers";
@@ -45,13 +40,12 @@ import { useDataSourceControls } from "./hooks/useDataSourceControls";
 import { useExperimentIO } from "./hooks/useExperimentIO";
 import { useGraticuleOverlay } from "./hooks/useGraticuleOverlay";
 import { useReferencePolygonOverlay } from "./hooks/useReferencePolygonOverlay";
-import { useReconstructActions } from "./hooks/useReconstructActions";
 import { DEFAULT_GLOBE_BASE_COLOR } from "./cesium/createViewer";
 import { useLocalRaster } from "./hooks/useLocalRaster";
-import type {
-  AppliedService,
-  ImagerySourceKind,
-} from "./components/controlPanel/ControlPanel.types";
+import type { ImagerySourceKind } from "./components/controlPanel/ControlPanel.types";
+import { useLayerManager } from "./layers/useLayerManager";
+import { LayerPanel } from "./components/layers/LayerPanel";
+import type { LayerDefinition, LayerMode } from "./layers/types";
 
 function App() {
   const [age, setAge] = useState(0);
@@ -59,7 +53,6 @@ function App() {
   const [debugEnabled, setDebugEnabled] = useState(false);
   const [globeBaseColor, setGlobeBaseColor] = useState(DEFAULT_GLOBE_BASE_COLOR);
   const [graticuleEnabled, setGraticuleEnabled] = useState(true);
-  const [initialized, setInitialized] = useState(false);
   const [level, setLevel] = useState(4);
   const [polygonRenderIntent, setPolygonRenderIntent] =
     useState<PolygonRenderIntentMode>("all-polygons-area");
@@ -67,7 +60,7 @@ function App() {
     useState<PrimitiveTransformMode>("dynamic3D");
   const [providerKey, setProviderKey] = useState<ProviderKey>(DEFAULT_PROVIDER_KEY);
   const [sourceKind, setSourceKind] = useState<ImagerySourceKind>("tile-service");
-  const [appliedService, setAppliedService] = useState<AppliedService | null>(null);
+  const [serviceMode, setServiceMode] = useState<LayerMode>("reconstructable");
   const [referencePolygonKey, setReferencePolygonKey] = useState<GplatesReferencePolygonKey>(
     DEFAULT_GPLATES_REFERENCE_POLYGON_KEY,
   );
@@ -81,14 +74,13 @@ function App() {
   const [serviceConfig, setServiceConfig] = useState<TileServiceConfig>(() =>
     getServicePreset(DEFAULT_PROVIDER_KEY),
   );
-  const [stats, setStats] = useState<ReconstructableTileLayerStats | null>(null);
   const [status, setStatus] = useState("Viewer is starting");
   const [experimentViewConfig, setExperimentViewConfig] = useState(
     createDefaultExperimentViewConfig,
   );
   const [appliedOutputSize, setAppliedOutputSize] = useState<ExperimentOutputConfig | null>(null);
 
-  const { containerRef, managerRef, sceneModeCleanupRef, webglProcessorRef, viewerRef } =
+  const { containerRef, managerRef, layerControllerRef, webglProcessorRef, viewerRef } =
     useCesiumRuntime({
       appliedOutputSize,
       globeBaseColor,
@@ -137,79 +129,60 @@ function App() {
     anchorPlateId: resolvedAnchorPlateId,
     polygonRenderIntent,
   };
-  const modelKey = JSON.stringify(model);
-  const clearReconstruction = () => {
-    sceneModeCleanupRef.current?.();
-    sceneModeCleanupRef.current = null;
-    const viewer = viewerRef.current;
-    if (viewer && !viewer.isDestroyed()) managerRef.current?.destroy(viewer);
-    managerRef.current = null;
-    delete window.__simpleGeoReconstructStats;
-    setInitialized(false);
-    setStats(null);
-    setAppliedService(null);
-    setStatus("Reconstruction tiles cleared.");
-  };
-  const localRaster = useLocalRaster({
-    viewerRef,
-    age,
-    setAge,
-    setLevel,
-    model,
-    clearReconstruction,
-    applyReconstruction: async (provider): Promise<boolean> => {
-      const applied = await reconstructActions.initializeWithProvider(provider);
-      if (applied) setAppliedService(null);
-      return applied;
-    },
-  });
-
-  const activeRasterProvider =
-    localRaster.applied?.context.role === "modern-reconstructable"
-      ? localRaster.applied.provider
-      : undefined;
-  const reconstructActions = useReconstructActions({
-    activeRasterProvider,
-    onServiceApplied: () => {
-      localRaster.detachForService();
-      setLevel((current) =>
-        Math.max(
-          serviceConfig.minimumLevel,
-          Math.min(current, serviceConfig.maximumLevel ?? current),
-        ),
-      );
-      setAppliedService({
-        label: getServiceLabel(serviceConfig),
-        config: structuredClone(serviceConfig),
-        exampleKey: providerKey,
-        modelKey,
-      });
-    },
-    age,
-    anchorPlateId: resolvedAnchorPlateId,
-    serviceConfig,
-    featureUrl: dataSourceControls.featureUrl,
-    initialized,
-    level,
+  const layers = useLayerManager({
+    controllerRef: layerControllerRef,
     managerRef,
-    polygonRenderIntent,
-    primitiveTransformMode,
-    rotationSources: dataSourceControls.rotationSources,
-    sceneModeCleanupRef,
-    setBusy,
-    setInitialized,
-    setStats,
+    age,
+    setLevel,
     setStatus,
-    webglProcessorRef,
-    viewerRef,
   });
+  const localRaster = useLocalRaster({ viewerRef, model, addLayer: layers.addRaster });
+  const initialized = !!layers.selected && layers.selected.status !== "needs-file";
+  const stats = layers.stats;
+  const selectedService =
+    layers.selected?.source.kind === "service" ? layers.selected.source : null;
+  const appliedService = selectedService
+    ? {
+        config: selectedService.config,
+        exampleKey: selectedService.exampleKey ?? DEFAULT_PROVIDER_KEY,
+        label: layers.selected!.name,
+        modelKey: JSON.stringify(layers.selected?.model),
+      }
+    : null;
+  const focusSource = () => {
+    document
+      .getElementById("imagery-source")
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    document.getElementById("source-kind")?.focus({ preventScroll: true });
+  };
+  const prepareLocalFile = (layer: LayerDefinition) => {
+    if (layer.source.kind !== "local") return;
+    setSourceKind("local-raster");
+    localRaster.prepareRestore(layer.source.descriptor);
+    if (layer.model) {
+      dataSourceControls.applyImportedFeatureSource(layer.model.featureUrl, undefined);
+      dataSourceControls.applyImportedRotationSources(layer.model.rotationUrls, undefined);
+      setRotationAnchorMode(layer.model.anchorPlateId === null ? "auto" : "custom");
+      setAnchorPlateIdInput(layer.model.anchorPlateId ?? DEFAULT_ANCHOR_PLATE_ID);
+      setPolygonRenderIntent(
+        layer.model.polygonRenderIntent === "classified" ? "classified" : "all-polygons-area",
+      );
+      setExperimentViewConfig((config) => ({ ...config, modelName: layer.model!.name }));
+    }
+    focusSource();
+  };
+  const loadSelected = (inView = false) => {
+    if (layers.selected) void layerControllerRef.current?.load(layers.selected.id, level, inView);
+  };
 
   const experimentIO = useExperimentIO({
-    localRaster: localRaster.descriptor,
+    localRaster:
+      layers.selected?.source.kind === "local" ? layers.selected.source.descriptor : undefined,
+    layerControllerRef,
     appliedService,
     onImportSources: (hasLocalRaster) => {
       localRaster.remove();
-      clearReconstruction();
+      layerControllerRef.current?.restore([]);
       setSourceKind(hasLocalRaster ? "local-raster" : "tile-service");
     },
     age,
@@ -338,7 +311,11 @@ function App() {
     }
 
     try {
-      const camera3D = applyCameraPreset(viewer, preset, experimentViewConfig.camera3D.orthographic);
+      const camera3D = applyCameraPreset(
+        viewer,
+        preset,
+        experimentViewConfig.camera3D.orthographic,
+      );
       setExperimentViewConfig((config) => ({
         ...config,
         viewMode: camera3D.orthographic ? "3D_ORTHOGRAPHIC" : "3D_GLOBE",
@@ -371,15 +348,18 @@ function App() {
     : undefined;
 
   return (
-    <main className="app-shell">
+    <main className={`app-shell${layers.panelOpen ? " has-layer-panel" : ""}`}>
       <ControlPanel
         localRaster={localRaster}
         sourceKind={sourceKind}
         onSourceKindChange={setSourceKind}
         appliedService={appliedService}
-        modelNeedsApply={!!(initialized && appliedService && appliedService.modelKey !== modelKey)}
+        modelNeedsApply={false}
+        selectedLayer={layers.selected}
+        serviceMode={serviceMode}
+        onServiceModeChange={setServiceMode}
         age={age}
-        busy={busy || localRaster.busy}
+        busy={busy || localRaster.busy || layers.busy}
         serviceConfig={serviceConfig}
         debugEnabled={debugEnabled}
         experimentViewConfig={experimentViewConfig}
@@ -393,17 +373,12 @@ function App() {
         initialized={initialized}
         level={level}
         tileLevelRange={
-          activeRasterProvider
+          initialized && appliedService
             ? {
-                minimumLevel: activeRasterProvider.minimumLevel,
-                maximumLevel: activeRasterProvider.maximumLevel,
+                minimumLevel: appliedService.config.minimumLevel,
+                maximumLevel: appliedService.config.maximumLevel ?? undefined,
               }
-            : initialized && appliedService
-              ? {
-                  minimumLevel: appliedService.config.minimumLevel,
-                  maximumLevel: appliedService.config.maximumLevel ?? undefined,
-                }
-              : undefined
+            : undefined
         }
         polygonRenderIntent={polygonRenderIntent}
         primitiveTransformMode={primitiveTransformMode}
@@ -418,15 +393,27 @@ function App() {
         rotUrls={dataSourceControls.rotUrls}
         stats={stats}
         status={status}
-        onAgeChange={setAge}
-        onApplyProvider={reconstructActions.handleApplyProvider}
+        onAgeChange={(value) => {
+          if (Number.isFinite(value)) setAge(Math.min(1800, Math.max(0, value)));
+        }}
+        onApplyProvider={() =>
+          void layers.addService(serviceConfig, providerKey, model, serviceMode, level)
+        }
         onApplyExtentView={handleApplyExtentView}
         onApplyOutputSize={handleApplyOutputSize}
         onApplyPoseView={handleApplyPoseView}
         onApplyCameraPreset={handleApplyCameraPreset}
-        onApplyTransformMode={reconstructActions.handleApplyTransformMode}
+        onApplyTransformMode={() => {
+          void layerControllerRef.current
+            ?.setTransformMode(primitiveTransformMode)
+            .catch((error: unknown) =>
+              setStatus(error instanceof Error ? error.message : String(error)),
+            );
+        }}
         onCaptureScreenshot={experimentIO.handleCaptureScreenshot}
-        onClear={reconstructActions.handleClear}
+        onClear={() => {
+          if (layers.selected) layerControllerRef.current?.clear(layers.selected.id);
+        }}
         onAnchorPlateIdInputChange={setAnchorPlateIdInput}
         onServiceConfigChange={setServiceConfig}
         onDebugEnabledChange={setDebugEnabled}
@@ -440,8 +427,8 @@ function App() {
         onGraticuleEnabledChange={setGraticuleEnabled}
         onImportExperimentConfig={experimentIO.handleImportExperimentConfig}
         onLevelChange={setLevel}
-        onLoadFineInView={reconstructActions.handleLoadFineInView}
-        onLoadLevel={reconstructActions.handleLoadLevel}
+        onLoadFineInView={() => loadSelected(true)}
+        onLoadLevel={() => loadSelected()}
         onPolygonRenderIntentChange={setPolygonRenderIntent}
         onPrimitiveTransformModeChange={setPrimitiveTransformModeState}
         onProviderKeyChange={(key) => {
@@ -460,6 +447,17 @@ function App() {
           <div ref={containerRef} className="cesium-container" style={cesiumContainerStyle} />
         </div>
       </section>
+      <LayerPanel
+        controller={layerControllerRef.current}
+        layers={layers.layers}
+        selectedId={layers.selectedId}
+        open={layers.panelOpen}
+        onOpenChange={layers.setPanelOpen}
+        age={age}
+        onAdd={focusSource}
+        onPrepareFile={prepareLocalFile}
+        onUseModel={(id) => layerControllerRef.current?.updateModel(id, model)}
+      />
     </main>
   );
 }

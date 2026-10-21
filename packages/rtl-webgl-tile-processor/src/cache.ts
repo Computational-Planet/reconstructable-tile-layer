@@ -27,6 +27,10 @@ export class CachedPromise<T> {
     this.cacheMap.clear();
   }
 
+  deleteWhere(matches: (key: string) => boolean): void {
+    for (const key of this.cacheMap.keys()) if (matches(key)) this.cacheMap.delete(key);
+  }
+
   get size() {
     return this.cacheMap.size;
   }
@@ -76,6 +80,15 @@ export class LRUCache<T> {
   clear() {
     this.cache.forEach((value) => this.onEvict?.(value, "clear"));
     this.cache.clear();
+  }
+
+  deleteWhere(matches: (key: string) => boolean) {
+    for (const [key, value] of this.cache) {
+      if (matches(key)) {
+        this.cache.delete(key);
+        this.onEvict?.(value, "clear");
+      }
+    }
   }
 
   get size() {

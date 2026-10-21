@@ -172,6 +172,18 @@ EPSG:4326 和 WebMercator 瓦片方案。使用 `setImageryProvider(viewer, prov
 
 ## 生命周期与诊断
 
+多个独立 RTL 可以共用处理器。将各层的 `primitiveCollection` 指向调用方持有的
+独立容器，并设置 `orderedRendering: true`、`clearProcessorOnReset: false`。
+通过容器顺序管理重叠栅格，使用 `rtl.show` 与 `rtl.opacity` 控制整层显示；
+这些设置在年代更新、清空和重新加载后保持。调用方拥有父容器，RTL 只销毁自己的子集合。
+`createTileSurfaceAppearance(image, { ordered: true, opacity })` 为其他固定坐标表面提供相同的混合规则。
+有序模式用于同一椭球面上的栅格叠放，不是通用三维透明体渲染。
+透明度按表面应用；应用切换瓦片层级时应替换旧 LOD 覆盖，避免重叠层级重复混合。
+
+共享模式下，清空某个 RTL 不会清空其他来源缓存。删除来源时，先销毁所有引用它的图层，
+再调用 `processor.clearProvider(provider)`，最后关闭 provider；整个共享运行时结束时销毁处理器。
+图层列表、时间范围表单与文件资源管理由应用实现。
+
 `clear(viewer)` 会移除图层所有的图元和已处理瓦片状态，同时保留已导入的板块域和
 有限旋转数据，以便再次使用。`destroy(viewer)` 还会移除监听器并释放图层所有的
 图像引用，但不会销毁调用方所有的 WebGL 处理器或 viewer。

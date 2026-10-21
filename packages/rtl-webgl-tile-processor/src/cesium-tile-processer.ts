@@ -63,6 +63,8 @@ export class CesiumTileProcesser {
   private _currentTileXYZ: TileXYZ | undefined = undefined;
   private _currentResult: TileImageAsset | null = null;
   private _cacheToken = 0;
+  private _providerTokens = new WeakMap<ImageryProvider, number>();
+  private _currentResultProvider?: ImageryProvider;
   private _destroyed = false;
   private _outputType: TileImageOutputType;
   private _benchmarkObserver?: TileProcesserBenchmarkObserver;
@@ -251,6 +253,7 @@ export class CesiumTileProcesser {
     level: number,
     provider: ImageryProvider,
     cacheToken: number,
+    providerToken: number,
   ) {
     const tileKey = this.getRawTileKey(provider, x, y, level);
     const bufferedImage = this._imageBuffer.get(tileKey);
@@ -268,7 +271,11 @@ export class CesiumTileProcesser {
     const imagePromise = this._imageCachePromise.getOrCreate(tileKey, async () => {
       const requestStart = now();
       try {
-        while (!this._destroyed && cacheToken === this._cacheToken) {
+        while (
+          !this._destroyed &&
+          cacheToken === this._cacheToken &&
+          providerToken === (this._providerTokens.get(provider) ?? 0)
+        ) {
           this._stats.imageRequestAttempts++;
           const request = provider.requestImage(x, y, level);
           if (!request) {
@@ -288,7 +295,12 @@ export class CesiumTileProcesser {
         }
         throw new Error("Imagery request cancelled after clearing or destroying the processor.");
       } catch (error) {
-        if (!this._destroyed && cacheToken === this._cacheToken) this._stats.imageRequestFailures++;
+        if (
+          !this._destroyed &&
+          cacheToken === this._cacheToken &&
+          providerToken === (this._providerTokens.get(provider) ?? 0)
+        )
+          this._stats.imageRequestFailures++;
         throw error;
       } finally {
         const requestEnd = now();
@@ -302,7 +314,10 @@ export class CesiumTileProcesser {
     );
     const image = await imagePromise;
 
-    if (cacheToken === this._cacheToken) {
+    if (
+      cacheToken === this._cacheToken &&
+      providerToken === (this._providerTokens.get(provider) ?? 0)
+    ) {
       this._imageBuffer.set(tileKey, image);
     }
     this._imageCachePromise.delete(tileKey, imagePromise);
@@ -445,7 +460,11 @@ export class CesiumTileProcesser {
     }
 
     const cacheToken = this._cacheToken;
-    const isCurrent = () => !this._destroyed && cacheToken === this._cacheToken;
+    const providerToken = this._providerTokens.get(provider) ?? 0;
+    const isCurrent = () =>
+      !this._destroyed &&
+      cacheToken === this._cacheToken &&
+      providerToken === (this._providerTokens.get(provider) ?? 0);
     const pendingResult = this._resultPromises.get(resultKey);
     if (pendingResult) {
       this._stats.resultPromiseHits++;
@@ -454,7 +473,7 @@ export class CesiumTileProcesser {
 
     this._stats.resultCacheMisses++;
     let processingStart: number | null = null;
-    const resultPromise = this.getImage(x, y, level, provider, cacheToken)
+    const resultPromise = this.getImage(x, y, level, provider, cacheToken, providerToken)
       .then((image) => {
         if (!isCurrent()) return null;
         processingStart = now();
@@ -497,6 +516,7 @@ export class CesiumTileProcesser {
           return null;
         }
         this._currentResult = asset;
+        this._currentResultProvider = provider;
         this._resultBuffer.set(resultKey, asset.retain());
         return asset;
       })
@@ -704,6 +724,7 @@ export class CesiumTileProcesser {
   clearBuffer() {
     this._cacheToken++;
     this._currentResult = null;
+    this._currentResultProvider = undefined;
     this._currentTileXYZ = undefined;
     this._imageBuffer.clear();
     this._resultBuffer.clear();
@@ -711,6 +732,32 @@ export class CesiumTileProcesser {
     this._resultPromises.clear();
     this.resolveQueuedJobsAsNull();
     this.resolveQueuedExportsAsNull();
+  }
+
+  /**
+   * Invalidates only one provider's cached and queued work. Retained assets owned
+   * by other callers remain valid. Call after detaching all users of that provider.
+   */
+  clearProvider(provider: ImageryProvider) {
+    this._providerTokens.set(provider, (this._providerTokens.get(provider) ?? 0) + 1);
+    const prefix = `${CesiumTileProcesser.getProviderKey(provider)}:`;
+    const matches = (key: string) => key.startsWith(prefix);
+    this._imageBuffer.deleteWhere(matches);
+    this._resultBuffer.deleteWhere(matches);
+    this._imageCachePromise.deleteWhere(matches);
+    for (const key of this._resultPromises.keys())
+      if (matches(key)) this._resultPromises.delete(key);
+    // 删掉这一来源排队中的作业，不能影响其他图层共用的 WebGL 渲染槽。
+    this._jobQueue = this._jobQueue.filter((job) => {
+      if (job.provider !== provider) return true;
+      job.resolve(null);
+      return false;
+    });
+    if (this._currentResultProvider === provider) {
+      this._currentResult = null;
+      this._currentResultProvider = undefined;
+      this._currentTileXYZ = undefined;
+    }
   }
 
   /** Returns a point-in-time snapshot of pool, cache, and timing statistics. */

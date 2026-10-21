@@ -45,6 +45,9 @@ export function ControlPanel(props: ControlPanelProps) {
         />
 
         <ImagerySourceSection
+          selectedLayer={props.selectedLayer}
+          serviceMode={props.serviceMode}
+          onServiceModeChange={props.onServiceModeChange}
           age={props.age}
           busy={props.busy}
           localRaster={props.localRaster}
@@ -61,6 +64,7 @@ export function ControlPanel(props: ControlPanelProps) {
         />
 
         <TimeTilesSection
+          selectedLayer={props.selectedLayer}
           age={props.age}
           onAgeChange={props.onAgeChange}
           busy={props.busy}

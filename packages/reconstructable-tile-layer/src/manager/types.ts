@@ -1,4 +1,11 @@
-import type { Ellipsoid, ImageryProvider, Matrix4, Primitive, Rectangle } from "cesium";
+import type {
+  Ellipsoid,
+  ImageryProvider,
+  Matrix4,
+  Primitive,
+  PrimitiveCollection,
+  Rectangle,
+} from "cesium";
 import type { AnchorPlateId } from "rtl-finite-rotation";
 import type { NodeInfo, QuadTreeTileProcessor, TileClipArea } from "rtl-tile-plate-quadtree";
 import type {
@@ -277,6 +284,19 @@ export interface ResolvedFeatureFiles {
 interface SimpleGeoReconstructManagerBaseOptions {
   /** Imagery provider whose tiles will be reconstructed. */
   provider: ImageryProvider;
+  /** Optional caller-owned parent; the layer destroys only its own child collection. */
+  primitiveCollection?: PrimitiveCollection;
+  /** Blend coincident raster surfaces in collection order. Defaults to false. */
+  orderedRendering?: boolean;
+  /** Whole-layer visibility, independent of geological feature validity. */
+  show?: boolean;
+  /** Layer opacity from 0 to 1. Defaults to 1. */
+  opacity?: number;
+  /**
+   * Clear the processor's global caches on reset. Defaults to true for compatibility.
+   * Set false when several layers share one caller-owned processor.
+   */
+  clearProcessorOnReset?: boolean;
   /** Plate ID used as the fixed rotation reference. Use null for recursive roots. */
   anchorPlateId?: AnchorPlateId;
   /**

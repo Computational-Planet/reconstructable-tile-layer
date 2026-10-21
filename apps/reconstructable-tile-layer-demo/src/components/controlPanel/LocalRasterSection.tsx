@@ -258,8 +258,9 @@ export function LocalRasterSection({
                   />
                 </label>
                 <p className="field-hint">
-                  This mode displays the file at its published age and hides it at every other age.
-                  For a 0 Ma file that should move with the timeline, choose Reconstruct from 0 Ma.
+                  This layer starts with its published age as the visible range. Edit that range in
+                  Layers. For a 0 Ma file that should move with the timeline, choose Reconstruct
+                  from 0 Ma.
                 </p>
               </>
             )}
@@ -274,10 +275,10 @@ export function LocalRasterSection({
                   Data use the present-day frame of the selected plate model.
                 </label>
                 <p className="field-hint">
-                  Apply binds this local raster to the plate domains, ROT files and anchor selected
-                  above. Then use Load Tiles By Level and move the timeline to reconstruct it, just
-                  like an online map. Apply selects L2 for low-resolution sources and L3 when
-                  available. Use Load Tiles By View Sphere for finer levels.
+                  Adding a layer binds this raster to the plate domains, ROT files and anchor
+                  selected above. Then use Load Tiles By Level and move the timeline to reconstruct
+                  it, just like an online map. New layers use L2 for low-resolution sources and L3
+                  when available. Use Load Tiles By View Sphere for finer levels.
                 </p>
               </>
             )}

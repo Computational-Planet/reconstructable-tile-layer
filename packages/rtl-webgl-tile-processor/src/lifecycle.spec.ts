@@ -83,6 +83,55 @@ describe("imagery provider backpressure", () => {
 });
 
 describe("clear during asynchronous imagery work", () => {
+  it("clearing one provider cancels its retries without cancelling another layer", async () => {
+    vi.useFakeTimers();
+    const instance = processor();
+    const blocked = {
+      requestImage: vi.fn().mockReturnValue(undefined),
+    } as unknown as ImageryProvider;
+    const delayed = deferred<ImageryTypes>();
+    const other = {
+      requestImage: vi.fn().mockReturnValue(delayed.promise),
+    } as unknown as ImageryProvider;
+    const cancelled = instance.reprojectTileImage(0, 0, 0, blocked);
+    const retained = instance.reprojectTileImage(0, 0, 0, other);
+    instance.clearProvider(blocked);
+    delayed.resolve(image("other-layer"));
+    await vi.advanceTimersByTimeAsync(40);
+    expect(await cancelled).toBeNull();
+    const asset = await retained;
+    expect(asset?.source).toBe("other-layer");
+    expect(blocked.requestImage).toHaveBeenCalledTimes(1);
+    const cached = await instance.reprojectTileImage(0, 0, 0, other);
+    expect(other.requestImage).toHaveBeenCalledTimes(1);
+    asset?.release();
+    cached?.release();
+    instance.destroy();
+  });
+
+  it("provider invalidation rejects late old deliveries while allowing a replacement", async () => {
+    const instance = processor();
+    const first = deferred<ImageryTypes>();
+    const provider = {
+      requestImage: vi
+        .fn()
+        .mockReturnValueOnce(first.promise)
+        .mockResolvedValue(image("replacement")),
+    } as unknown as ImageryProvider;
+    const old = instance.reprojectTileImage(0, 0, 0, provider);
+    instance.clearProvider(provider);
+    const current = await instance.reprojectTileImage(0, 0, 0, provider);
+    first.resolve(image("old"));
+    expect(await old).toBeNull();
+    expect(current?.source).toBe("replacement");
+    const cached = await instance.reprojectTileImage(0, 0, 0, provider);
+    expect(cached).toBe(current);
+    expect(provider.requestImage).toHaveBeenCalledTimes(2);
+    current?.release();
+    cached?.release();
+    instance.destroy();
+  });
+
   it("delivers retained results even when the result cache is disabled", async () => {
     const instance = processor(0);
     const provider = {

@@ -81,6 +81,8 @@ const processedImage = await webglProcessor.processMaskedSourceTileImage(
 可以是 blob URL、data URL 或 canvas。
 
 `clearBuffer()` 会释放缓存结果并取消排队的任务，同时保持处理器可用。
+`clearProvider(provider)` 仅清理指定来源并使其旧请求失效，其他来源继续工作。
+在移除全部引用该 provider 的图层之后调用；调用方持有的已处理图像仍按引用计数释放。
 `destroy()` 会永久释放其 WebGL 上下文、渲染槽、纹理、程序、缓冲区、canvas 和缓存。
 
 使用 `getRuntimeStats()` 获取缓存、队列、提供器、掩膜、渲染和导出计数器。
