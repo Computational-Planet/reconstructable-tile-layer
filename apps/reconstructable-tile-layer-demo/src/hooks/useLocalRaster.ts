@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type MutableRefObject } from "react";
 import { Rectangle, type Viewer } from "cesium";
 import { getGeographicBounds, openRasterSource, type RasterSource } from "rtl-raster-source";
-import type { NetCDFDataset, NetCDFSliceLayout } from "rtl-raster-source/netcdf";
+import { assertTiffSignature } from "../raster/tiffInput";
 import { RasterImageryProvider, type RasterStyle } from "rtl-raster-imagery-provider";
 import type { RasterConversionResult, RasterConverter } from "rtl-raster-converter";
 import { DEMO_ELLIPSOID_CONFIG } from "../cesium/createViewer";
@@ -20,7 +20,6 @@ import {
 
 interface RasterEntry {
   file: File;
-  dataset?: NetCDFDataset;
   source?: RasterSource;
   convertedFrom?: LocalRasterDescriptor;
 }
@@ -140,21 +139,12 @@ export function useLocalRaster(options: Options) {
   const appliedRef = useRef<AppliedRaster | null>(null);
   const [context, setContext] = useState<RasterContextDraft>(emptyRasterContext);
   const [style, setStyle] = useState<RasterStyleDraft>(initialStyle);
-  const [variable, setVariable] = useState("");
-  const [indices, setIndices] = useState<Record<string, number>>({});
-  const [coordinates, setCoordinates] = useState<Record<string, readonly number[]>>({});
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState(
-    "Choose a local GeoTIFF or NetCDF file. Processing stays in this browser.",
+    "Choose a local GeoTIFF file. Processing stays in this browser.",
   );
   const [conversion, setConversion] = useState<RasterConversionResult | null>(null);
   const conversionOrigin = useRef<LocalRasterDescriptor>();
-  const [grid, setGrid] = useState({
-    bounds: "-180, -90, 180, 90",
-    width: 720,
-    height: 360,
-    confirmed: false,
-  });
   const operation = useRef<AbortController | null>(null);
   const converter = useRef<RasterConverter | null>(null);
   const alive = useRef(true);
@@ -191,11 +181,10 @@ export function useLocalRaster(options: Options) {
   };
   const closeEntry = (current: RasterEntry | null) => {
     current?.source?.close();
-    current?.dataset?.close();
   };
   const replaceEntry = (next: RasterEntry) => {
     releaseApplied();
-    const releaseNext = retainResources([next.source, next.dataset]);
+    const releaseNext = retainResources([next.source]);
     releaseEntryRef.current?.();
     releaseEntryRef.current = releaseNext;
     entryRef.current = next;
@@ -204,15 +193,6 @@ export function useLocalRaster(options: Options) {
     restoredStyleRef.current = null;
     setConversion(null);
     conversionOrigin.current = undefined;
-    if (next.source) {
-      const metadata = next.source.metadata;
-      setGrid({
-        bounds: getGeographicBounds(metadata).join(", "),
-        width: metadata.width,
-        height: metadata.height,
-        confirmed: false,
-      });
-    }
   };
 
   useEffect(() => {
@@ -259,36 +239,15 @@ export function useLocalRaster(options: Options) {
     }
   };
 
-  const selectVariable = (name: string, dataset = entryRef.current?.dataset) => {
-    setVariable(name);
-    setCoordinates({});
-    try {
-      const layout = dataset?.describeVariable(name);
-      setIndices(
-        Object.fromEntries(layout?.selectors.map((selector) => [selector.dimension, 0]) ?? []),
-      );
-    } catch {
-      setIndices({});
-    }
-  };
-
   const open = (file: File | null) => {
     if (!file) return Promise.resolve();
     return run(async (signal) => {
       setStatus(`Reading ${file.name} metadata…`);
       let next: RasterEntry | undefined;
       try {
-        // 用文件签名区分 NetCDF/HDF5 和 TIFF，扩展名仅用于文件选择提示。
-        const signature = new Uint8Array(await file.slice(0, 8).arrayBuffer());
+        assertTiffSignature(new Uint8Array(await file.slice(0, 8).arrayBuffer()));
         signal.throwIfAborted();
-        const isNC =
-          (signature[0] === 67 && signature[1] === 68 && signature[2] === 70) ||
-          signature[0] === 137;
-        if (isNC) {
-          const { openNetCDFSource } = await import("rtl-raster-source/netcdf");
-          signal.throwIfAborted();
-          next = { file, dataset: await openNetCDFSource(file, { signal }) };
-        } else next = { file, source: await openRasterSource(file, { signal }) };
+        next = { file, source: await openRasterSource(file, { signal }) };
         signal.throwIfAborted();
         replaceEntry(next);
         if (restoreDescriptorRef.current) restoreDraft(restoreDescriptorRef.current);
@@ -296,28 +255,7 @@ export function useLocalRaster(options: Options) {
           restoredStyleRef.current = null;
           setContext({ ...emptyRasterContext });
         }
-        const variables =
-          next.dataset?.metadata.variables.filter((candidate) => candidate.shape.length >= 2) ?? [];
-        const preferred =
-          variables.find((candidate) => {
-            try {
-              next!.dataset!.describeVariable(candidate.name);
-              return true;
-            } catch {
-              return false;
-            }
-          }) ?? variables[0];
-        selectVariable(
-          restoreDescriptorRef.current?.source.slice?.variable ?? preferred?.name ?? "",
-          next.dataset,
-        );
-        if (restoreDescriptorRef.current?.source.slice)
-          setIndices({ ...restoreDescriptorRef.current.source.slice.indices });
-        setStatus(
-          next.dataset
-            ? "Select a variable and time/depth indices, then read the slice."
-            : "File ready. Choose its scientific use, then apply the raster.",
-        );
+        setStatus("File ready. Choose its scientific use, then apply the raster.");
       } catch (error) {
         if (next && next !== entryRef.current) closeEntry(next);
         throw error;
@@ -325,58 +263,10 @@ export function useLocalRaster(options: Options) {
     });
   };
 
-  let layout: NetCDFSliceLayout | undefined;
-  let layoutError = "";
-  if (entry?.dataset && variable) {
-    try {
-      layout = entry.dataset.describeVariable(variable);
-    } catch (error) {
-      layoutError = message(error);
-    }
-  }
-  const slicePending =
-    !!entry?.dataset &&
-    (entry.source?.metadata.slice?.variable !== variable ||
-      JSON.stringify(entry.source?.metadata.slice?.indices) !== JSON.stringify(indices));
-
-  const readSlice = () =>
-    run(async (signal) => {
-      const current = entryRef.current;
-      if (!current?.dataset || !layout)
-        throw new Error(layoutError || "Choose a spatial variable.");
-      setStatus(`Reading ${variable} slice…`);
-      const source = await current.dataset.selectSlice({
-        variable,
-        indices,
-        signal,
-      });
-      if (signal.aborted) {
-        source.close();
-        signal.throwIfAborted();
-      }
-      replaceEntry({ ...current, source });
-      if (restoreDescriptorRef.current) restoreDraft(restoreDescriptorRef.current);
-      const coordinateValues: Record<string, readonly number[]> = {};
-      for (const selector of layout.selectors) {
-        // 只读有界的一维选择轴；大轴仍按原始下标选片，不把模型日历转成公历日期。
-        if (selector.coordinate && selector.size <= 10000) {
-          coordinateValues[selector.dimension] = Array.from(
-            await current.dataset.readCoordinate(selector.coordinate.name, {
-              signal,
-            }),
-          );
-        }
-      }
-      signal.throwIfAborted();
-      setCoordinates(coordinateValues);
-      setStatus(`Slice ready: ${variable}. Values retain their original units and CF scaling.`);
-    });
-
   const apply = () =>
     run(async (signal) => {
       const current = entryRef.current;
-      if (!current?.source || slicePending)
-        throw new Error("Read the selected slice before applying it.");
+      if (!current?.source) throw new Error("Choose a TIFF file before applying it.");
       const scientificContext = makeScientificContext(context, options.model);
       const viewer = options.viewerRef.current;
       if (!viewer || viewer.isDestroyed()) throw new Error("Viewer is not ready.");
@@ -387,7 +277,7 @@ export function useLocalRaster(options: Options) {
         ellipsoid: DEMO_ELLIPSOID_CONFIG.ellipsoid,
         credit: current.file.name,
       });
-      const releaseResources = retainResources([current.source, current.dataset]);
+      const releaseResources = retainResources([current.source]);
       let released = false;
       const release = () => {
         if (released) return;
@@ -443,8 +333,7 @@ export function useLocalRaster(options: Options) {
   const convert = () =>
     run(async (signal) => {
       const current = entryRef.current;
-      if (!current?.source || slicePending)
-        throw new Error("Read the selected slice before converting it.");
+      if (!current?.source) throw new Error("Choose a TIFF file before converting it.");
       const scientificContext = makeScientificContext(context, options.model);
       const descriptor = describeLocalRaster(
         current.file,
@@ -454,30 +343,14 @@ export function useLocalRaster(options: Options) {
         false,
         current.convertedFrom,
       );
-      const needsGrid = current.source.metadata.transform === null;
-      if (needsGrid && !grid.confirmed)
-        throw new Error(
-          "Confirm the target regular grid and nearest-neighbour sampling for the selected NetCDF slice.",
-        );
-      const bounds = grid.bounds.split(",").map(Number);
-      if (needsGrid && (bounds.length !== 4 || !bounds.every(Number.isFinite)))
-        throw new Error("Enter four numeric grid bounds: west, south, east, north.");
       setStatus("Loading conversion resources…");
       const { createDemoConverter } = await import("../raster/conversion");
       signal.throwIfAborted();
       const engine = await createDemoConverter();
       converter.current = engine;
       try {
-        const result = await engine.toCOG(current.dataset ? current.source : current.file, {
+        const result = await engine.toCOG(current.file, {
           signal,
-          grid: needsGrid
-            ? {
-                bounds: bounds as [number, number, number, number],
-                width: grid.width,
-                height: grid.height,
-                resampling: "nearest",
-              }
-            : undefined,
           provenance: {
             scientificContext,
             inputDescription: JSON.parse(stringifyScientific(descriptor)),
@@ -517,9 +390,6 @@ export function useLocalRaster(options: Options) {
       replaceEntry({ file, source, convertedFrom: original });
       setConversion(savedConversion);
       conversionOrigin.current = original;
-      setVariable("");
-      setIndices({});
-      setCoordinates({});
       setStatus(
         "Converted COG loaded. Apply the raster to use it in the selected display/reconstruction path.",
       );
@@ -537,21 +407,14 @@ export function useLocalRaster(options: Options) {
     conversionOrigin.current = undefined;
     restoreDescriptorRef.current = null;
     restoredStyleRef.current = null;
-    setVariable("");
-    setIndices({});
-    setCoordinates({});
     setContext({ ...emptyRasterContext });
     setStatus("Prepared file cleared. Layers already added remain on the map.");
   };
 
   // 统一应用按钮需要可解释的就绪状态；校验与真正应用复用同一规则。
-  let applyDisabledReason = !entry
-    ? "Choose a local TIFF or NetCDF file in Source settings."
-    : layoutError
-      ? "Choose a supported spatial variable in NetCDF selection."
-      : !entry.source || slicePending
-        ? "Click Read selected slice in Source settings before applying."
-        : undefined;
+  let applyDisabledReason: string | undefined = !entry?.source
+    ? "Choose a local TIFF file in Source settings."
+    : undefined;
   if (!applyDisabledReason) {
     try {
       makeScientificContext(context, options.model);
@@ -572,21 +435,10 @@ export function useLocalRaster(options: Options) {
       restoredStyleRef.current = null;
       setStyle(value);
     },
-    variable,
-    selectVariable,
-    indices,
-    setIndices,
-    coordinates,
-    layout,
-    layoutError,
-    slicePending,
     busy,
     status,
-    grid,
-    setGrid,
     conversion,
     open,
-    readSlice,
     apply,
     convert,
     loadConverted,
@@ -595,9 +447,7 @@ export function useLocalRaster(options: Options) {
       remove();
       restoreDescriptorRef.current = descriptor;
       restoreDraft(descriptor);
-      setStatus(
-        `Reselect ${descriptor.file.name}, read its saved slice if needed, then restore the selected layer.`,
-      );
+      setStatus(`Reselect ${descriptor.file.name}, then restore the selected layer.`);
     },
     cancel: () => {
       operation.current?.abort();

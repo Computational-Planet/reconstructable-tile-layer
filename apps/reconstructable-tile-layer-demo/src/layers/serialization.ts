@@ -2,6 +2,8 @@ import { parseTileServiceConfig } from "../cesium/tileServiceConfig";
 import type { LocalRasterDescriptor, ModelSelection } from "../raster/context";
 import type { LayerDefinition } from "./types";
 import { validateAgeRange } from "./temporal";
+import { TIFF_ONLY_MESSAGE } from "../raster/tiffInput";
+import { parseGeoJsonDescriptor } from "../vector/geojson";
 
 const record = (value: unknown): value is Record<string, unknown> =>
   !!value && typeof value === "object" && !Array.isArray(value);
@@ -84,17 +86,7 @@ function parseLocalDescriptor(value: unknown): LocalRasterDescriptor {
   )
     throw new Error("Invalid local raster description in layer stack.");
   const style = value.style;
-  const slice = value.source.slice;
-  if (
-    slice !== undefined &&
-    (!record(slice) ||
-      typeof slice.variable !== "string" ||
-      !record(slice.indices) ||
-      !Object.values(slice.indices).every(
-        (index) => finite(index) && Number.isInteger(index) && index >= 0,
-      ))
-  )
-    throw new Error("Invalid saved NetCDF slice.");
+  if (value.source.format !== "geotiff") throw new Error(TIFF_ONLY_MESSAGE);
   if (
     style.kind === "single-band" &&
     (!finite(style.band) || !Number.isInteger(style.band) || style.band < 0)
@@ -180,8 +172,17 @@ export function parseLayerDefinitions(value: unknown): LayerDefinition[] {
         ? { kind: "service" as const, config: parseTileServiceConfig(item.source.config) }
         : item.source.kind === "local"
           ? { kind: "local" as const, descriptor: parseLocalDescriptor(item.source.descriptor) }
-          : null;
+          : item.source.kind === "geojson"
+            ? {
+                kind: "geojson" as const,
+                descriptor: parseGeoJsonDescriptor(item.source.descriptor),
+              }
+            : null;
     if (!source) throw new Error("Unknown layer source.");
+    if (source.kind === "geojson" && item.mode !== "static")
+      throw new Error(
+        "GeoJSON supports fixed coordinates only; vector reconstruction is not available.",
+      );
     if (
       source.kind === "local" &&
       (source.descriptor.context.role === "modern-reconstructable") !==

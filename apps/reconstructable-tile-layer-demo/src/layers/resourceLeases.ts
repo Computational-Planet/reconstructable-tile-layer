@@ -1,7 +1,7 @@
 type Closeable = { close(): void };
 const references = new WeakMap<Closeable, number>();
 
-/** 编辑器和已添加图层各持一份引用；必须先释放切片，再释放其 dataset。 */
+/** 编辑器和已添加图层各持一份引用；最后一位使用者释放后才关闭源数据与 Worker。 */
 export function retainResources(resources: (Closeable | undefined)[]): () => void {
   const owned = [...new Set(resources.filter((item): item is Closeable => !!item))];
   for (const resource of owned) references.set(resource, (references.get(resource) ?? 0) + 1);

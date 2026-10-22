@@ -1,6 +1,7 @@
 /** Converts exported experiment JSON back into editable control state. */
 import type { PolygonRenderIntentMode, PrimitiveTransformMode } from "reconstructable-tile-layer";
 import { parseLayerDefinitions } from "../layers/serialization";
+import { TIFF_ONLY_MESSAGE } from "../raster/tiffInput";
 
 import {
   getServicePreset,
@@ -219,7 +220,7 @@ export function parseImportedExperimentConfig(value: unknown): ImportedExperimen
   if (!isRecord(value)) {
     throw new Error("Imported file is not a valid experiment JSON object.");
   }
-  if (value.schemaVersion !== 1 && value.schemaVersion !== 2) {
+  if (value.schemaVersion !== 1 && value.schemaVersion !== 2 && value.schemaVersion !== 3) {
     throw new Error("Unsupported experiment config schema version.");
   }
 
@@ -235,7 +236,8 @@ export function parseImportedExperimentConfig(value: unknown): ImportedExperimen
     rotationAnchorMode: DEFAULT_ROTATION_ANCHOR_MODE,
     anchorPlateId: DEFAULT_ANCHOR_PLATE_ID,
   };
-  if (value.schemaVersion === 2) result.layerStack = parseLayerDefinitions(value.layerStack);
+  if (value.schemaVersion === 2 || value.schemaVersion === 3)
+    result.layerStack = parseLayerDefinitions(value.layerStack);
   const viewConfig: ImportedExperimentControlState["experimentViewConfig"] = {};
 
   const caseId = getString(value, "caseId");
@@ -290,6 +292,14 @@ export function parseImportedExperimentConfig(value: unknown): ImportedExperimen
     // 描述可移植，File/Blob 本身不可从 JSON 恢复；不接收历史 blob URL。
     const localRaster = getRecord(sources, "localRaster");
     const localFile = localRaster && getRecord(localRaster, "file");
+    const localSource = localRaster && getRecord(localRaster, "source");
+    if (
+      localRaster &&
+      ((localSource?.format !== undefined && localSource.format !== "geotiff") ||
+        (localSource?.format === undefined &&
+          /\.(nc|nc4|cdf)$/i.test(String(localFile?.name ?? ""))))
+    )
+      throw new Error(TIFF_ONLY_MESSAGE);
     result.localRasterFileName = localFile ? getString(localFile, "name") : undefined;
     result.featurePresetKey = getEnumValue(sources, "featurePresetKey", FEATURE_PRESET_KEYS);
     result.featureUrl = getString(sources, "featureUrl") ?? getString(value, "platePolygonFile");

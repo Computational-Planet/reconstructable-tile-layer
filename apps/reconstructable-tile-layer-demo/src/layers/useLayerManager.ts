@@ -5,6 +5,7 @@ import { getServiceLabel, type ProviderKey, type TileServiceConfig } from "../ce
 import type { LocalRasterDescriptor, ModelSelection } from "../raster/context";
 import type { LayerController } from "./LayerController";
 import type { LayerMode, LayerSnapshot } from "./types";
+import type { GeoJsonDocument, LocalGeoJsonDescriptor } from "../vector/geojson";
 
 interface Options {
   controllerRef: MutableRefObject<LayerController | null>;
@@ -129,6 +130,43 @@ export function useLayerManager({ controllerRef, managerRef, age, setLevel, setS
     );
     return id;
   };
+  const addGeoJson = async (
+    data: GeoJsonDocument,
+    descriptor: LocalGeoJsonDescriptor,
+    signal: AbortSignal,
+    restoreId?: string,
+  ) => {
+    const controller = controllerRef.current;
+    if (!controller || signal.aborted) return null;
+    if (
+      restoreId &&
+      !controller.snapshot.layers.some(
+        (layer) => layer.id === restoreId && layer.source.kind === "geojson",
+      )
+    )
+      throw new Error(
+        "The layer being restored was removed. Clear the prepared file and add a new layer.",
+      );
+    const id = await controller.add(
+      {
+        name: descriptor.file.name,
+        mode: "static",
+        source: { kind: "geojson", descriptor },
+        visible: true,
+        opacity: 1,
+        ageRange: null,
+        level: 0,
+      },
+      { geojson: data, release: () => {} },
+      restoreId,
+      signal,
+    );
+    setPanelOpen(true);
+    setStatus(
+      id ? "GeoJSON added as an ordinary vector layer." : "GeoJSON could not be added. See Layers.",
+    );
+    return id;
+  };
   return {
     ...snapshot,
     selected,
@@ -136,6 +174,7 @@ export function useLayerManager({ controllerRef, managerRef, age, setLevel, setS
     setPanelOpen,
     addService,
     addRaster,
+    addGeoJson,
     busy: selected?.status === "loading",
     stats: managerRef.current?.getRuntimeStats() ?? null,
   };

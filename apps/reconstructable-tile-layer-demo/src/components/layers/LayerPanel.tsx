@@ -1,6 +1,6 @@
 import { useRef } from "react";
 import type { LayerController } from "../../layers/LayerController";
-import type { LayerDefinition, LayerSnapshot } from "../../layers/types";
+import { layerGroup, type LayerDefinition, type LayerSnapshot } from "../../layers/types";
 import { LayerItem } from "./LayerItem";
 
 interface Props extends LayerSnapshot {
@@ -71,7 +71,7 @@ export function LayerPanel({
           <p className="field-hint">
             Global age · <strong>{age} Ma</strong>
             <br />
-            Layers higher in each group draw on top.
+            Imagery layers higher in each group draw on top.
           </p>
           <button type="button" onClick={onAdd}>
             Add layer
@@ -80,7 +80,9 @@ export function LayerPanel({
         {layers.length === 0 ? (
           <div className="panel-section layer-empty">
             <h3>No layers yet</h3>
-            <p>Prepare an online service or local raster on the left, then choose Add layer.</p>
+            <p>
+              Prepare an online service, local TIFF or GeoJSON on the left, then choose Add layer.
+            </p>
             <p>
               Reconstruction layers follow the timeline. Fixed layers can have a visible age range.
             </p>
@@ -88,16 +90,24 @@ export function LayerPanel({
         ) : (
           <>
             <p className="field-hint">Reconstruction layers draw above ordinary imagery.</p>
-            {(["reconstructable", "static"] as const).map((mode) => {
-              const group = layers.filter((layer) => layer.mode === mode).reverse();
+            {(["vector", "reconstructable", "imagery"] as const).map((kind) => {
+              const group = layers.filter((layer) => layerGroup(layer) === kind).reverse();
+              const label =
+                kind === "vector"
+                  ? "Ordinary vectors"
+                  : kind === "imagery"
+                    ? "Ordinary imagery"
+                    : "Reconstruction layers";
               if (!group.length || !controller) return null;
               return (
-                <section
-                  className="layer-group"
-                  key={mode}
-                  aria-label={mode === "static" ? "Ordinary imagery" : "Reconstruction layers"}
-                >
-                  <h3>{mode === "static" ? "Ordinary imagery" : "Reconstruction"}</h3>
+                <section className="layer-group" key={kind} aria-label={label}>
+                  <h3>{label}</h3>
+                  {kind === "vector" && (
+                    <p className="field-hint">
+                      Fixed coordinates. Overlap follows geometry depth and transparency; list order
+                      does not set draw order.
+                    </p>
+                  )}
                   <ol className="layer-list">
                     {group.map((layer, index) => (
                       <LayerItem

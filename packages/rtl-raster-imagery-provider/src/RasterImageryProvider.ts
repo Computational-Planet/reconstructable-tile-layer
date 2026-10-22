@@ -2,7 +2,7 @@ import {
   Credit,
   Ellipsoid,
   Event,
-  GeographicTilingScheme,
+  type GeographicTilingScheme,
   Math as CesiumMath,
   NeverTileDiscardPolicy,
   Rectangle,
@@ -23,6 +23,7 @@ import {
 } from "rtl-raster-source";
 import { resolveStyle, writeColor, type RasterStyle, type ResolvedRasterStyle } from "./style.js";
 import { getRasterLevelInfo, type RasterLevelOptions } from "./levels.js";
+import { RasterTilingScheme } from "./RasterTilingScheme.js";
 
 export interface RasterImageryProviderOptions extends OpenRasterOptions, RasterLevelOptions {
   readonly ellipsoid?: Ellipsoid;
@@ -109,7 +110,7 @@ export class RasterImageryProvider implements ImageryProvider {
       bounds[3],
     );
     // 输出纹理统一按经纬度排列；3857 数值投影始终使用 EPSG 的半径，独立于显示球体。
-    this.tilingScheme = new GeographicTilingScheme({
+    this.tilingScheme = new RasterTilingScheme({
       rectangle: this.rectangle,
       ellipsoid: options.ellipsoid ?? Ellipsoid.default,
       numberOfLevelZeroTilesX: 1,

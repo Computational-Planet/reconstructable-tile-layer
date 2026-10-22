@@ -4,17 +4,28 @@ import type { WebGLTileProcessor } from "rtl-webgl-tile-processor";
 import { createTileServiceProvider } from "../cesium/providers";
 import { resolveDemoAssetUrl } from "../utils/demoAssetUrl";
 import { isLayerVisible, validateAgeRange } from "./temporal";
-import type { LayerDefinition, LayerSnapshot, LayerView, NewLayer } from "./types";
+import {
+  layerGroup,
+  type LayerDefinition,
+  type LayerSnapshot,
+  type LayerView,
+  type NewLayer,
+} from "./types";
 import { makeScientificContext, type ModelSelection } from "../raster/context";
+import { NativeGeoJsonLayer } from "../vector/NativeGeoJsonLayer";
+import type { GeoJsonDocument } from "../vector/geojson";
 
-export interface SuppliedLayerSource {
+interface SuppliedRasterSource {
   provider: ImageryProvider;
   /** Called once after scene references are detached. Includes provider and source leases. */
   release(): void;
 }
+export type SuppliedLayerSource =
+  | SuppliedRasterSource
+  | { geojson: GeoJsonDocument; release(): void };
 interface Runtime {
   parent?: PrimitiveCollection;
-  source: SuppliedLayerSource;
+  source: SuppliedRasterSource;
   rtl?: ReconstructableTileLayer;
   imagery?: ImageryLayer;
   initialization?: Promise<void>;
@@ -25,6 +36,7 @@ interface Entry {
   status: LayerView["status"];
   message: string;
   runtime?: Runtime;
+  vector?: NativeGeoJsonLayer;
   operation: number;
 }
 
@@ -96,8 +108,13 @@ export class LayerController {
     }
   }
 
-  async add(definition: NewLayer, source?: SuppliedLayerSource, restoreId?: string) {
-    if (this.disposed) {
+  async add(
+    definition: NewLayer,
+    source?: SuppliedLayerSource,
+    restoreId?: string,
+    signal?: AbortSignal,
+  ) {
+    if (this.disposed || signal?.aborted) {
       source?.release();
       return null;
     }
@@ -124,24 +141,30 @@ export class LayerController {
       this.releaseRuntime(restored);
       this.entries.splice(this.entries.indexOf(restored), 1, entry);
     } else {
-      // 原生影像在 Globe 通道绘制，RTL 在其上绘制；列表顺序必须反映实际叠放关系。
-      const firstReconstruction = this.entries.findIndex(
-        (candidate) => candidate.definition.mode === "reconstructable",
+      // 影像各组保留真实叠放顺序；矢量只单独列出，不把实体集合顺序当作绘制层级。
+      const ranks = { imagery: 0, reconstructable: 1, vector: 2 };
+      const nextGroup = this.entries.findIndex(
+        (candidate) => ranks[layerGroup(candidate.definition)] > ranks[layerGroup(definition)],
       );
-      if (definition.mode === "static" && firstReconstruction >= 0)
-        this.entries.splice(firstReconstruction, 0, entry);
+      if (nextGroup >= 0) this.entries.splice(nextGroup, 0, entry);
       else this.entries.push(entry);
     }
     this.selectedId = entry.definition.id;
+    const cancel = () => {
+      if (this.current(entry)) this.remove(entry.definition.id);
+    };
+    signal?.addEventListener("abort", cancel, { once: true });
     this.emit();
     try {
       await this.initialize(entry, source);
       if (!this.current(entry)) return null;
       entry.status = "ready";
       entry.message =
-        entry.definition.mode === "static"
-          ? "Tiles load automatically with the view."
-          : "Ready. Load tiles for this layer.";
+        entry.definition.source.kind === "geojson"
+          ? "GeoJSON loaded. Coordinates remain fixed."
+          : entry.definition.mode === "static"
+            ? "Tiles load automatically with the view."
+            : "Ready. Load tiles for this layer.";
       this.emit();
       return this.current(entry) ? entry.definition.id : null;
     } catch (error) {
@@ -153,12 +176,27 @@ export class LayerController {
         this.emit();
       }
       return null;
+    } finally {
+      signal?.removeEventListener("abort", cancel);
     }
   }
 
   private async initialize(entry: Entry, supplied?: SuppliedLayerSource) {
     if (entry.runtime) return entry.runtime.initialization;
     const definition = entry.definition;
+    if (definition.source.kind === "geojson") {
+      if (definition.mode !== "static") throw new Error("GeoJSON supports fixed coordinates only.");
+      if (!supplied || !("geojson" in supplied))
+        throw new Error("Reselect the local GeoJSON file to restore this layer.");
+      const vector = new NativeGeoJsonLayer(this.viewer, definition.name);
+      entry.vector = vector;
+      vector.present(isLayerVisible(definition, this.age), definition.opacity);
+      await vector.load(supplied.geojson);
+      if (this.current(entry) && entry.vector === vector) this.syncPresentation();
+      return;
+    }
+    if (supplied && !("provider" in supplied))
+      throw new Error("An imagery source requires a raster provider.");
     if (definition.mode === "reconstructable" && definition.modelRequiresReselect)
       throw new Error("Reselect the local plate model on the left, then use it for this layer.");
     if (!supplied && definition.source.kind === "local")
@@ -243,9 +281,10 @@ export class LayerController {
 
   private syncPresentation() {
     for (const entry of this.entries) {
+      const visible = isLayerVisible(entry.definition, this.age);
+      entry.vector?.present(visible, entry.definition.opacity, entry.definition.name);
       const runtime = entry.runtime;
       if (!runtime) continue;
-      const visible = isLayerVisible(entry.definition, this.age);
       if (runtime.parent && !runtime.parent.isDestroyed()) runtime.parent.show = visible;
       if (runtime.rtl) runtime.rtl.opacity = entry.definition.opacity;
       if (runtime.imagery) {
@@ -283,7 +322,8 @@ export class LayerController {
     const index = this.entries.findIndex((entry) => entry.definition.id === id);
     const target = index + (direction === "up" ? 1 : -1);
     if (index < 0 || target < 0 || target >= this.entries.length) return;
-    if (this.entries[index].definition.mode !== this.entries[target].definition.mode) return;
+    const group = layerGroup(this.entries[index].definition);
+    if (group === "vector" || group !== layerGroup(this.entries[target].definition)) return;
     [this.entries[index], this.entries[target]] = [this.entries[target], this.entries[index]];
     this.syncOrder();
     this.emit();
@@ -355,7 +395,13 @@ export class LayerController {
   }
   async activateImagery(id: string) {
     const entry = this.find(id);
-    if (!entry || entry.definition.mode !== "static" || entry.status === "loading") return;
+    if (
+      !entry ||
+      entry.definition.source.kind === "geojson" ||
+      entry.definition.mode !== "static" ||
+      entry.status === "loading"
+    )
+      return;
     entry.status = "loading";
     entry.message = "Preparing imagery…";
     this.emit();
@@ -440,6 +486,8 @@ export class LayerController {
   }
   private releaseRuntime(entry: Entry) {
     entry.operation++;
+    entry.vector?.destroy();
+    entry.vector = undefined;
     const runtime = entry.runtime;
     if (!runtime) return;
     entry.runtime = undefined;
@@ -448,6 +496,17 @@ export class LayerController {
     if (runtime.parent && !this.root.isDestroyed()) this.root.remove(runtime.parent);
     if (runtime.rtl) this.processor.clearProvider(runtime.source.provider);
     runtime.source.release();
+  }
+  async focus(id: string) {
+    const entry = this.find(id);
+    try {
+      await entry?.vector?.focus();
+    } catch (error) {
+      if (entry && this.current(entry)) {
+        entry.message = error instanceof Error ? error.message : String(error);
+        this.emit();
+      }
+    }
   }
   remove(id: string) {
     const entry = this.find(id);
@@ -462,15 +521,16 @@ export class LayerController {
     for (const entry of this.entries) this.releaseRuntime(entry);
     // 旧配置允许两种绘制路径交错；导入时保留各组内部顺序，按原生绘制关系分组。
     const ordered = [
-      ...definitions.filter((definition) => definition.mode === "static"),
-      ...definitions.filter((definition) => definition.mode === "reconstructable"),
+      ...definitions.filter((definition) => layerGroup(definition) === "imagery"),
+      ...definitions.filter((definition) => layerGroup(definition) === "reconstructable"),
+      ...definitions.filter((definition) => layerGroup(definition) === "vector"),
     ];
     this.entries = ordered.map((definition) => ({
       definition: structuredClone(definition),
       operation: 0,
-      status: definition.source.kind === "local" ? "needs-file" : "unloaded",
+      status: definition.source.kind !== "service" ? "needs-file" : "unloaded",
       message:
-        definition.source.kind === "local"
+        definition.source.kind !== "service"
           ? "Reselect local file to restore."
           : "Load this layer to restore it.",
     }));

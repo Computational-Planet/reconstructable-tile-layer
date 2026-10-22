@@ -42,6 +42,7 @@ import { useGraticuleOverlay } from "./hooks/useGraticuleOverlay";
 import { useReferencePolygonOverlay } from "./hooks/useReferencePolygonOverlay";
 import { DEFAULT_GLOBE_BASE_COLOR } from "./cesium/createViewer";
 import { useLocalRaster } from "./hooks/useLocalRaster";
+import { useLocalGeoJson } from "./vector/useLocalGeoJson";
 import type { ImagerySourceKind } from "./components/controlPanel/ControlPanel.types";
 import { useLayerManager } from "./layers/useLayerManager";
 import { LayerPanel } from "./components/layers/LayerPanel";
@@ -137,6 +138,7 @@ function App() {
     setStatus,
   });
   const localRaster = useLocalRaster({ viewerRef, model, addLayer: layers.addRaster });
+  const localGeoJson = useLocalGeoJson({ addLayer: layers.addGeoJson });
   const initialized = !!layers.selected && layers.selected.status !== "needs-file";
   const stats = layers.stats;
   const selectedService =
@@ -156,6 +158,12 @@ function App() {
     document.getElementById("source-kind")?.focus({ preventScroll: true });
   };
   const prepareLocalFile = (layer: LayerDefinition) => {
+    if (layer.source.kind === "geojson") {
+      setSourceKind("local-geojson");
+      localGeoJson.prepareRestore(layer.id, layer.source.descriptor);
+      focusSource();
+      return;
+    }
     if (layer.source.kind !== "local") return;
     setSourceKind("local-raster");
     localRaster.prepareRestore(layer.source.descriptor);
@@ -182,6 +190,7 @@ function App() {
     appliedService,
     onImportSources: (hasLocalRaster) => {
       localRaster.remove();
+      localGeoJson.remove();
       layerControllerRef.current?.restore([]);
       setSourceKind(hasLocalRaster ? "local-raster" : "tile-service");
     },
@@ -351,6 +360,7 @@ function App() {
     <main className={`app-shell${layers.panelOpen ? " has-layer-panel" : ""}`}>
       <ControlPanel
         localRaster={localRaster}
+        localGeoJson={localGeoJson}
         sourceKind={sourceKind}
         onSourceKindChange={setSourceKind}
         appliedService={appliedService}
@@ -359,7 +369,7 @@ function App() {
         serviceMode={serviceMode}
         onServiceModeChange={setServiceMode}
         age={age}
-        busy={busy || localRaster.busy || layers.busy}
+        busy={busy || localRaster.busy || localGeoJson.busy || layers.busy}
         serviceConfig={serviceConfig}
         debugEnabled={debugEnabled}
         experimentViewConfig={experimentViewConfig}

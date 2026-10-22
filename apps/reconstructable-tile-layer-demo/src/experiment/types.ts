@@ -63,7 +63,7 @@ export type ExperimentProjection =
   | "OrthographicGlobe";
 
 export type ExperimentExportInfo = {
-  schemaVersion: 1 | 2;
+  schemaVersion: 1 | 2 | 3;
   layerStack?: LayerDefinition[];
   exportedAt: string;
   exportBaseName: string;

@@ -29,18 +29,18 @@ Turbo 会同时启动四个核心库的监听构建和 Vite demo。三个可选�
 ## 面板操作顺序
 
 1. **Plate model**：选择板块域和 ROT；URL、anchor 和多边形模式在 **Model settings** 中配置。
-2. **Imagery data source**：在 **Source type** 选择 **Tile map service** 或 **Local TIFF / NetCDF**，
+2. **Layer data source**：在 **Source type** 选择 **Tile map service**、**Local TIFF / GeoTIFF** 或 **Local GeoJSON**，
    在线服务使用常驻连接表单，本地文件展开 **Source settings** 配置，共用 **Add layer** 按钮。
    每次添加保留已有图层。在线服务可选择重建或固定坐标；**Selected layer** 显示右侧当前选中的图层。
 3. **Timeline & tiles**：瓦片加载和清空作用于选中的重建图层，年代轴统一更新全部重建图层。
 
 本地文件应用成功后自动收起配置；在线连接表单保持可见。空间属性、数据引用、配色和数值 COG 导出按需展开；
 GPlates 参考叠加层、视图与渲染设置、实验导入导出和统计位于三个主步骤之后。
-普通图层（包括快照和参考模式）使用 Cesium 原生 `ImageryLayer`，添加后随视野自动加载。
+普通栅格图层（包括快照和参考模式）使用 Cesium 原生 `ImageryLayer`，添加后随视野自动加载。
 
 ## 右侧图层面板
 
-**Layers** 面板可以收起，再通过右上角的按钮打开。面板分为重建图层与普通影像两组，
+**Layers** 面板可以收起，再通过右上角的按钮打开。面板分为重建图层、普通影像与普通矢量三组。矢量列表不表示几何绘制顺序；影像
 组内越靠上越晚绘制，使用箭头在同组内换位；重建图层绘制在原生影像之上。
 每层支持显隐、名称、透明度和删除；仅重建图层提供手动瓦片加载。较窄窗口使用右侧浮动面板。
 
@@ -54,7 +54,7 @@ GPlates 参考叠加层、视图与渲染设置、实验导入导出和统计位
 普通图层的 LOD、视野请求、缓存和纹理释放由 Cesium 原生管理，不经过 RTL 处理器或 demo 的手动瓦片加载。
 要让某个重建层采用新的模型，在右侧点击 **Use current plate model** 后重新加载瓦片。
 **Clear prepared file** 仅清理本地文件编辑器；已添加图层继续持有自己的文件引用。
-删除最后一个使用该文件的图层并清理编辑器后，相关 source、dataset 与 Worker 才会关闭。
+删除最后一个使用该文件的图层并清理编辑器后，相关栅格 source 与 Worker 才会关闭。
 
 模块边界：`src/layers` 管理 demo 的状态、时间、原生影像接入、资源引用和序列化；
 `src/components/layers` 与 `src/styles/layers.css` 管理右侧界面。
@@ -119,50 +119,25 @@ WMS 的 `TIME` 或 WMTS 时间维度保持固定，与地质年代轴分别管�
 
 ## 本地科学栅格
 
-1. 在 **Imagery data source → Local TIFF / NetCDF → Source settings** 选择本地 TIFF/COG 或 NetCDF；文件不上传到服务器。
-   NetCDF 保留原变量名、维度和单位，选择时间/深度等下标后点击 **Read selected slice**。
-2. 要让用户的 0 Ma 数据随时间轴重建，选择 **Reconstruct from 0 Ma (follows timeline)**，
-   确认现代坐标框架，点击 **Add layer**，再使用 **Load Tiles By Level**。
-   应用自动设置建议层级：低分辨率从 L2 开始，较细数据从 L3 开始；更高层级建议使用视野加载。
-   本地 `RasterImageryProvider` 直接向 RTL 提供瓦片，复用上方所选板块域、ROT 与 anchor；
-   改变时间轴更新板块旋转，不按源文件的 0 Ma 年龄隐藏图层。
-   **Paleo snapshot (visible at one age)** 初始仅在指定年龄显示，可在 Layers 中扩展显示区间；参考/未知模式按原坐标显示。
-3. 展开 **Display style**，可选择单波段/RGB、预览抽样或手动物理值范围、色带。文件声明的缺测值保持透明；
-   额外的原始值缺测选项仅影响显示，不改科学元数据或数值导出。修改样式后再次添加会创建新的图层。
-   修改板块模型后，下一次添加现代源需要重新确认；已有图层保留其模型。
-4. 展开 **Numeric COG export (optional)**，点击 **Create numeric COG** 按需加载 GDAL。TIFF 导出存储数值波段，NetCDF 仅导出已选
-   二维切片的物理数值；必须明确确认规则经纬目标网格，高斯纬度同样需要重采样。
-   转换显示真实阶段并支持取消。
-5. 同时下载 COG 和溯源 JSON。**Load converted COG** 重新读取结果，再点击
-   **Add layer** 进入已选显示/重建路径。编辑器与图层各自持有文件引用，换文件不会关闭已添加图层的数据。
+1. 在 **Layer data source → Local TIFF / GeoTIFF → Source settings** 选择带地理配准的 TIFF、BigTIFF 或 COG，文件在浏览器内处理。本 demo 不再加载 NetCDF，请先在外部转换为 GeoTIFF。
+2. 现代数据需要随时间轴重建时，选择 **Reconstruct from 0 Ma (follows timeline)**，确认板块模型坐标框架，点击 **Add layer** 后加载瓦片。**Paleo snapshot** 初始仅在指定年代显示，**Reference / unknown** 按文件坐标显示；固定坐标图层的可见年代范围在 Layers 中修改。
+3. **Display style** 支持单波段/RGB、抽样或手动数值范围、色带与额外原始 NoData 排除值。配色不改存储数值或数值导出；再次添加生成独立图层。
+4. **Numeric COG export (optional) → Create numeric COG** 按需加载 GDAL，导出 TIFF 的原始数值波段，支持取消。请同时下载 COG 与溯源 JSON；**Load converted COG** 可重新读取结果，再添加为普通或重建图层。
 
-可直接用 `tmp/paleo-domain-review/Map01_PALEOMAP_1deg_Holocene_0Ma.nc` 测试重建：
-选择 `z` 并读取切片，在上方同时选择 Seton 2012 static polygons 与 Seton 2012 ROT，
-选择 **Reconstruct from 0 Ma** 并确认，应用并加载建议的 L2 瓦片后切换 0、50、100 Ma。
-此时源数据仍是 0 Ma，时间轴表示重建的目标年代。`Map23_…100Ma.nc` 已描述 100 Ma
-地理状态，使用快照模式查看；应用不会仅凭文件名或 NetCDF 格式自动决定用途。
+面板分别列出存储尺寸/COG 概览和地图瓦片层级。L2 在文件覆盖范围内细分为 4×4 个源瓦片，L3 为 8×8；提高切分层级或重采样尺寸不会增加原始细节。支持的投影及库级覆盖参数见 [Provider 说明](../../packages/rtl-raster-imagery-provider/README.zh-CN.md)。TIFF 必须包含可用的地理配准，普通无配准图片不能直接加载。
 
-读取后面板会分别列出存储尺寸/COG 概览、可请求的地图层级和建议起始层级。
-地图层级在文件覆盖范围上细分，L2 为 4×4、L3 为 8×8 个源瓦片；它们不是 COG 概览编号。
-PaleoDEM 361×181 原 NC 及其 720×360 转换 COG 默认最高均为 L2，ETOPO 3600×3600 为 L4。
-增加切分层级或重采样尺寸不会增加数据精度。超出声明范围会提示，不会静默降级。
-层级设计和可显式覆盖的库参数见 [Provider 说明](../../packages/rtl-raster-imagery-provider/README.zh-CN.md)。
+栅格配置保留文件名、实际样式、科学上下文和 `requiresReselect: true`，不嵌入文件内容或会话 blob URL。本地板块域与 ROT 同样需要在导入后重选。缺失单位不擅自补写，NaN 等非有限科学元数据以文本保留。将现代标量数据随板块搬移演示的是几何传输，不是古地形预测。
 
-PaleoDEM 可由不同年龄的独立文件组成序列，不要求自带 `time`。DeepMIP 的模型日历
-（如以 1950 为起点的 `365_day`）与始新世实验分开记录。原属性和缺失单位不擅自
-补写。二维曲线、旋转及非结构网格明确拒绝，包括实际测试的 DeepMIP 海洋 `tos`；
-一个 `tas` 通过不代表全部模型兼容。搬移现代 ETOPO 数值演示几何传输，不是古地形预测。
+运行需要 WebGL、Canvas、File/Blob、模块 Worker 与 WASM，GDAL 资源仅在可选转换时加载。公共栅格库保留其独立格式能力；demo 只调用 TIFF 路径。
 
-配置导出新增 `sources.localRaster`，包含文件名、原切片、实际样式、科学上下文及
-`requiresReselect: true`；不嵌入文件或短期 blob URL。本地上传的板块域和 ROT 也保留
-文件描述；导入时清空对应地址，初始化模型前需要重新选择文件。重新导入要求选择原文件并应用，
-不会从描述凭空恢复数据。NaN 等非有限科学元数据以文本序列化，避免静默变为 null。
+## 本地 GeoJSON 矢量
 
-运行要求 WebGL、Canvas、File/Blob、模块 Worker 和 WASM。Vite 已配置
-`worker.format = "es"`，通过 `?url` 托管的 GDAL JS/WASM/data 仅在转换时加载。
-自定义部署与 CSP 见[各包文档](../../README.zh-CN.md#工作区)，具体数据兼容范围见
-[真实样本矩阵](../../scripts/raster/README.md#production-demo-and-scientific-meaning)。
-本轮不包含后端、地图点查询或区域统计。
+选择 **Layer data source → Local GeoJSON**，打开 `.geojson` 或内容为 GeoJSON 的 `.json` 文件，点击 **Add layer**。支持 FeatureCollection、单个 Feature、点线面、Multi 系列与 GeometryCollection。坐标使用 WGS84 经度/纬度，可附带高度；其他投影请先转换。没有可绘制几何的空文件、未闭合环、非有限坐标以及 TopoJSON 等其他格式会明确报错。
+
+矢量通过 Cesium 原生 [GeoJsonDataSource](https://cesium.com/learn/cesiumjs/ref-doc/GeoJsonDataSource.html) 显示，保留其支持的 simplestyle 属性与实体几何。在右侧 **Ordinary vectors** 中可改名、显隐、调整透明度、设置闭区间年代范围、缩放定位和删除。整层透明度乘以各要素原来的 alpha；时间轴只控制显示，不改变坐标。本轮不进行矢量重建、裁剪、栅格化或 RTL 接入。
+
+矢量遮挡遵循原生几何深度与透明度规则，不提供矢量上下换位或跨影像/RTL 的统一叠放顺序。格式校验与原生生命周期位于 `src/vector`，文件编辑器独立于栅格控制和 RTL 库。实验配置不内嵌 GeoJSON 内容，导入后用 **Prepare local file** 重选文件，再 **Restore selected layer**。
+
 
 ## 论文工作流
 
@@ -203,19 +178,15 @@ pnpm --filter reconstructable-tile-layer-demo dev
 
 ## 导出兼容性
 
-新导出使用 `schemaVersion: 2`，通过 `layerStack` 从底到顶保存全部图层的来源、
+新导出使用 `schemaVersion: 3`，通过 `layerStack` 分组保存全部图层的来源、
 显示设置、时间范围和模型。原来的视图字段及 `geoTileStats`、`tileProcesserStats` 仍保留；
-图层统计表示当前选中的重建层，处理器统计表示共享运行时。旧版读取器需要支持版本 2。
-新版仍可读取版本 1 的控件配置。版本 2 导入恢复列表并自动加载普通在线影像；
+图层统计表示当前选中的重建层，处理器统计表示共享运行时。读取器需支持版本 3 的 GeoJSON 描述。
+新版仍可读取版本 1 控件配置和版本 2 的服务/TIFF 图层。含 NetCDF 的旧配置在替换场景前报错，请将数据转换为 GeoTIFF 后重新添加。版本 2/3 导入恢复列表并自动加载普通在线影像；
 重建图层通过 **Load tiles** 加载。旧版交错列表会按绘制路径分组，保留组内顺序。
-本地栅格点击 **Prepare local file** 重选文件、读取已保存的切片，并 **Restore selected layer**。
+本地 TIFF 或 GeoJSON 点击 **Prepare local file** 重选文件，再 **Restore selected layer**。
 本地模型需重选后对对应图层使用 **Use current plate model**。
 
 本地上传的模型文件导入后需要重新选择，见前述说明；旧配置中失效的 `blob:` 地址也会被清空。
-
-压缩 NetCDF 的直接采样可能较慢：实测 3600×3600 的 ETOPO 文件生成第 0 层重建瓦片约需
-90 秒，同区转换后的 COG 加载明显更快。[浏览器验收说明](../../scripts/raster/README.md)
-列出操作耗时、样本尺寸、版本与限制；格式验证通过不代表任意数据集都能流畅交互。
 
 截图直接从 Cesium canvas 获取，不包含控制面板。跨源影像必须允许读取 canvas。
 

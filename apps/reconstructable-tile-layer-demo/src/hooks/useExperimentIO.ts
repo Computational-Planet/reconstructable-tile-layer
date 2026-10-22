@@ -181,13 +181,20 @@ export function useExperimentIO({
       exportedAt,
       exportBaseName,
     );
-    info.schemaVersion = 2;
+    info.schemaVersion = 3;
     info.layerStack = exportLayerDefinitions(layerControllerRef.current?.definitions ?? []);
     if (localRaster) {
       info.sources.localRaster = localRaster;
       info.sources.providerLabel = `Local raster: ${localRaster.file.name}`;
       info.layers.rtlLayer =
         localRaster.context.role === "modern-reconstructable" ? localRaster.file.name : "off";
+    }
+    const selected = layerControllerRef.current?.selected?.definition;
+    if (selected?.source.kind === "geojson") {
+      info.sources.providerLabel = `Local GeoJSON: ${selected.source.descriptor.file.name}`;
+      info.layers.rtlLayer = "off";
+      info.layers.plateBoundary = false;
+      info.layers.opacity = selected.opacity;
     }
     // 本地模型与本地栅格遵循同一规则：导出文件描述，不能重用会话中的 blob 地址。
     const featureIsLocal = featureUrl.trim().startsWith("blob:");
@@ -225,7 +232,7 @@ export function useExperimentIO({
       onImportSources(!!importedConfig.localRasterFileName);
       if (importedConfig.layerStack) layerControllerRef.current?.restore(importedConfig.layerStack);
       const rasterNotice = importedConfig.localRasterFileName
-        ? ` Reselect the local file ${importedConfig.localRasterFileName} and apply its slice/context; local files are not embedded.`
+        ? ` Reselect the local TIFF ${importedConfig.localRasterFileName} and apply its saved settings; local files are not embedded.`
         : "";
       const modelNotice = importedConfig.requiresLocalModelFiles
         ? " Reselect the local plate-domain/ROT files before initializing the model."

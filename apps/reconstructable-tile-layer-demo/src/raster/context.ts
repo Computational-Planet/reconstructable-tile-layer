@@ -1,17 +1,13 @@
 import type { RasterMetadata } from "rtl-raster-source";
 import type { RasterStyle } from "rtl-raster-imagery-provider";
 
-export type RasterRole =
-  | "reference-only"
-  | "paleo-snapshot"
-  | "modern-reconstructable";
+export type RasterRole = "reference-only" | "paleo-snapshot" | "modern-reconstructable";
 
 /** JSON 没有 NaN/Infinity；保留显式文本，避免把科学缺测声明悄悄变成 null。 */
 export function stringifyScientific(value: unknown, indent = 2) {
   return JSON.stringify(
     value,
-    (_key, item) =>
-      typeof item === "number" && !Number.isFinite(item) ? String(item) : item,
+    (_key, item) => (typeof item === "number" && !Number.isFinite(item) ? String(item) : item),
     indent,
   );
 }
@@ -55,10 +51,7 @@ function portableResource(url: string, label: string) {
 }
 
 /** 应用负责科学用途；读取包只保留原始坐标、时间、单位及数值。 */
-export function makeScientificContext(
-  draft: RasterContextDraft,
-  model: ModelSelection,
-) {
+export function makeScientificContext(draft: RasterContextDraft, model: ModelSelection) {
   let displayAgeMa: number | null = null;
   if (draft.role === "paleo-snapshot") {
     displayAgeMa = Number(draft.displayAge);
@@ -75,9 +68,7 @@ export function makeScientificContext(
       throw new Error("Record the source of the snapshot's display age.");
   }
   if (draft.role === "modern-reconstructable" && !draft.modelConfirmed)
-    throw new Error(
-      "Confirm that the data use the present-day frame of the selected plate model.",
-    );
+    throw new Error("Confirm that the data use the present-day frame of the selected plate model.");
   return {
     role: draft.role,
     coordinateEpoch:
@@ -95,15 +86,9 @@ export function makeScientificContext(
       draft.role === "modern-reconstructable"
         ? {
             name: model.name,
-            plateDomains: portableResource(
-              model.featureUrl,
-              model.featureLabel,
-            ),
+            plateDomains: portableResource(model.featureUrl, model.featureLabel),
             rotations: model.rotationUrls.map((url, index) =>
-              portableResource(
-                url,
-                model.rotationLabels[index] ?? "Rotation file",
-              ),
+              portableResource(url, model.rotationLabels[index] ?? "Rotation file"),
             ),
             anchorPlateId: model.anchorPlateId,
             polygonRenderIntent: model.polygonRenderIntent ?? null,
@@ -122,14 +107,11 @@ export interface LocalRasterDescriptor {
     lastModified: number;
     requiresReselect: true;
   };
-  source: Pick<
-    RasterMetadata,
-    "format" | "width" | "height" | "crs" | "slice" | "bands"
-  >;
+  source: Pick<RasterMetadata, "format" | "width" | "height" | "crs" | "bands">;
   context: ScientificRasterContext;
   style: RasterStyle;
   applied: boolean;
-  /** A converted file keeps its original file/slice description for provenance. */
+  /** A converted file keeps its original TIFF description for provenance. */
   convertedFrom?: LocalRasterDescriptor;
 }
 
@@ -154,7 +136,6 @@ export function describeLocalRaster(
       width: metadata.width,
       height: metadata.height,
       crs: metadata.crs,
-      slice: metadata.slice,
       bands: metadata.bands,
     },
     context,

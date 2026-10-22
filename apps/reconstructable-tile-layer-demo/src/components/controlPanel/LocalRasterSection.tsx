@@ -13,15 +13,11 @@ export function LocalRasterSection({
   const disabled = busy || raster.busy;
   const metadata = raster.entry?.source?.metadata;
   const levels = metadata ? getRasterLevelInfo(metadata) : undefined;
-  const variables =
-    raster.entry?.dataset?.metadata.variables.filter((variable) => variable.shape.length >= 2) ??
-    [];
-  const selected = variables.find((variable) => variable.name === raster.variable);
   const editContext = (patch: Partial<typeof raster.context>) =>
     raster.setContext({ ...raster.context, ...patch });
   const editStyle = (patch: Partial<typeof raster.style>) =>
     raster.setStyle({ ...raster.style, ...patch });
-  const ready = !!metadata && !raster.slicePending;
+  const ready = !!metadata;
   return (
     <section className="local-raster-section" aria-label="Local raster">
       <label className="field-label">
@@ -29,7 +25,7 @@ export function LocalRasterSection({
         <input
           aria-label="Local raster file"
           type="file"
-          accept=".tif,.tiff,.nc,.nc4,.cdf"
+          accept=".tif,.tiff,image/tiff"
           disabled={disabled}
           onChange={(event) => {
             void raster.open(event.target.files?.[0] ?? null);
@@ -42,90 +38,6 @@ export function LocalRasterSection({
           <p data-testid="raster-file">
             {raster.entry.file.name} · {(raster.entry.file.size / 1048576).toFixed(2)} MiB
           </p>
-          {raster.entry.dataset && (
-            <fieldset disabled={disabled}>
-              <legend>NetCDF selection</legend>
-              <label>
-                Variable
-                <select
-                  aria-label="NetCDF variable"
-                  value={raster.variable}
-                  onChange={(event) => raster.selectVariable(event.target.value)}
-                >
-                  {variables.map((variable) => (
-                    <option key={variable.name} value={variable.name}>
-                      {variable.name} —{" "}
-                      {String(
-                        variable.attributes.long_name ??
-                          variable.attributes.standard_name ??
-                          variable.dataType,
-                      )}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <p className="field-hint">
-                {selected?.dimensions
-                  .map((dimension, index) => `${dimension} (${selected.shape[index]})`)
-                  .join(" × ")}
-              </p>
-              {selected && (
-                <p className="field-hint">
-                  Units: {String(selected.attributes.units ?? "not supplied in file")}
-                </p>
-              )}
-              {raster.layoutError && (
-                <p className="field-error" role="alert">
-                  {raster.layoutError}
-                </p>
-              )}
-              {raster.layout && (
-                <p className="field-hint">
-                  Spatial axes: {raster.layout.longitude.name}, {raster.layout.latitude.name}
-                </p>
-              )}
-              {raster.layout?.selectors.map((selector) => (
-                <label key={selector.dimension}>
-                  {selector.dimension} index (0–{selector.size - 1})
-                  <input
-                    aria-label={`${selector.dimension} index`}
-                    type="number"
-                    min={0}
-                    max={selector.size - 1}
-                    step={1}
-                    value={raster.indices[selector.dimension] ?? 0}
-                    onChange={(event) =>
-                      raster.setIndices({
-                        ...raster.indices,
-                        [selector.dimension]: Number(event.target.value),
-                      })
-                    }
-                  />
-                  <span className="field-hint">
-                    {raster.coordinates[selector.dimension]
-                      ? `Raw coordinate: ${raster.coordinates[selector.dimension][raster.indices[selector.dimension] ?? 0]}. `
-                      : ""}
-                    {String(selector.coordinate?.attributes.units ?? "")}
-                    {selector.coordinate?.attributes.calendar
-                      ? `; calendar: ${selector.coordinate.attributes.calendar}`
-                      : ""}
-                  </span>
-                </label>
-              ))}
-              <p className="field-hint">
-                Model time and geological age are separate. Calendar values remain in the file's
-                original convention.
-              </p>
-              <button
-                type="button"
-                className="secondary-button"
-                disabled={!raster.layout}
-                onClick={() => void raster.readSlice()}
-              >
-                Read selected slice
-              </button>
-            </fieldset>
-          )}
           {metadata && levels && (
             <p className="field-hint raster-summary" data-testid="raster-summary">
               {metadata.width} × {metadata.height} · EPSG:{metadata.crs.epsg}
@@ -179,11 +91,6 @@ export function LocalRasterSection({
                   increase the original data's detail.
                 </p>
               )}
-              {metadata.slice && (
-                <p className="field-hint">
-                  Loaded: {metadata.slice.variable} {JSON.stringify(metadata.slice.indices)}
-                </p>
-              )}
               {metadata.bands.map((band, index) => (
                 <p className="field-hint" key={index}>
                   Band {index}: {band.name}, {band.units ?? "units not supplied"}; scale{" "}
@@ -199,14 +106,12 @@ export function LocalRasterSection({
               <details>
                 <summary>Original file attributes</summary>
                 <pre className="raster-attributes">
-                  {stringifyScientific(
-                    raster.entry.dataset?.metadata ?? {
-                      ...metadata,
-                      coordinates: metadata?.coordinates
-                        ? "Native coordinate arrays retained by the source"
-                        : undefined,
-                    },
-                  )}
+                  {stringifyScientific({
+                    ...metadata,
+                    coordinates: metadata?.coordinates
+                      ? "Native coordinate arrays retained by the source"
+                      : undefined,
+                  })}
                 </pre>
               </details>
             </details>
@@ -434,77 +339,11 @@ export function LocalRasterSection({
             {metadata && (
               <fieldset disabled={disabled}>
                 <legend className="sr-only">Numeric COG export</legend>
-                {metadata.transform === null && (
-                  <>
-                    <label>
-                      Target geographic bounds (W, S, E, N)
-                      <input
-                        aria-label="COG bounds"
-                        value={raster.grid.bounds}
-                        onChange={(event) =>
-                          raster.setGrid({
-                            ...raster.grid,
-                            bounds: event.target.value,
-                            confirmed: false,
-                          })
-                        }
-                      />
-                    </label>
-                    <div className="field-grid">
-                      <label>
-                        Width
-                        <input
-                          aria-label="COG width"
-                          type="number"
-                          min={1}
-                          value={raster.grid.width}
-                          onChange={(event) =>
-                            raster.setGrid({
-                              ...raster.grid,
-                              width: Number(event.target.value),
-                              confirmed: false,
-                            })
-                          }
-                        />
-                      </label>
-                      <label>
-                        Height
-                        <input
-                          aria-label="COG height"
-                          type="number"
-                          min={1}
-                          value={raster.grid.height}
-                          onChange={(event) =>
-                            raster.setGrid({
-                              ...raster.grid,
-                              height: Number(event.target.value),
-                              confirmed: false,
-                            })
-                          }
-                        />
-                      </label>
-                    </div>
-                    <label className="checkbox-row">
-                      <input
-                        type="checkbox"
-                        checked={raster.grid.confirmed}
-                        onChange={(event) =>
-                          raster.setGrid({
-                            ...raster.grid,
-                            confirmed: event.target.checked,
-                          })
-                        }
-                      />
-                      Resample the selected slice onto this regular grid (nearest neighbour).
-                    </label>
-                  </>
-                )}
                 <button type="button" disabled={!ready} onClick={() => void raster.convert()}>
                   Create numeric COG
                 </button>
                 <p className="field-hint">
-                  GeoTIFF exports its stored bands. NetCDF exports only the selected 2D slice in
-                  physical units. Save the provenance JSON with the COG.
+                  GeoTIFF exports its stored numeric bands. Save the provenance JSON with the COG.
                 </p>
               </fieldset>
             )}

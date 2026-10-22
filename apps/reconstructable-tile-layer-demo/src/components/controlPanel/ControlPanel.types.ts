@@ -1,5 +1,6 @@
 /** Shares control panel props across the grouped section components. */
 import type { LocalRasterControls } from "../../hooks/useLocalRaster";
+import type { LocalGeoJsonControls } from "../../vector/useLocalGeoJson";
 import type { LayerMode, LayerView } from "../../layers/types";
 import type {
   ReconstructableTileLayerStats,
@@ -28,6 +29,7 @@ export type ControlPanelProps = {
   serviceMode: LayerMode;
   onServiceModeChange: (mode: LayerMode) => void;
   localRaster: LocalRasterControls;
+  localGeoJson: LocalGeoJsonControls;
   sourceKind: ImagerySourceKind;
   appliedService: AppliedService | null;
   modelNeedsApply: boolean;
@@ -96,7 +98,7 @@ export type ControlPanelProps = {
 };
 
 /** 来源选择是待应用配置；当前生效的服务单独保存，避免把选项误当作地图状态。 */
-export type ImagerySourceKind = "tile-service" | "local-raster";
+export type ImagerySourceKind = "tile-service" | "local-raster" | "local-geojson";
 export type AppliedService = {
   config: TileServiceConfig;
   exampleKey: ProviderKey;

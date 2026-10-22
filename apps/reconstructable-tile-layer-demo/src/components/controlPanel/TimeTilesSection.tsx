@@ -38,12 +38,14 @@ export function TimeTilesSection({
 }: TimeTilesSectionProps) {
   const disabled = busy || !initialized || modelNeedsApply;
   const guidance = !selectedLayer
-    ? "Add an imagery source in step 2, or select a layer in the Layers panel."
+    ? "Add a data source in step 2, or select a layer in the Layers panel."
     : selectedLayer.status === "needs-file"
-      ? "Reselect this layer's local file before loading tiles."
-      : selectedLayer.mode === "static"
-        ? "Imagery loads automatically as you navigate. The timeline controls its visible age range."
-        : `Tile actions apply to ${selectedLayer.name}. All reconstruction layers follow the global timeline.`;
+      ? "Reselect this layer's local file to restore it."
+      : selectedLayer.source.kind === "geojson"
+        ? "GeoJSON coordinates remain fixed. The timeline controls its visible age range."
+        : selectedLayer.mode === "static"
+          ? "Imagery loads automatically as you navigate. The timeline controls its visible age range."
+          : `Tile actions apply to ${selectedLayer.name}. All reconstruction layers follow the global timeline.`;
   const ageRangeStyle = {
     "--range-progress": `${Math.min(100, Math.max(0, (age / 1800) * 100))}%`,
   } as CSSProperties;

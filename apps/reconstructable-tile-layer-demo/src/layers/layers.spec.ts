@@ -28,20 +28,19 @@ describe("geological layer visibility", () => {
   });
 });
 
-it("keeps an old slice and shared dataset alive after the editor switches files", () => {
+it("keeps a shared TIFF source alive after the editor switches files", () => {
   const closed: string[] = [];
-  const slice = { close: vi.fn(() => closed.push("slice")) };
-  const dataset = { close: vi.fn(() => closed.push("dataset")) };
-  const editor = retainResources([slice, dataset]);
-  const firstLayer = retainResources([slice, dataset]);
-  const secondLayer = retainResources([slice, dataset]);
+  const source = { close: vi.fn(() => closed.push("source")) };
+  const editor = retainResources([source]);
+  const firstLayer = retainResources([source]);
+  const secondLayer = retainResources([source]);
   editor();
   firstLayer();
   expect(closed).toEqual([]);
   secondLayer();
   secondLayer();
-  expect(closed).toEqual(["slice", "dataset"]);
-  expect(dataset.close).toHaveBeenCalledTimes(1);
+  expect(closed).toEqual(["source"]);
+  expect(source.close).toHaveBeenCalledTimes(1);
 });
 
 const layer: LayerDefinition = {
@@ -100,17 +99,16 @@ describe("layer configuration", () => {
     expect(imported.layerStack?.[0].id).toBe(layer.id);
     expect(() => parseImportedExperimentConfig({ schemaVersion: 2 })).toThrow();
   });
-  it("preserves a local slice and exact palette, rejecting invalid restoration settings", () => {
+  it("preserves a TIFF's exact palette and rejects old NetCDF configurations", () => {
     const descriptor: LocalRasterDescriptor = {
       schemaVersion: 1,
-      file: { name: "temperature.nc", size: 1234, lastModified: 1, requiresReselect: true },
+      file: { name: "temperature.tif", size: 1234, lastModified: 1, requiresReselect: true },
       source: {
-        format: "netcdf3",
+        format: "geotiff",
         width: 360,
         height: 180,
         crs: { epsg: 4326 },
         bands: [],
-        slice: { variable: "tas", indices: { time: 12, depth: 0 } },
       },
       context: makeScientificContext(emptyRasterContext, layer.model!),
       style: {
@@ -143,11 +141,19 @@ describe("layer configuration", () => {
             kind: "local",
             descriptor: {
               ...descriptor,
-              source: { ...descriptor.source, slice: { variable: "tas", indices: { time: -1 } } },
+              source: { ...descriptor.source, format: "netcdf3" },
             },
           },
         },
       ]),
-    ).toThrow(/slice/);
+    ).toThrow(/Convert NetCDF/);
+    expect(() =>
+      parseImportedExperimentConfig({
+        schemaVersion: 1,
+        sources: {
+          localRaster: { ...descriptor, source: { ...descriptor.source, format: "netcdf4" } },
+        },
+      }),
+    ).toThrow(/Convert NetCDF/);
   });
 });

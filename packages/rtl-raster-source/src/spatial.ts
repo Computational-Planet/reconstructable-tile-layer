@@ -10,6 +10,8 @@ import type {
 /** EPSG:3857 uses this radius even when the display globe is a reconstruction sphere. */
 export const WEB_MERCATOR_RADIUS = 6378137;
 const DEGREES = 180 / Math.PI;
+// 仅用于显示边界：1e-8 度约为毫米量级，不改写原始 bounds、像元变换或采样坐标。
+const POLE_EPSILON_DEGREES = 1e-8;
 
 /** Maps pixel edges, not pixel centers. Add 0.5 to a column/row to locate its sample. */
 export function pixelToNative(transform: RasterTransform, column: number, row: number) {
@@ -63,9 +65,24 @@ export function getGeographicBounds(metadata: RasterMetadata): RasterBounds {
 function displayBounds([west, south, east, north]: RasterBounds): RasterBounds {
   if (![west, south, east, north].every(Number.isFinite) || east <= west || north <= south)
     throw new RasterError("invalid-metadata", "Raster bounds must be finite and ordered.");
-  const width = Math.min(360, east - west);
-  const start = width >= 360 - 1e-7 ? -180 : ((((west + 180) % 360) + 360) % 360) - 180;
-  return [start, Math.max(-90, south), start + width, Math.min(90, north)];
+  const global = east - west >= 360 - 1e-7;
+  const start = global ? -180 : ((((west + 180) % 360) + 360) % 360) - 180;
+  const end = global ? 180 : start + (east - west);
+  south = displayLatitude(south);
+  north = displayLatitude(north);
+  if (south >= north)
+    throw new RasterError(
+      "invalid-metadata",
+      "Raster bounds have no latitude extent after normalization.",
+    );
+  return [start, south, end, north];
+}
+
+function displayLatitude(latitude: number): number {
+  // Cesium 用严格相等识别极点；仅截断越界值无法处理 -89.99999999999997 这样的舍入误差。
+  if (Math.abs(latitude + 90) <= POLE_EPSILON_DEGREES) return -90;
+  if (Math.abs(latitude - 90) <= POLE_EPSILON_DEGREES) return 90;
+  return Math.max(-90, Math.min(90, latitude));
 }
 
 /** Binary search keeps the original ascending/descending coordinate order intact. */

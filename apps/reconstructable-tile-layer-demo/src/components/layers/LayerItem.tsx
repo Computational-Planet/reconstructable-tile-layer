@@ -30,6 +30,7 @@ export function LayerItem({
   const [level, setLevel] = useState(layer.level);
   const [error, setError] = useState("");
   const busy = layer.status === "loading";
+  const vector = layer.source.kind === "geojson";
   useEffect(() => {
     setName(layer.name);
   }, [layer.name]);
@@ -77,31 +78,38 @@ export function LayerItem({
         >
           <strong>{layer.name}</strong>
           <span>
-            {layer.mode === "static" ? "Ordinary imagery" : "Reconstruction"} · {state}
+            {vector
+              ? "GeoJSON · Ordinary vector"
+              : layer.mode === "static"
+                ? "Ordinary imagery"
+                : "Reconstruction"}{" "}
+            · {state}
           </span>
         </button>
-        <div className="layer-order-actions">
-          <button
-            type="button"
-            className="secondary-button"
-            aria-label={`Move ${layer.name} up`}
-            title="Move up within group"
-            disabled={atTop}
-            onClick={() => controller.move(layer.id, "up")}
-          >
-            ↑
-          </button>
-          <button
-            type="button"
-            className="secondary-button"
-            aria-label={`Move ${layer.name} down`}
-            title="Move down within group"
-            disabled={atBottom}
-            onClick={() => controller.move(layer.id, "down")}
-          >
-            ↓
-          </button>
-        </div>
+        {!vector && (
+          <div className="layer-order-actions">
+            <button
+              type="button"
+              className="secondary-button"
+              aria-label={`Move ${layer.name} up`}
+              title="Move up within group"
+              disabled={atTop}
+              onClick={() => controller.move(layer.id, "up")}
+            >
+              ↑
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              aria-label={`Move ${layer.name} down`}
+              title="Move down within group"
+              disabled={atBottom}
+              onClick={() => controller.move(layer.id, "down")}
+            >
+              ↓
+            </button>
+          </div>
+        )}
       </div>
       {selected && (
         <div className="layer-details">
@@ -200,7 +208,7 @@ export function LayerItem({
             </>
           )}
           <p className="field-hint layer-source-name">
-            {layer.source.kind === "local"
+            {layer.source.kind !== "service"
               ? layer.source.descriptor.file.name
               : layer.source.config.url}
           </p>
@@ -212,9 +220,18 @@ export function LayerItem({
               {error}
             </p>
           )}
-          {layer.status === "needs-file" ? (
+          {layer.status === "needs-file" || (vector && layer.status === "error") ? (
             <button type="button" onClick={() => onPrepareFile(layer)}>
               Prepare local file
+            </button>
+          ) : vector ? (
+            <button
+              type="button"
+              className="secondary-button"
+              disabled={busy || !layer.effectiveVisible}
+              onClick={() => void controller.focus(layer.id)}
+            >
+              Zoom to layer
             </button>
           ) : layer.mode === "reconstructable" ? (
             <>

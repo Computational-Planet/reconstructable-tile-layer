@@ -31,7 +31,7 @@ command after editing their code or worker assets. Use the local URL printed by 
 ## Panel workflow
 
 1. **Plate model**: choose plate domains and ROT files. Use **Model settings** for URLs, anchor and polygon mode.
-2. **Imagery data source**: choose **Tile map service** or **Local TIFF / NetCDF**. Services have a visible connection
+2. **Layer data source**: choose **Tile map service**, **Local TIFF / GeoTIFF** or **Local GeoJSON**. Services have a visible connection
    form; local files use **Source settings**. **Add layer** preserves existing layers.
    Services can reconstruct or use fixed coordinates. **Selected layer** identifies the selection in the right panel.
 3. **Timeline & tiles**: tile actions apply to the selected reconstruction layer; the age control updates every reconstruction layer.
@@ -43,7 +43,7 @@ Ordinary imagery, including reference and snapshot rasters, uses Cesium's native
 ## Right-hand Layers panel
 
 Hide the panel with **Hide**, then reopen it with the top-right **Layers** button.
-Layers are grouped into reconstruction and ordinary imagery. Higher entries within a group draw on top;
+Layers are grouped into reconstruction, ordinary imagery and ordinary vectors. Vector list order does not set draw order. Higher entries within a group draw on top;
 reconstruction layers draw above native imagery. Move layers within their group using the arrows.
 Each layer has visibility, a name, opacity and removal. Only reconstruction layers have manual tile controls.
 Narrow windows use a floating right panel.
@@ -60,7 +60,7 @@ overlapping LODs from applying opacity twice. Other layers keep their tiles.
 Cesium handles ordinary imagery LOD, view-dependent requests, caching and texture cleanup directly;
 ordinary layers do not use the RTL processor or the demo's manual tile loader.
 **Clear prepared file** releases only the local editor's file reference. Added layers retain independent references;
-the source, dataset and Worker close after their last editor/layer owner releases them.
+the raster source and Worker close after their last editor/layer owner releases them.
 
 Demo business logic lives in `src/layers`, with UI in `src/components/layers` and `src/styles/layers.css`.
 The RTL package supplies reusable containers, visibility, opacity and ordered surface appearances;
@@ -135,67 +135,24 @@ must recognize the new values.
 
 ## Local scientific rasters
 
-1. Choose a local TIFF/COG or NetCDF file in **Imagery data source → Local TIFF / NetCDF → Source settings**. No upload
-   endpoint is used. NetCDF variables retain their names, dimensions and units;
-   choose time/depth indices and click **Read selected slice**.
-2. For a present-day source that follows the timeline, select **Reconstruct from
-   0 Ma (follows timeline)**, confirm the frame, click **Add layer**, then
-   **Load Tiles By Level**. Adding selects L2 for low-resolution rasters and L3 for
-   finer ones; prefer view loading for higher levels. The local `RasterImageryProvider`
-   supplies RTL tiles using the selected plate domains, ROT files and anchor.
-   The timeline rotates the plates; it does not hide the source beyond 0 Ma.
-   **Paleo snapshot (visible at one age)** displays an explicitly dated snapshot
-   initially at that age; edit its visible interval in Layers. **Reference / unknown** displays stored coordinates.
-3. Expand **Display style** to configure single-band/RGB, a sampled or manual physical range, and the color
-   ramp. Declared missing values stay transparent. Extra raw NoData exclusions
-   affect display only; they do not alter scientific metadata or numeric exports.
-   Adding again creates a separate styled layer. A changed plate model requires confirmation
-   for the next modern source; existing layers retain their applied models.
-4. Expand **Numeric COG export (optional)**. **Create numeric COG** loads GDAL resources only when requested. TIFF exports
-   stored numeric bands; NetCDF exports the selected 2D slice in physical units.
-   Confirm the explicit regular geographic target grid for NetCDF, including
-   Gaussian latitude. Conversion exposes real stages and supports cancellation.
-5. Download both COG and provenance JSON. **Load converted COG** reopens the result;
-   **Add layer** uses the chosen scientific path. Replacing the editor's file leaves
-   added layers' providers, sources and datasets alive.
+1. Choose **Layer data source → Local TIFF / GeoTIFF → Source settings**, then select a georeferenced TIFF, BigTIFF or COG. Files stay in the browser. NetCDF input is no longer available in this demo; convert it to GeoTIFF beforehand.
+2. For present-day data that should follow reconstruction, select **Reconstruct from 0 Ma (follows timeline)**, confirm the plate-model frame, click **Add layer**, then load tiles. **Paleo snapshot** starts with a single-age visibility interval; **Reference / unknown** displays the stored coordinates. Edit fixed layers' age ranges in Layers.
+3. **Display style** supports single-band/RGB, sampled or manual numeric ranges, color ramps and additional raw NoData exclusions. Display styles do not alter stored numbers or numeric exports. Adding again creates another independent layer.
+4. **Numeric COG export (optional) → Create numeric COG** loads GDAL only when requested and exports the TIFF's stored numeric bands. Conversion supports cancellation. Download the COG together with its provenance JSON; **Load converted COG** reopens it for display or reconstruction.
 
-To test reconstruction, open `tmp/paleo-domain-review/Map01_PALEOMAP_1deg_Holocene_0Ma.nc`,
-read variable `z`, and select both Seton 2012 static polygons and Seton 2012 ROT.
-Choose **Reconstruct from 0 Ma**, confirm, apply and load the suggested L2 tiles, then move
-the timeline through 0, 50 and 100 Ma. Source coordinates remain present-day;
-the timeline selects the reconstruction target. The `Map23_…100Ma.nc` grid already
-describes 100 Ma geography and can be displayed in snapshot mode. File names and
-NetCDF format do not automatically select either use.
+The panel distinguishes stored dimensions/COG overviews from map tile levels. L2 subdivides the file's coverage into 4×4 source tiles; L3 into 8×8. More subdivisions or resampling do not add source detail. See the [provider policy](../../packages/rtl-raster-imagery-provider/README.md) for supported projections and library-level overrides. TIFF needs usable georeferencing; a plain unreferenced image is insufficient.
 
-The panel shows stored sizes/COG overviews, available map levels and recommended
-start separately. Map levels subdivide the file's coverage: L2 has 4×4 source
-tiles and L3 has 8×8; they are not COG overview indices. The 361×181 PaleoDEM NC
-and its 720×360 resampled COG both default to maximum L2; 3600×3600 ETOPO to L4.
-Subdivision and resampling do not add source detail. Unsupported levels produce
-an explicit message without silently falling back. See the [provider policy](../../packages/rtl-raster-imagery-provider/README.md)
-for library-level overrides.
+Local raster descriptions preserve filename, applied style and scientific context, with `requiresReselect: true`. Files and session blob URLs are not embedded in experiment JSON. Imported local plate domains and ROT files also require reselection. Original missing units are not inferred; non-finite scientific metadata is serialized as text. Moving modern scalar data with plates illustrates geometric transport, not a prediction of paleo topography.
 
-PaleoDEM files form an age sequence even without a `time` dimension. DeepMIP model
-time (e.g. `365_day` with a 1950 origin) is separate from its Eocene experiment;
-record the experiment/version explicitly. Original attributes and missing units
-are preserved. Curvilinear/rotated/unstructured NetCDF grids are rejected, including
-the tested DeepMIP ocean `tos`; one `tas` success is not all-model compatibility.
-Moving ETOPO with plates illustrates geometric transport of modern scalar data,
-not a prediction of paleo topography.
+Production/browser requirements include WebGL, Canvas, File/Blob, module Workers and WASM. GDAL assets load only for optional conversion. Public raster libraries retain their separate format capabilities; the demo imports only their TIFF path.
 
-Experiment exports include `sources.localRaster` with filename, original slice,
-applied style, scientific context and `requiresReselect: true`. Files and transient
-blob URLs are not embedded. Uploaded plate-domain and ROT files are also recorded
-as file descriptions; importing them clears the corresponding URL controls and
-requires file reselection before model initialization. Reimport asks for the original file and explicit
-reapplication; it does not recreate data from a JSON descriptor. Non-finite scientific
-metadata such as NaN is serialized as text, preserving its meaning rather than null.
+## Local GeoJSON vectors
 
-Production/browser requirements: WebGL, Canvas, File/Blob, module Workers and WASM.
-Vite uses `worker.format = "es"`; GDAL JS/WASM/data are copied through `?url` imports
-and fetched only by conversion. See [package documentation](../../README.md#workspaces)
-for custom asset hosting/CSP and [actual dataset coverage](../../scripts/raster/README.md#production-demo-and-scientific-meaning).
-No backend, map query or regional statistics implementation is included.
+Choose **Layer data source → Local GeoJSON**, select a `.geojson` or GeoJSON `.json` file, then **Add layer**. Feature collections, individual features, points, lines, polygons, Multi geometries and geometry collections are supported. Coordinates must be WGS84 longitude/latitude with optional height; reproject other coordinate systems before importing. Empty files without drawable geometry, malformed rings, non-finite coordinates and other formats such as TopoJSON are rejected with a message.
+
+Vectors use Cesium's native [GeoJsonDataSource](https://cesium.com/learn/cesiumjs/ref-doc/GeoJsonDataSource.html), preserving supported simplestyle properties and entity geometry. In **Ordinary vectors**, rename, show/hide, adjust opacity, set an inclusive geological age range, zoom to or remove a layer. Opacity multiplies each original feature alpha. The timeline changes visibility only; vectors do not rotate, clip, rasterize or use RTL.
+
+Vector overlap follows native geometry depth and transparency. The panel does not offer vector reorder controls or imply a common stack with imagery/RTL. GeoJSON parsing and native lifetime management live in `src/vector`; the file editor is separate from raster controls and reusable RTL packages. Local file contents are not included in exported configuration: use **Prepare local file** and **Restore selected layer** after importing.
 
 ## Paper workflow
 
@@ -240,23 +197,17 @@ state but do not automatically initialize or load the layer.
 
 ## Export compatibility
 
-New exports use `schemaVersion: 2` and a bottom-to-top `layerStack` containing all layer sources,
+New exports use `schemaVersion: 3` and a grouped `layerStack` containing all layer sources,
 display settings, age ranges and models. Existing view fields and `geoTileStats` / `tileProcesserStats`
 remain: layer statistics describe the selected reconstruction layer, and processor statistics describe the shared runtime.
-Older readers need version-2 support. Version-1 control configurations remain importable.
-Version-2 imports restore the list and automatically activate ordinary online imagery;
+Readers need version-3 support for GeoJSON layers. Version-1 controls and version-2 TIFF/service stacks remain importable. Legacy NetCDF configurations are rejected before the scene is replaced; convert the data to GeoTIFF and add it again.
+Version-2/3 imports restore the list and automatically activate ordinary online imagery;
 use **Load tiles** for reconstruction layers. Older interleaved lists are grouped while preserving order within each group.
-For local layers, use **Prepare local file**, reselect the file and saved slice, then **Restore selected layer**.
+For local layers, use **Prepare local file**, reselect the TIFF or GeoJSON file, then **Restore selected layer**.
 Reselect local plate-model files and use **Use current plate model** on the affected layer.
 
 Uploaded model files now require reselection on import, as described above; expired
 `blob:` URLs in older configurations are cleared as well.
-
-Direct sampling of compressed NetCDF can be slow: the tested 3600×3600 ETOPO file
-took about 90 seconds to generate level-0 reconstruction tiles. The corresponding
-COG loaded much faster. See the [browser evidence instructions](../../scripts/raster/README.md)
-for measured UI actions, sample sizes, versions and limits; passing a format test
-does not establish interactive performance for arbitrary datasets.
 
 A screenshot is taken directly from the Cesium canvas and excludes the control
 panel. Cross-origin imagery must permit canvas reading.

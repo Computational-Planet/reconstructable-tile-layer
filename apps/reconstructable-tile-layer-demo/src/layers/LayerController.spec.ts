@@ -1,6 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   Ellipsoid,
+  CustomDataSource,
+  ColorMaterialProperty,
+  ConstantProperty,
+  DataSourceCollection,
+  GeoJsonDataSource,
+  JulianDate,
+  PinBuilder,
   ImageryLayer,
   ImageryLayerCollection,
   PrimitiveCollection,
@@ -11,6 +18,7 @@ import type { WebGLTileProcessor } from "rtl-webgl-tile-processor";
 import { emptyTileServiceConfig } from "../cesium/tileServiceConfig";
 import { LayerController } from "./LayerController";
 import type { LayerDefinition, NewLayer } from "./types";
+import { parseGeoJson, type LocalGeoJsonDescriptor } from "../vector/geojson";
 
 const config = { ...emptyTileServiceConfig(), url: "https://example.com/{z}/{x}/{y}.png" };
 const ordinary: NewLayer = {
@@ -24,14 +32,21 @@ const ordinary: NewLayer = {
 };
 
 const cleanup: Array<() => void> = [];
-afterEach(() => cleanup.splice(0).forEach((dispose) => dispose()));
+afterEach(() => {
+  cleanup.splice(0).forEach((dispose) => dispose());
+  vi.restoreAllMocks();
+});
 
 function setup() {
   // 使用真实 Cesium 集合验证生命周期与排序；不需要 WebGL 或任何瓦片网络请求。
   const imageryLayers = new ImageryLayerCollection();
   const primitives = new PrimitiveCollection();
+  const dataSources = new DataSourceCollection();
   const viewer = {
     imageryLayers,
+    dataSources,
+    clock: { currentTime: JulianDate.now() },
+    flyTo: vi.fn(async () => true),
     scene: { primitives, globe: { ellipsoid: Ellipsoid.WGS84 }, requestRender: vi.fn() },
     isDestroyed: () => false,
   } as unknown as Viewer;
@@ -41,10 +56,193 @@ function setup() {
   cleanup.push(() => {
     controller.destroy();
     imageryLayers.destroy();
+    dataSources.destroy();
     primitives.destroy();
   });
-  return { controller, imageryLayers, primitives, clearProvider };
+  return { controller, imageryLayers, primitives, clearProvider, dataSources, viewer };
 }
+
+const vectorData = parseGeoJson(
+  JSON.stringify({
+    type: "FeatureCollection",
+    features: [
+      {
+        type: "Feature",
+        id: "point",
+        properties: {},
+        geometry: { type: "Point", coordinates: [10, 20] },
+      },
+      {
+        type: "Feature",
+        id: "line",
+        properties: { "stroke-opacity": 0.8 },
+        geometry: {
+          type: "LineString",
+          coordinates: [
+            [0, 0],
+            [10, 10],
+          ],
+        },
+      },
+      {
+        type: "Feature",
+        id: "polygon",
+        properties: { "fill-opacity": 0.4, "stroke-opacity": 0.6 },
+        geometry: {
+          type: "Polygon",
+          coordinates: [
+            [
+              [0, 0],
+              [10, 0],
+              [10, 10],
+              [0, 0],
+            ],
+          ],
+        },
+      },
+    ],
+  }),
+);
+const descriptor: LocalGeoJsonDescriptor = {
+  schemaVersion: 1,
+  format: "geojson",
+  coordinates: "WGS84-longitude-latitude",
+  file: { name: "mixed.geojson", size: 400, lastModified: 1, requiresReselect: true },
+  summary: vectorData.summary,
+};
+const vector: NewLayer = {
+  ...ordinary,
+  name: "Mixed vector",
+  source: { kind: "geojson", descriptor },
+};
+const vectorSource = () => ({ geojson: vectorData.data, release: () => {} });
+
+describe("native ordinary vectors", () => {
+  it("preserves geometry and feature alpha while applying age/visibility/opacity; leaves imagery and reference sources alone", async () => {
+    // 仅替代需 Canvas 的图钉绘制；几何、属性和 DataSource 集合使用真实 Cesium。
+    vi.spyOn(PinBuilder.prototype, "fromColor").mockReturnValue({} as HTMLCanvasElement);
+    const { controller, dataSources, viewer, imageryLayers, clearProvider } = setup();
+    const reference = await dataSources.add(new CustomDataSource("reference"));
+    await controller.add(ordinary);
+    const id = (await controller.add(vector, vectorSource()))!;
+    const source = dataSources.get(1) as GeoJsonDataSource;
+    expect(source).toBeInstanceOf(GeoJsonDataSource);
+    expect(source.entities.values).toHaveLength(3);
+    const point = source.entities.getById("point")!,
+      line = source.entities.getById("line")!,
+      polygon = source.entities.getById("polygon")!;
+    const time = viewer.clock.currentTime;
+    const position = point.position!.getValue(time);
+    for (const alpha of [0.5, 0, 0.25, 1]) {
+      controller.update(id, { opacity: alpha });
+      expect(point.billboard!.color!.getValue(time).alpha).toBeCloseTo(alpha);
+      expect(line.polyline!.material!.getValue(time).color.alpha).toBeCloseTo(0.8 * alpha);
+      expect(polygon.polygon!.material!.getValue(time).color.alpha).toBeCloseTo(0.4 * alpha);
+      expect(polygon.polygon!.outlineColor!.getValue(time).alpha).toBeCloseTo(0.6 * alpha);
+    }
+    const fillColor = (polygon.polygon!.material as ColorMaterialProperty)
+      .color as ConstantProperty;
+    const colorChanged = vi.spyOn(fillColor, "setValue");
+    controller.update(id, { name: "Renamed", ageRange: { youngestMa: 50, oldestMa: 100 } });
+    expect(source.name).toBe("Renamed");
+    expect(source.show).toBe(false);
+    for (const age of [50, 100]) {
+      controller.setAge(age);
+      expect(source.show).toBe(true);
+    }
+    controller.setAge(101);
+    expect(source.show).toBe(false);
+    controller.update(id, { visible: false });
+    controller.setAge(75);
+    expect(source.show).toBe(false);
+    expect(point.position!.getValue(time)).toEqual(position);
+    expect(colorChanged).not.toHaveBeenCalled();
+    await controller.load(id, 4);
+    controller.clear(id);
+    controller.move(id, "down");
+    expect(controller.definitions.at(-1)?.id).toBe(id);
+    expect(source.entities.values).toHaveLength(3);
+    await controller.focus(id);
+    expect(viewer.flyTo).toHaveBeenCalledWith(source, { duration: 0.5 });
+    controller.remove(id);
+    expect(dataSources.length).toBe(1);
+    expect(dataSources.get(0)).toBe(reference);
+    expect(source.entities.values).toHaveLength(0);
+    expect(imageryLayers.length).toBe(1);
+    expect(clearProvider).not.toHaveBeenCalled();
+  });
+
+  it.each(["remove", "restore", "destroy", "abort"])(
+    "does not resurrect a GeoJSON load after %s",
+    async (action) => {
+      vi.spyOn(PinBuilder.prototype, "fromColor").mockReturnValue({} as HTMLCanvasElement);
+      const { controller, dataSources } = setup();
+      let finish!: () => void;
+      const gate = new Promise<void>((resolve) => {
+        finish = resolve;
+      });
+      const original = GeoJsonDataSource.prototype.load;
+      vi.spyOn(GeoJsonDataSource.prototype, "load").mockImplementationOnce(function (
+        this: GeoJsonDataSource,
+        data,
+        options,
+      ) {
+        return gate.then(() => original.call(this, data, options));
+      });
+      const abort = new AbortController();
+      const pending = controller.add(vector, vectorSource(), undefined, abort.signal);
+      if (action === "remove") controller.remove(controller.snapshot.selectedId!);
+      else if (action === "restore") controller.restore([]);
+      else if (action === "destroy") controller.destroy();
+      else abort.abort();
+      finish();
+      expect(await pending).toBeNull();
+      expect(dataSources.length).toBe(0);
+      expect(controller.snapshot.layers).toEqual([]);
+    },
+  );
+
+  it("detaches a layer removed while DataSourceCollection.add is settling", async () => {
+    vi.spyOn(PinBuilder.prototype, "fromColor").mockReturnValue({} as HTMLCanvasElement);
+    const { controller, dataSources } = setup();
+    let finish!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    const original = dataSources.add.bind(dataSources);
+    const add = vi
+      .spyOn(dataSources, "add")
+      .mockImplementationOnce((data) => gate.then(() => original(data)));
+    const pending = controller.add(vector, vectorSource());
+    await vi.waitFor(() => expect(add).toHaveBeenCalled());
+    controller.remove(controller.snapshot.selectedId!);
+    finish();
+    expect(await pending).toBeNull();
+    expect(dataSources.length).toBe(0);
+  });
+
+  it("restores the saved vector identity, range and opacity when the file is reselected", async () => {
+    vi.spyOn(PinBuilder.prototype, "fromColor").mockReturnValue({} as HTMLCanvasElement);
+    const { controller, dataSources } = setup();
+    const saved = {
+      ...vector,
+      id: "saved",
+      name: "Saved name",
+      visible: false,
+      opacity: 0.3,
+      ageRange: { youngestMa: 10, oldestMa: 20 },
+    };
+    controller.restore([saved]);
+    expect(dataSources.length).toBe(0);
+    expect(controller.snapshot.layers[0].status).toBe("needs-file");
+    const id = await controller.add(vector, vectorSource(), saved.id);
+    expect(id).toBe(saved.id);
+    expect(controller.definitions).toEqual([saved]);
+    expect(dataSources.get(0).show).toBe(false);
+    const polygon = dataSources.get(0).entities.getById("polygon")!;
+    expect(polygon.polygon!.material!.getValue(JulianDate.now()).color.alpha).toBeCloseTo(0.12);
+  });
+});
 
 describe("native ordinary imagery", () => {
   it("delegates to ImageryLayer and applies time/visibility/alpha without reordering or rebuilding", async () => {

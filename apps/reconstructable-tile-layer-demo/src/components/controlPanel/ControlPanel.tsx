@@ -51,6 +51,7 @@ export function ControlPanel(props: ControlPanelProps) {
           age={props.age}
           busy={props.busy}
           localRaster={props.localRaster}
+          localGeoJson={props.localGeoJson}
           sourceKind={props.sourceKind}
           onSourceKindChange={props.onSourceKindChange}
           providerKey={props.providerKey}
