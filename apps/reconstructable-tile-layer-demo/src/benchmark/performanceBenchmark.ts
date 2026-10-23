@@ -8,7 +8,7 @@ import {
 import {
   WebGLTileProcessor,
   type WebGLTileProcessorStats,
-} from "rtl-webgl-tile-processor";
+} from "reconstructable-tile-layer/processor";
 
 import { applyPoseView } from "../cesium/cameraControls";
 import { DEMO_ELLIPSOID_CONFIG } from "../cesium/createViewer";

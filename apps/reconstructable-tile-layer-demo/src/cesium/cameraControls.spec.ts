@@ -51,6 +51,7 @@ function createExportContext(viewer: Viewer): ExperimentExportContext {
   return {
     viewer,
     age: 0,
+    layerStack: [],
     serviceConfig: getServicePreset("gplates-topography-4326"),
     debugEnabled: false,
     experimentViewConfig: createDefaultExperimentViewConfig(),
@@ -82,14 +83,17 @@ describe("3D camera projections", () => {
     context.graticuleEnabled = enabled;
     const info = createExperimentExportInfo(context, new Date("2026-01-01T00:00:00Z"), "grid-test");
     expect(info.layers.graticule).toBe(enabled);
-    expect(
-      parseImportedExperimentConfig(JSON.parse(JSON.stringify(info))).graticuleEnabled,
-    ).toBe(enabled);
+    expect(parseImportedExperimentConfig(JSON.parse(JSON.stringify(info))).graticuleEnabled).toBe(
+      enabled,
+    );
   });
 
-  it("accepts historical configs without a graticule flag and ignores non-boolean flags", () => {
+  it("leaves unspecified graticule settings alone and ignores non-boolean flags", () => {
     for (const layers of [undefined, {}, { graticule: "false" }]) {
-      expect(parseImportedExperimentConfig({ schemaVersion: 1, layers }).graticuleEnabled).toBeUndefined();
+      expect(
+        parseImportedExperimentConfig({ schemaVersion: 3, layerStack: [], layers })
+          .graticuleEnabled,
+      ).toBeUndefined();
     }
   });
 
@@ -178,18 +182,27 @@ describe("3D camera projections", () => {
     }
   }
 
-  it("migrates historical orthographic configs while preserving 2D configs", () => {
+  it("uses the explicit scene mode when importing camera settings", () => {
     const camera3D = { ...createDefaultExperimentViewConfig().camera3D, orthographic: true };
     expect(
-      parseImportedExperimentConfig({ schemaVersion: 1, viewMode: "3D_GLOBE", camera3D })
-        .experimentViewConfig?.viewMode,
-    ).toBe("3D_ORTHOGRAPHIC");
+      parseImportedExperimentConfig({
+        schemaVersion: 3,
+        layerStack: [],
+        viewMode: "3D_GLOBE",
+        camera3D,
+      }).experimentViewConfig?.viewMode,
+    ).toBe("3D_GLOBE");
     expect(
-      parseImportedExperimentConfig({ schemaVersion: 1, viewMode: "2D_RECTANGULAR", camera3D })
-        .experimentViewConfig?.viewMode,
+      parseImportedExperimentConfig({
+        schemaVersion: 3,
+        layerStack: [],
+        viewMode: "2D_RECTANGULAR",
+        camera3D,
+      }).experimentViewConfig?.viewMode,
     ).toBe("2D_RECTANGULAR");
     const imported = parseImportedExperimentConfig({
-      schemaVersion: 1,
+      schemaVersion: 3,
+      layerStack: [],
       viewMode: "3D_ORTHOGRAPHIC",
       camera3D: { ...camera3D, orthographic: false },
     }).experimentViewConfig!;

@@ -24,7 +24,7 @@ function normalizeSourceMapPath(sourcePath) {
  * Creates the consistent dual-module Rollup configuration used by every
  * publishable package in this workspace.
  */
-export function createLibraryConfig(packageUrl) {
+export function createLibraryConfig(packageUrl, { entries } = {}) {
   const packageDirectory = dirname(fileURLToPath(packageUrl));
   const manifest = readPackageManifest(packageDirectory);
   const externalPackages = [
@@ -35,17 +35,34 @@ export function createLibraryConfig(packageUrl) {
   const distributionDirectory = resolve(packageDirectory, "dist");
 
   return {
-    input: resolve(sourceDirectory, "index.ts"),
+    // 同一次多入口构建共享模块，保证主入口和子路径导出同一构造函数。
+    input: entries
+      ? Object.fromEntries(
+          Object.entries(entries).map(([name, entry]) => [name, resolve(packageDirectory, entry)]),
+        )
+      : resolve(sourceDirectory, "index.ts"),
     external: (id) => externalPackages.some((packageName) => matchesPackage(id, packageName)),
     output: [
       {
-        file: resolve(distributionDirectory, "es/index.js"),
+        ...(entries
+          ? {
+              dir: resolve(distributionDirectory, "es"),
+              entryFileNames: "[name].js",
+              chunkFileNames: "chunks/[name]-[hash].js",
+            }
+          : { file: resolve(distributionDirectory, "es/index.js") }),
         format: "es",
         sourcemap: true,
         sourcemapPathTransform: normalizeSourceMapPath,
       },
       {
-        file: resolve(distributionDirectory, "cjs/index.cjs"),
+        ...(entries
+          ? {
+              dir: resolve(distributionDirectory, "cjs"),
+              entryFileNames: "[name].cjs",
+              chunkFileNames: "chunks/[name]-[hash].cjs",
+            }
+          : { file: resolve(distributionDirectory, "cjs/index.cjs") }),
         format: "cjs",
         sourcemap: true,
         sourcemapPathTransform: normalizeSourceMapPath,

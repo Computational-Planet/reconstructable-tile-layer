@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 import react from "@vitejs/plugin-react";
 import cesium from "vite-plugin-cesium";
 
-function rasterNotices(): Plugin {
+function runtimeNotices(): Plugin {
   const require = createRequire(import.meta.url);
   async function dependencyRoot(name: string) {
     let directory = dirname(
@@ -29,19 +29,21 @@ function rasterNotices(): Plugin {
     }
   }
   return {
-    name: "raster-third-party-notices",
+    name: "runtime-third-party-notices",
     async generateBundle() {
       // Worker/WASM 进入生产站点时，同时保留依赖包所附的完整许可声明。
       for (const name of [
+        "reconstructable-tile-layer",
         "rtl-raster-source",
         "rtl-raster-imagery-provider",
         "rtl-raster-converter",
         "gdal3.js",
         "geotiff",
       ]) {
-        const packageRoot = name.startsWith("rtl-")
-          ? dirname(require.resolve(`${name}/package.json`))
-          : await dependencyRoot(name);
+        const packageRoot =
+          name.startsWith("rtl-") || name === "reconstructable-tile-layer"
+            ? dirname(require.resolve(`${name}/package.json`))
+            : await dependencyRoot(name);
         for (const filename of await readdir(packageRoot)) {
           if (!/^(LICENSE|COPYING|THIRD_PARTY_NOTICES)(\.|$)/i.test(filename)) continue;
           this.emitFile({
@@ -66,7 +68,7 @@ function rasterNotices(): Plugin {
 
 export default defineConfig({
   base: "./",
-  plugins: [react(), cesium(), rasterNotices()],
+  plugins: [react(), cesium(), runtimeNotices()],
   worker: { format: "es" },
   build: {
     target: "esnext",

@@ -15,20 +15,24 @@ describe("editable service connections", () => {
       const config = getServicePreset(key);
       expect(validateTileServiceConfig(config)).toEqual([]);
       const imported = parseImportedExperimentConfig({
-        schemaVersion: 1,
+        schemaVersion: 3,
+        layerStack: [],
         sources: { providerKey: key, serviceConfig: JSON.parse(JSON.stringify(config)) },
       });
       expect(imported.serviceConfig).toEqual(config);
     },
   );
-  it("migrates a historical four-field TMS connection without losing its level range", () => {
+  it("restores a complete TMS connection and its level range", () => {
     const imported = parseImportedExperimentConfig({
-      schemaVersion: 1,
+      schemaVersion: 3,
+      layerStack: [],
       sources: {
         providerKey: "custom-url-template",
-        customProviderConfig: {
+        serviceConfig: {
+          ...emptyTileServiceConfig(),
           url: "https://example.test/{z}/{x}/{reverseY}.png",
           tilingSchemeKey: "geographic",
+          levelZeroTilesX: 2,
           minimumLevel: 0,
           maximumLevel: 5,
         },
@@ -42,10 +46,14 @@ describe("editable service connections", () => {
     });
     expect(validateTileServiceConfig(imported.serviceConfig!)).toEqual([]);
   });
-  it("migrates preset-only experiments and does not alias editable nested fields", () => {
+  it("restores explicit WMS parameters without aliasing preset fields", () => {
     const first = parseImportedExperimentConfig({
-      schemaVersion: 1,
-      sources: { providerKey: "nasa-gibs-blue-marble-4326" },
+      schemaVersion: 3,
+      layerStack: [],
+      sources: {
+        providerKey: "nasa-gibs-blue-marble-4326",
+        serviceConfig: getServicePreset("nasa-gibs-blue-marble-4326"),
+      },
     }).serviceConfig!;
     expect(first).toMatchObject({
       protocol: "wms",
@@ -64,7 +72,8 @@ describe("editable service connections", () => {
     config.bounds = [-20, -30, 40, 60];
     expect(
       parseImportedExperimentConfig({
-        schemaVersion: 1,
+        schemaVersion: 3,
+        layerStack: [],
         sources: { providerKey: "nasa-gibs-blue-marble-4326", serviceConfig: config },
       }).serviceConfig,
     ).toEqual(config);
@@ -74,7 +83,8 @@ describe("editable service connections", () => {
     expect(() => parseTileServiceConfig({ ...config, tileWidth: "512" })).toThrow("tileWidth");
     expect(() =>
       parseImportedExperimentConfig({
-        schemaVersion: 1,
+        schemaVersion: 3,
+        layerStack: [],
         sources: { serviceConfig: { ...config, maximumLevel: -1 } },
       }),
     ).toThrow("Maximum level");

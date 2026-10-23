@@ -7,7 +7,7 @@ import {
   type ImageryProvider,
   type Viewer,
 } from "cesium";
-import type { CesiumTileProcessor } from "rtl-webgl-tile-processor";
+import type { CesiumTileProcessor } from "../processor.js";
 import { afterEach, expect, it, vi } from "vitest";
 import { SimpleGeoReconstructManager } from "../SimpleGeoReconstructManager.js";
 import { createTileSurfaceAppearance } from "../surfaceAppearance.js";

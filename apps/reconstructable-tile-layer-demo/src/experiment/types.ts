@@ -4,15 +4,11 @@ import type {
   PolygonRenderIntentMode,
   PrimitiveTransformMode,
 } from "reconstructable-tile-layer";
-import type { WebGLTileProcessor } from "rtl-webgl-tile-processor";
+import type { WebGLTileProcessor } from "reconstructable-tile-layer/processor";
 import type { LocalRasterDescriptor } from "../raster/context";
 import type { LayerDefinition } from "../layers/types";
 
-import type {
-  ProviderKey,
-  UrlTemplateProviderConfig,
-  TileServiceConfig,
-} from "../cesium/providers";
+import type { ProviderKey, TileServiceConfig } from "../cesium/providers";
 import type {
   FeaturePresetKey,
   GplatesReferencePolygonKey,
@@ -63,8 +59,8 @@ export type ExperimentProjection =
   | "OrthographicGlobe";
 
 export type ExperimentExportInfo = {
-  schemaVersion: 1 | 2 | 3;
-  layerStack?: LayerDefinition[];
+  schemaVersion: 3;
+  layerStack: LayerDefinition[];
   exportedAt: string;
   exportBaseName: string;
   caseId: string;
@@ -110,7 +106,6 @@ export type ExperimentExportInfo = {
     rotUrls: string[];
     providerKey: ProviderKey;
     providerLabel: string;
-    customProviderConfig?: UrlTemplateProviderConfig;
     serviceConfig?: TileServiceConfig;
   };
   render: {
@@ -142,11 +137,10 @@ export type ExperimentExportInfo = {
 };
 
 export type ImportedExperimentControlState = {
-  layerStack?: LayerDefinition[];
+  layerStack: LayerDefinition[];
   localRasterFileName?: string;
   requiresLocalModelFiles?: boolean;
   age?: number;
-  customProviderConfig?: UrlTemplateProviderConfig;
   serviceConfig?: TileServiceConfig;
   debugEnabled?: boolean;
   experimentViewConfig?: Partial<ExperimentViewConfig> & {

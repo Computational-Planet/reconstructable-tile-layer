@@ -57,6 +57,7 @@ export function useLayerManager({ controllerRef, managerRef, age, setLevel, setS
       visible: true,
       opacity: 1,
       ageRange: null,
+      loadMode: "level",
       level: resolvedLevel,
     });
     setPanelOpen(true);
@@ -113,6 +114,7 @@ export function useLayerManager({ controllerRef, managerRef, age, setLevel, setS
         visible: true,
         opacity: 1,
         ageRange: snapshotAge === null ? null : { youngestMa: snapshotAge, oldestMa: snapshotAge },
+        loadMode: "level",
         level: provider.recommendedReconstructionLevel,
       },
       { provider, release },
@@ -155,6 +157,7 @@ export function useLayerManager({ controllerRef, managerRef, age, setLevel, setS
         visible: true,
         opacity: 1,
         ageRange: null,
+        loadMode: "level",
         level: 0,
       },
       { geojson: data, release: () => {} },

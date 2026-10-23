@@ -12,10 +12,10 @@
   SceneMode,
   Viewer,
 } from "cesium";
-import { RotationOperator } from "rtl-finite-rotation";
-import { QuadTreeTileProcessor, type NodeInfo } from "rtl-tile-plate-quadtree";
-import type { CesiumTileProcessor, TileImageAsset } from "rtl-webgl-tile-processor";
-import { loadFeaturePolygonDataWithDiagnostics } from "./gplates/index.js";
+import { RotationOperator } from "./rotation.js";
+import { QuadTreeTileProcessor, type NodeInfo } from "./quadtree.js";
+import type { TileProcessor, TileImageAsset } from "./processor.js";
+import { loadFeaturePolygonDataWithDiagnostics } from "./gplates.js";
 import {
   MeasuredRectangleGeometry,
   subdivideRenderRectangle,
@@ -119,7 +119,7 @@ export class SimpleGeoReconstructManager {
    * Tile processor used by this manager.
    * @deprecated Use processor. This misspelled property remains for compatibility.
    */
-  processer: CesiumTileProcessor;
+  processer: TileProcessor;
   /** Rotation data and plate-transform service used by this manager. */
   rotationOperator: RotationOperator;
   private _files: ResolvedFeatureFiles;

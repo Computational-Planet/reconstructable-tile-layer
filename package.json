@@ -11,8 +11,9 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "pnpm lint:root && pnpm --recursive --sort --if-present lint",
-    "lint:root": "eslint .eslintrc.cjs rollup.config.mjs --ext .cjs --ext .mjs --report-unused-disable-directives --max-warnings 0",
+    "lint:root": "eslint .eslintrc.cjs rollup.config.mjs scripts/package --ext .cjs --ext .mjs --ext .ts --report-unused-disable-directives --max-warnings 0",
     "test": "pnpm --recursive --sort --if-present test",
+    "test:distribution": "node scripts/package/check-distribution.mjs",
     "typecheck": "pnpm build:packages && pnpm typecheck:workspace",
     "typecheck:workspace": "pnpm --recursive --sort --if-present typecheck"
   },

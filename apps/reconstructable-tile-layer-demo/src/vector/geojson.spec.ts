@@ -117,7 +117,7 @@ describe("personal data formats", () => {
   });
 });
 
-it("round trips GeoJSON metadata and layer settings in v3, without embedding the file", () => {
+it("round trips GeoJSON metadata and layer settings without embedding the file", () => {
   const descriptor = parseGeoJsonDescriptor({
     schemaVersion: 1,
     file: { name: "sample.geojson", size: 300, lastModified: 5 },
@@ -133,6 +133,7 @@ it("round trips GeoJSON metadata and layer settings in v3, without embedding the
     visible: false,
     opacity: 0.4,
     ageRange: { youngestMa: 100, oldestMa: 150 },
+    loadMode: "level",
     level: 0,
   };
   const stack = JSON.parse(JSON.stringify(exportLayerDefinitions([layer])));

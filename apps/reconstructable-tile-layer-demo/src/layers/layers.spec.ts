@@ -49,6 +49,7 @@ const layer: LayerDefinition = {
   mode: "reconstructable",
   source: {
     kind: "service",
+    exampleKey: "custom-url-template",
     config: { ...emptyTileServiceConfig(), url: "https://example.com/{z}/{x}/{y}.png" },
   },
   model: {
@@ -62,6 +63,7 @@ const layer: LayerDefinition = {
   visible: false,
   opacity: 0.4,
   ageRange: null,
+  loadMode: "view",
   level: 2,
 };
 describe("layer configuration", () => {
@@ -81,6 +83,8 @@ describe("layer configuration", () => {
     expect(restored.map((entry) => entry.id)).toEqual(["topography", "snapshot"]);
     expect(restored[0].visible).toBe(false);
     expect(restored[0].opacity).toBe(0.4);
+    expect(restored[0].source).toEqual(layer.source);
+    expect(restored[0].loadMode).toBe("view");
     expect(restored[1].ageRange).toEqual({ youngestMa: 90, oldestMa: 110 });
   });
   it("rejects ambiguous layer IDs and malformed age ranges before import", () => {
@@ -89,17 +93,24 @@ describe("layer configuration", () => {
       parseLayerDefinitions([{ ...layer, ageRange: { youngestMa: 150, oldestMa: 100 } }]),
     ).toThrow();
   });
-  it("reads legacy experiment controls and version 2 stacks", () => {
-    expect(parseImportedExperimentConfig({ schemaVersion: 1, timeMa: 80 }).age).toBe(80);
+  it("requires an explicit layer stack and restores experiment controls", () => {
     const imported = parseImportedExperimentConfig({
-      schemaVersion: 2,
+      schemaVersion: 3,
       timeMa: 100,
       layerStack: exportLayerDefinitions([layer]),
     });
     expect(imported.layerStack?.[0].id).toBe(layer.id);
-    expect(() => parseImportedExperimentConfig({ schemaVersion: 2 })).toThrow();
+    expect(imported.age).toBe(100);
+    expect(() => parseImportedExperimentConfig({ schemaVersion: 3 })).toThrow();
+    expect(() => parseLayerDefinitions([{ ...layer, loadMode: "unknown" }])).toThrow();
+    expect(() =>
+      parseLayerDefinitions([{ ...layer, source: { ...layer.source, exampleKey: "unknown" } }]),
+    ).toThrow(/example key/);
+    expect(() => parseLayerDefinitions([{ ...layer, loadMode: "level", level: 20 }])).toThrow(
+      /service range/,
+    );
   });
-  it("preserves a TIFF's exact palette and rejects old NetCDF configurations", () => {
+  it("preserves a TIFF's exact palette and rejects NetCDF configurations", () => {
     const descriptor: LocalRasterDescriptor = {
       schemaVersion: 1,
       file: { name: "temperature.tif", size: 1234, lastModified: 1, requiresReselect: true },
@@ -149,7 +160,8 @@ describe("layer configuration", () => {
     ).toThrow(/Convert NetCDF/);
     expect(() =>
       parseImportedExperimentConfig({
-        schemaVersion: 1,
+        schemaVersion: 3,
+        layerStack: [],
         sources: {
           localRaster: { ...descriptor, source: { ...descriptor.source, format: "netcdf4" } },
         },

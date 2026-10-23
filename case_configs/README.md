@@ -10,7 +10,34 @@ Tile Layer demo. The subdirectories correspond to the individual cases.
 
 1. In **Experiment Import**, select **Custom / uploaded config**, click
    **Upload**, and choose a JSON file from this directory.
-2. Click **Init Reconstruction Manager**.
-3. Click **Load Tiles By Level** to render the configured case.
+2. The import restores the geological age, camera/output settings, reference overlay and
+   reconstruction layer in the right-hand **Layers** panel.
+3. Select the restored layer and click **Load tiles**. Its **Tile loading** setting specifies
+   either **Specified level** or **Current view · automatic level**. Importing a case does
+   not fetch reconstruction tiles; no additional **Add layer** action is needed.
+4. Change the global timeline or view as needed. Load again after moving the camera when
+   using current-view loading. Use **Experiment Export** to save the configuration and
+   measurements from the actual run.
 
-![How to load a case configuration in the demo](../images/how_to_load_case_configs.png)
+## Configuration contents
+
+Each file uses `schemaVersion: 3` and an explicit `layerStack`. Each reconstruction layer
+contains its full service connection, plate-domain/ROT model, anchor plate, visibility,
+opacity, `loadMode` and `level`. `source.config` defines requests; `source.exampleKey`
+identifies the service example without replacing the saved connection.
+
+- `loadMode: "level"` loads the specified source-tile `level`.
+- `loadMode: "view"` selects the level automatically from the current camera view and
+  provider limits. The stored `level` is only the setting for a subsequent level-based load.
+- `timeMa`, view/output settings and reference polygon settings apply to the whole scene.
+- `sources` also initializes the source editor; each layer's `source` and `model` govern
+  that layer independently of later editor changes.
+
+`case3/Case3_120Ma_Load_by_View.json` uses current-view loading. The other cases use their
+specified levels. Case 1 contains reconstruction comparisons, case 2A varies tile services,
+case 2B varies plate models, and case 3 contains the Macrostrat examples.
+
+These files contain reproducible inputs. Runtime status, timing, cache counts and device
+measurements are produced by the demo's export actions. Model and reference files use
+paths under the demo's `public/`; the bundled GPlates topography service uses `/tiles/`.
+External services require network access and browser CORS support.

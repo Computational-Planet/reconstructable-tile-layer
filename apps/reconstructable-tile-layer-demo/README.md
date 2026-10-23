@@ -24,9 +24,22 @@ pnpm build:packages
 pnpm dev
 ```
 
-Turbo starts the four core library watch builds and the Vite demo together.
+Turbo starts the RTL and nested module watch builds with the Vite demo.
 The three optional raster packages are built by `pnpm build:packages`; rerun that
 command after editing their code or worker assets. Use the local URL printed by Vite.
+
+## Package integration
+
+The demo imports `ReconstructableTileLayer` and `WebGLTileProcessor` from
+`reconstructable-tile-layer`. Processor-specific types use its `/processor` public
+entry. RTL bundles its core modules from `packages/reconstructable-tile-layer/modules`;
+the demo accesses them through RTL's public entries.
+
+`src/layers`, local-file controls, object-URL ownership, timeline coordination and
+ordinary GeoJSON remain demo responsibilities. Numeric TIFF input, its Cesium
+provider and optional COG conversion still use the three separate raster extensions.
+This distribution change preserves native ordinary imagery/vector behavior and the
+existing reconstruction path.
 
 ## Panel workflow
 
@@ -107,12 +120,11 @@ and load reconstruction tiles in step 3. Testing uses the same provider configur
 and Canvas readback, without replacing the active source. It checks one position/level, not all tiles.
 The server must allow browser access (CORS).
 
-Experiment JSON saves the complete connection in `sources.serviceConfig`, including edited example values.
-When a service is active, export records the applied connection, excluding pending form edits.
-Old preset selections and four-field `customProviderConfig` values migrate on import. Import restores the form;
-click **Add layer** to activate it.
-Incomplete, unapplied connection forms are omitted from export. Older Demo versions do not understand
-`serviceConfig`; restore edited WMS/WMTS connections with this version or newer.
+Experiment JSON saves each layer's complete connection in `layerStack[].source.config`, including edited
+example values. `source.exampleKey` identifies the example; requests use the saved configuration.
+`sources.serviceConfig` restores the source editor. When a service is selected, export uses its applied
+connection, excluding pending form edits. Incomplete, unapplied connection forms are omitted from export.
+Import restores the layer list; use **Load tiles** for reconstruction layers. **Add layer** creates an additional layer.
 
 Parameters map to Cesium's [URL template](https://cesium.com/learn/cesiumjs/ref-doc/UrlTemplateImageryProvider.html),
 [WMS](https://cesium.com/learn/cesiumjs/ref-doc/WebMapServiceImageryProvider.html) and
@@ -129,13 +141,11 @@ range, orientation, and output controls.
 
 Experiment JSON uses `viewMode: "3D_ORTHOGRAPHIC"` and `projection: "OrthographicGlobe"`
 for orthographic views. Perspective views keep `viewMode: "3D_GLOBE"` and use
-`projection: "PerspectiveGlobe"`. Historical `3D_GLOBE` configs with
-`camera3D.orthographic: true` migrate on import. External scripts reading these enums
-must recognize the new values.
+`projection: "PerspectiveGlobe"`. The explicit `viewMode` determines the camera projection on import.
 
 ## Local scientific rasters
 
-1. Choose **Layer data source → Local TIFF / GeoTIFF → Source settings**, then select a georeferenced TIFF, BigTIFF or COG. Files stay in the browser. NetCDF input is no longer available in this demo; convert it to GeoTIFF beforehand.
+1. Choose **Layer data source → Local TIFF / GeoTIFF → Source settings**, then select a georeferenced TIFF, BigTIFF or COG. Files stay in the browser. For NetCDF data, convert it to GeoTIFF beforehand.
 2. For present-day data that should follow reconstruction, select **Reconstruct from 0 Ma (follows timeline)**, confirm the plate-model frame, click **Add layer**, then load tiles. **Paleo snapshot** starts with a single-age visibility interval; **Reference / unknown** displays the stored coordinates. Edit fixed layers' age ranges in Layers.
 3. **Display style** supports single-band/RGB, sampled or manual numeric ranges, color ramps and additional raw NoData exclusions. Display styles do not alter stored numbers or numeric exports. Adding again creates another independent layer.
 4. **Numeric COG export (optional) → Create numeric COG** loads GDAL only when requested and exports the TIFF's stored numeric bands. Conversion supports cancellation. Download the COG together with its provenance JSON; **Load converted COG** reopens it for display or reconstruction.
@@ -159,7 +169,7 @@ Vector overlap follows native geometry depth and transparency. The panel does no
 The demo supports the same operations used by the manuscript's case studies:
 
 - register WMS, WMTS, XYZ, URL-template, or custom compatible imagery sources;
-- load GPML, GPMLZ, XML, legacy JSON, uploaded plate-domain data, and ROT files;
+- load GPML, GPMLZ, XML, compatible JSON, uploaded plate-domain data, and ROT files;
 - switch reconstruction age, rigid plate model, and Cesium transform mode;
 - load a fixed source-tile level or refine tiles for the current view;
 - overlay the existing GPlates reference polygons;
@@ -185,29 +195,31 @@ pnpm --filter reconstructable-tile-layer-demo dev
 
 ## Basic sequence
 
-1. Import an experiment JSON or keep the default configuration.
-2. Select the feature source, ROT model, and imagery provider.
-3. Configure the scene, output, polygon intent, and transform mode.
-4. Click **Add layer** to apply the source and initialize the layer.
-5. Set `Age Ma` and load root tiles, an explicit level, or the current view.
-6. Export runtime information or a screenshot when needed.
+1. Import a configuration from [case_configs](../../case_configs/README.md), or choose a plate model
+   and data source and click **Add layer** to create a layer.
+2. In **Layers**, select a reconstruction layer. Set **Tile loading** to **Specified level** or
+   **Current view · automatic level**, then click **Load tiles**.
+3. Adjust the global geological age, camera and output. The explicit level/view actions in
+   **Timeline & tiles** update the selected layer's saved loading mode when they complete.
+4. Export runtime information or a screenshot when needed.
 
-Imported `schemaVersion: 1` experiment files restore control values and camera
-state but do not automatically initialize or load the layer.
+## Experiment configuration
 
-## Export compatibility
+Experiment JSON uses `schemaVersion: 3` with a required `layerStack` containing all layer sources,
+display settings, age ranges, models and loading choices. Each layer retains `loadMode: "level"`
+or `"view"`; `level` is used only for level-based loading. View-based loading selects the level
+automatically from the current camera and provider limits. The global age, view, output and
+reference polygon settings are restored alongside the layers.
 
-New exports use `schemaVersion: 3` and a grouped `layerStack` containing all layer sources,
-display settings, age ranges and models. Existing view fields and `geoTileStats` / `tileProcesserStats`
-remain: layer statistics describe the selected reconstruction layer, and processor statistics describe the shared runtime.
-Readers need version-3 support for GeoJSON layers. Version-1 controls and version-2 TIFF/service stacks remain importable. Legacy NetCDF configurations are rejected before the scene is replaced; convert the data to GeoTIFF and add it again.
-Version-2/3 imports restore the list and automatically activate ordinary online imagery;
-use **Load tiles** for reconstruction layers. Older interleaved lists are grouped while preserving order within each group.
-For local layers, use **Prepare local file**, reselect the TIFF or GeoJSON file, then **Restore selected layer**.
+Import validates the configuration before replacing the layer list, then activates ordinary online
+imagery automatically. **Load tiles** runs the saved loading choice for a reconstruction layer.
+Local layers require **Prepare local file**, TIFF/GeoJSON reselection and **Restore selected layer**.
 Reselect local plate-model files and use **Use current plate model** on the affected layer.
+File contents and session `blob:` URLs are not persisted.
 
-Uploaded model files now require reselection on import, as described above; expired
-`blob:` URLs in older configurations are cleared as well.
+Case files contain inputs only. Runtime exports additionally include `geoTileStats` for the selected
+reconstruction layer and `tileProcesserStats` for the shared processor, plus camera/device measurements.
+Runtime statistics do not control subsequent imports.
 
 A screenshot is taken directly from the Cesium canvas and excludes the control
 panel. Cross-origin imagery must permit canvas reading.

@@ -1,14 +1,12 @@
-import type { CesiumTileProcessor } from "rtl-webgl-tile-processor";
+import type { TileProcessor } from "../processor.js";
 
 import type { ResolvedFeatureFiles, SimpleGeoReconstructManagerOptions } from "./types.js";
 
 /** Resolves the preferred processor option while preserving the legacy spelling. */
-export function resolveTileProcessor(
-  options: SimpleGeoReconstructManagerOptions,
-): CesiumTileProcessor {
+export function resolveTileProcessor(options: SimpleGeoReconstructManagerOptions): TileProcessor {
   // The public union requires one spelling; the assertion preserves the legacy
   // JavaScript failure timing if an untyped caller supplies neither one.
-  return (options.processor ?? options.processer) as CesiumTileProcessor;
+  return (options.processor ?? options.processer) as TileProcessor;
 }
 
 /** Resolves modern and legacy source options to the internal URL set. */

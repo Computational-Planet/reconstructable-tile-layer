@@ -38,9 +38,6 @@ const run = (args, cwd = directory) =>
     );
   });
 const names = [
-  "rtl-finite-rotation",
-  "rtl-tile-plate-quadtree",
-  "rtl-webgl-tile-processor",
   "reconstructable-tile-layer",
   "rtl-raster-source",
   "rtl-raster-imagery-provider",

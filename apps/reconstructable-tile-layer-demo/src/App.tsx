@@ -146,7 +146,7 @@ function App() {
   const appliedService = selectedService
     ? {
         config: selectedService.config,
-        exampleKey: selectedService.exampleKey ?? DEFAULT_PROVIDER_KEY,
+        exampleKey: selectedService.exampleKey ?? "custom-url-template",
         label: layers.selected!.name,
         modelKey: JSON.stringify(layers.selected?.model),
       }
@@ -192,6 +192,7 @@ function App() {
       localRaster.remove();
       localGeoJson.remove();
       layerControllerRef.current?.restore([]);
+      layers.setPanelOpen(true);
       setSourceKind(hasLocalRaster ? "local-raster" : "tile-service");
     },
     age,

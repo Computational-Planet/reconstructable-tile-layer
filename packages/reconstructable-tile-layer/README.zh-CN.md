@@ -11,6 +11,10 @@ RTL）**对象。它将已发布的影像提供器与多边形板块域要素、
 
 ## 功能特性
 
+GPlates 读取、旋转计算、瓦片索引和 WebGL 处理由 `modules/` 下的四个源码模块负责。
+RTL 构建时包含这些实现及类型声明，使用者无需额外安装四个独立模块包。
+原有读取方法继续作为兼容导出提供。文件选择和 object URL 生命周期仍由 Demo 管理。
+
 - 注册已发布的影像服务，无需重新发布其瓦片。
 - 在一个可执行的年代感知图层中组合板块域要素、有限旋转和瓦片处理。
 - 调度前台与后台复合任务，同时保留可复用的已处理图像。
@@ -20,18 +24,48 @@ RTL）**对象。它将已发布的影像提供器与多边形板块域要素、
 ## 安装
 
 ```sh
-pnpm add reconstructable-tile-layer rtl-webgl-tile-processor cesium
+pnpm add reconstructable-tile-layer cesium
 ```
 
-本软件包仅用于浏览器。它需要 `fetch`、DOM、WebGL 和 Cesium viewer。viewer、
-影像提供器和 WebGL 处理器均由调用方所有。
+渲染需要浏览器 DOM、WebGL 和 Cesium viewer。viewer、影像提供器和 WebGL 处理器
+均由调用方所有，导入入口不会自动创建这些资源。`/gplates` 入口不加载 Cesium；
+GPML 解析仍需要 `DOMParser`，URL 读取需要 `fetch`。
+
+## 公共入口与模块边界
+
+| 入口                                   | 职责                                   | 可选独立发行包                                                           |
+| -------------------------------------- | -------------------------------------- | ------------------------------------------------------------------------ |
+| `reconstructable-tile-layer`           | 图层、调度、保留记录、处理器及兼容导出 | 默认安装入口                                                             |
+| `reconstructable-tile-layer/gplates`   | ROT/GPML/GPMLZ 读取、要素记录与诊断    | [rtl-gplates-source](modules/gplates-source/README.zh-CN.md)             |
+| `reconstructable-tile-layer/rotation`  | 有限旋转与参考板块链                   | [rtl-finite-rotation](modules/finite-rotation/README.zh-CN.md)           |
+| `reconstructable-tile-layer/quadtree`  | 瓦片–板块索引和裁剪区域                | [rtl-tile-plate-quadtree](modules/tile-plate-quadtree/README.zh-CN.md)   |
+| `reconstructable-tile-layer/processor` | 源影像请求、重投影和 WebGL 掩膜        | [rtl-webgl-tile-processor](modules/webgl-tile-processor/README.zh-CN.md) |
+
+各入口均提供 ESM、CommonJS 与 TypeScript 声明。同一模块格式下，根入口与子入口
+共享实现：从根入口和 `/processor` 导入的 `WebGLTileProcessor` 是同一个构造函数。
+请使用公共入口，不要深层导入 `src`、`dist` 或 `modules`。
+
+四个模块保留独立的清单、构建、测试和发行包名，RTL 直接编译模块源码，不将其作为
+外部运行时依赖。开发依赖中的 workspace 关系仅用于构建顺序与缓存失效。
+模块源码更新后，需要重新构建并发布 RTL；只发布独立模块不会更新已安装的 RTL。
+
+独立发行包拥有独立的类身份。RTL 的 `TileProcessor` 使用公共结构契约，允许注入
+兼容的独立处理器，不受类私有字段的类型限制。一个应用优先选择同一种发行方式，
+混用可能造成代码和缓存重复。Cesium 保持共享的对等依赖。处理器仍由调用方创建、
+销毁，也可以由多个图层共享。
+
+GPlates 模块以普通数据结构传递记录；旋转模块负责数学计算，四叉树模块负责索引，
+处理器负责影像处理，均不反向依赖 RTL manager。旋转模块独立构建时会包含所需的
+读取代码，无需再安装 `rtl-gplates-source`。
+
+Raster source、imagery-provider 和 converter 继续作为可选扩展。后续矢量重建应通过
+公共契约接入扩展；此次包结构调整不增加 GeoJSON 重建链路。
 
 ## 用法
 
 ```ts
 import { Ellipsoid, GeographicTilingScheme, UrlTemplateImageryProvider, Viewer } from "cesium";
-import { ReconstructableTileLayer } from "reconstructable-tile-layer";
-import { WebGLTileProcessor } from "rtl-webgl-tile-processor";
+import { ReconstructableTileLayer, WebGLTileProcessor } from "reconstructable-tile-layer";
 
 const ellipsoid = Ellipsoid.WGS84;
 const viewer = new Viewer("cesiumContainer", {
@@ -199,6 +233,12 @@ RTL 重建服务交付的可视图层，不会恢复源属性、拓扑、要素�
 许可、支持的瓦片组织方式、模型覆盖范围和浏览器资源仍然是应用层面的约束。
 
 ## 兼容性
+
+迁移 RTL 应用时，将独立处理器导入改为 `reconstructable-tile-layer` 或
+`reconstructable-tile-layer/processor`，然后移除不再使用的独立包依赖。
+`processor`/`processer` 属性和选项现在使用结构类型 `TileProcessor`；若调用代码
+显式将这些值标注为具体处理器类，请改用 `TileProcessor`。公共处理器成员和资源
+所有权保持不变。
 
 原有的 `SimpleGeoReconstructManager`、`provider`、`processor`、
 `featureSource`、`rotationSources`、`initialAge`、`setAge`、`setProvider`、

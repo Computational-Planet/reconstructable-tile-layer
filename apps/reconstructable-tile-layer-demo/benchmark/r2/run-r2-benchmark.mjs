@@ -104,7 +104,6 @@ try {
 
 async function buildProductionAssets() {
   const builds = [
-    ["--filter", "rtl-webgl-tile-processor", "build"],
     ["--filter", "reconstructable-tile-layer", "build"],
     ["--filter", "reconstructable-tile-layer-demo", "build"],
   ];

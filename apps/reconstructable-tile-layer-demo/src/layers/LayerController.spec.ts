@@ -14,7 +14,8 @@ import {
   UrlTemplateImageryProvider,
   type Viewer,
 } from "cesium";
-import type { WebGLTileProcessor } from "rtl-webgl-tile-processor";
+import type { WebGLTileProcessor } from "reconstructable-tile-layer/processor";
+import { ReconstructableTileLayer } from "reconstructable-tile-layer";
 import { emptyTileServiceConfig } from "../cesium/tileServiceConfig";
 import { LayerController } from "./LayerController";
 import type { LayerDefinition, NewLayer } from "./types";
@@ -28,6 +29,7 @@ const ordinary: NewLayer = {
   visible: true,
   opacity: 1,
   ageRange: null,
+  loadMode: "level",
   level: 2,
 };
 
@@ -61,6 +63,95 @@ function setup() {
   });
   return { controller, imageryLayers, primitives, clearProvider, dataSources, viewer };
 }
+
+describe("saved reconstruction loading", () => {
+  it("dispatches the saved mode, records explicit overrides, and replays the result", async () => {
+    // 只替代 RTL 的耗时入口，验证真实控制器如何调用库和更新可导出的定义。
+    vi.spyOn(ReconstructableTileLayer.prototype, "initialize").mockResolvedValue();
+    vi.spyOn(ReconstructableTileLayer.prototype, "bindSceneModeSync").mockReturnValue(() => {});
+    vi.spyOn(ReconstructableTileLayer.prototype, "setReconstructionAge").mockResolvedValue();
+    vi.spyOn(ReconstructableTileLayer.prototype, "destroy").mockImplementation(() => {});
+    const clear = vi
+      .spyOn(ReconstructableTileLayer.prototype, "clear")
+      .mockImplementation(() => {});
+    const levelLoad = vi
+      .spyOn(ReconstructableTileLayer.prototype, "loadSourceTilesAtLevel")
+      .mockResolvedValue();
+    const viewLoad = vi
+      .spyOn(ReconstructableTileLayer.prototype, "refineTilesForView")
+      .mockResolvedValue({ level: 4, loadedCount: 0, taskCount: 0 });
+    const { controller, viewer } = setup();
+    const model = {
+      name: "Test model",
+      featureUrl: "/plates.gpml",
+      featureLabel: "plates.gpml",
+      rotationUrls: ["/model.rot"],
+      rotationLabels: ["model.rot"],
+      anchorPlateId: "0",
+    };
+    controller.restore([
+      { ...ordinary, id: "case", mode: "reconstructable", model, loadMode: "view" },
+    ]);
+    await controller.load("case");
+    expect(viewLoad).toHaveBeenCalledWith(viewer, { minLevel: 2 });
+    expect(levelLoad).not.toHaveBeenCalled();
+    expect(controller.definitions[0].loadMode).toBe("view");
+    await controller.load("case", 4);
+    expect(levelLoad).toHaveBeenLastCalledWith(viewer, 4);
+    expect(controller.definitions[0]).toMatchObject({ loadMode: "level", level: 4 });
+    expect(() => controller.update("case", { level: 20 })).toThrow(/service range/);
+    expect(controller.definitions[0].level).toBe(4);
+    await controller.load("case");
+    expect(levelLoad).toHaveBeenCalledTimes(2);
+    await controller.load("case", 4, true);
+    expect(controller.definitions[0]).toMatchObject({ loadMode: "view", level: 4 });
+    expect(clear).toHaveBeenCalledTimes(2);
+    const saved = controller.definitions;
+    controller.restore(saved);
+    await controller.load("case");
+    expect(viewLoad).toHaveBeenCalledTimes(3);
+    expect(controller.snapshot.layers[0].status).toBe("ready");
+  });
+
+  it("selects view levels within the provider range without validating the unused fixed level", async () => {
+    vi.spyOn(ReconstructableTileLayer.prototype, "initialize").mockResolvedValue();
+    vi.spyOn(ReconstructableTileLayer.prototype, "bindSceneModeSync").mockReturnValue(() => {});
+    vi.spyOn(ReconstructableTileLayer.prototype, "setReconstructionAge").mockResolvedValue();
+    vi.spyOn(ReconstructableTileLayer.prototype, "destroy").mockImplementation(() => {});
+    const viewLoad = vi
+      .spyOn(ReconstructableTileLayer.prototype, "refineTilesForView")
+      .mockResolvedValue({ level: 5, loadedCount: 0, taskCount: 0 });
+    const { controller, viewer } = setup();
+    const provider = new UrlTemplateImageryProvider({
+      url: config.url,
+      minimumLevel: 5,
+      maximumLevel: 7,
+    });
+    const id = (await controller.add(
+      {
+        ...ordinary,
+        mode: "reconstructable",
+        loadMode: "view",
+        level: 2,
+        model: {
+          name: "Model",
+          featureUrl: "/plates.gpml",
+          featureLabel: "plates",
+          rotationUrls: ["/model.rot"],
+          rotationLabels: ["rot"],
+          anchorPlateId: "0",
+        },
+      },
+      { provider, release: () => {} },
+    ))!;
+    await controller.load(id);
+    expect(viewLoad).toHaveBeenCalledWith(viewer, { minLevel: 5 });
+    expect(controller.snapshot.layers[0].status).toBe("ready");
+    await controller.load(id, 2, false);
+    expect(controller.snapshot.layers[0].message).toContain("L5–L7");
+    expect(controller.definitions[0].loadMode).toBe("view");
+  });
+});
 
 const vectorData = parseGeoJson(
   JSON.stringify({
@@ -306,7 +397,7 @@ describe("native ordinary imagery", () => {
     expect(clearProvider).not.toHaveBeenCalled();
   });
 
-  it("automatically restores ordinary services and preserves within-group order from legacy mixed stacks", async () => {
+  it("automatically restores ordinary services and preserves within-group order in mixed stacks", async () => {
     const { controller, imageryLayers } = setup();
     const definitions: LayerDefinition[] = [
       { ...ordinary, id: "rtl-a", mode: "reconstructable" },

@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "test": "vitest run --root ../.. apps/reconstructable-tile-layer-demo/src",
     "benchmark:r2": "node ./benchmark/r2/run-r2-benchmark.mjs",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview"
@@ -18,8 +19,7 @@
     "rtl-raster-source": "workspace:*",
     "rtl-raster-imagery-provider": "workspace:*",
     "rtl-raster-converter": "workspace:*",
-    "gdal3.js": "2.8.1",
-    "rtl-webgl-tile-processor": "workspace:*"
+    "gdal3.js": "2.8.1"
   },
   "devDependencies": {
     "@types/react": "^18.3.3",

@@ -3,7 +3,7 @@ import type {
   ReconstructionTaskReport,
   PrimitiveTransformMode,
 } from "reconstructable-tile-layer";
-import type { WebGLTileProcessorStats } from "rtl-webgl-tile-processor";
+import type { WebGLTileProcessorStats } from "reconstructable-tile-layer/processor";
 import type {
   ProviderKey,
   UrlTemplateProviderConfig,

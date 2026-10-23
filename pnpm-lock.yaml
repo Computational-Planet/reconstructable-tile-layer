@@ -89,9 +89,6 @@ importers:
       rtl-raster-source:
         specifier: workspace:*
         version: link:../../packages/rtl-raster-source
-      rtl-webgl-tile-processor:
-        specifier: workspace:*
-        version: link:../../packages/rtl-webgl-tile-processor
     devDependencies:
       '@types/react':
         specifier: ^18.3.3
@@ -138,21 +135,66 @@ importers:
       fflate:
         specifier: ^0.8.3
         version: 0.8.3
+      gl-matrix:
+        specifier: ^3.4.3
+        version: 3.4.3
+      polygon-clipping:
+        specifier: 0.15.7
+        version: 0.15.7
+    devDependencies:
       rtl-finite-rotation:
         specifier: workspace:*
-        version: link:../rtl-finite-rotation
+        version: link:modules/finite-rotation
+      rtl-gplates-source:
+        specifier: workspace:*
+        version: link:modules/gplates-source
       rtl-tile-plate-quadtree:
         specifier: workspace:*
-        version: link:../rtl-tile-plate-quadtree
+        version: link:modules/tile-plate-quadtree
       rtl-webgl-tile-processor:
         specifier: workspace:*
-        version: link:../rtl-webgl-tile-processor
+        version: link:modules/webgl-tile-processor
 
-  packages/rtl-finite-rotation:
+  packages/reconstructable-tile-layer/modules/finite-rotation:
     dependencies:
       cesium:
         specifier: ^1.119.0
         version: 1.119.0
+      fflate:
+        specifier: ^0.8.3
+        version: 0.8.3
+    devDependencies:
+      rtl-gplates-source:
+        specifier: workspace:*
+        version: link:../gplates-source
+
+  packages/reconstructable-tile-layer/modules/gplates-source:
+    dependencies:
+      fflate:
+        specifier: ^0.8.3
+        version: 0.8.3
+
+  packages/reconstructable-tile-layer/modules/tile-plate-quadtree:
+    dependencies:
+      cesium:
+        specifier: ^1.119.0
+        version: 1.119.0
+      polygon-clipping:
+        specifier: 0.15.7
+        version: 0.15.7
+
+  packages/reconstructable-tile-layer/modules/webgl-tile-processor:
+    dependencies:
+      cesium:
+        specifier: ^1.119.0
+        version: 1.119.0
+      gl-matrix:
+        specifier: ^3.4.3
+        version: 3.4.3
+    devDependencies:
+      earcut:
+        specifier: 3.0.1
+        version: 3.0.1
 
   packages/rtl-raster-converter:
     dependencies:
@@ -184,28 +226,6 @@ importers:
       netcdfjs:
         specifier: 4.0.0
         version: 4.0.0
-
-  packages/rtl-tile-plate-quadtree:
-    dependencies:
-      cesium:
-        specifier: ^1.119.0
-        version: 1.119.0
-      polygon-clipping:
-        specifier: 0.15.7
-        version: 0.15.7
-
-  packages/rtl-webgl-tile-processor:
-    dependencies:
-      cesium:
-        specifier: ^1.119.0
-        version: 1.119.0
-      gl-matrix:
-        specifier: ^3.4.3
-        version: 3.4.3
-    devDependencies:
-      earcut:
-        specifier: 3.0.1
-        version: 3.0.1
 
 packages:
 

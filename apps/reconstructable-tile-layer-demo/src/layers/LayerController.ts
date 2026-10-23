@@ -1,6 +1,6 @@
 import { ImageryLayer, PrimitiveCollection, type ImageryProvider, type Viewer } from "cesium";
 import { ReconstructableTileLayer, type PrimitiveTransformMode } from "reconstructable-tile-layer";
-import type { WebGLTileProcessor } from "rtl-webgl-tile-processor";
+import type { WebGLTileProcessor } from "reconstructable-tile-layer/processor";
 import { createTileServiceProvider } from "../cesium/providers";
 import { resolveDemoAssetUrl } from "../utils/demoAssetUrl";
 import { isLayerVisible, validateAgeRange } from "./temporal";
@@ -129,6 +129,7 @@ export class LayerController {
               visible: restored.definition.visible,
               opacity: restored.definition.opacity,
               ageRange: restored.definition.ageRange,
+              loadMode: restored.definition.loadMode,
               level: restored.definition.level,
             }
           : {}),
@@ -304,7 +305,9 @@ export class LayerController {
 
   update(
     id: string,
-    patch: Partial<Pick<LayerDefinition, "name" | "visible" | "opacity" | "ageRange" | "level">>,
+    patch: Partial<
+      Pick<LayerDefinition, "name" | "visible" | "opacity" | "ageRange" | "level" | "loadMode">
+    >,
   ) {
     const entry = this.find(id);
     if (!entry) return;
@@ -314,6 +317,18 @@ export class LayerController {
     if (!Number.isFinite(next.opacity) || next.opacity < 0 || next.opacity > 1)
       throw new Error("Opacity must be between 0 and 1.");
     if (!next.name.trim()) throw new Error("Supply a layer name.");
+    if (next.loadMode !== "level" && next.loadMode !== "view")
+      throw new Error("Choose a tile loading mode.");
+    if (!Number.isInteger(next.level) || next.level < 0 || next.level > 24)
+      throw new Error("Choose a tile level between 0 and 24.");
+    if (
+      next.mode === "reconstructable" &&
+      next.loadMode === "level" &&
+      next.source.kind === "service" &&
+      (next.level < next.source.config.minimumLevel ||
+        next.level > (next.source.config.maximumLevel ?? 24))
+    )
+      throw new Error("Layer tile level is outside its service range.");
     entry.definition = next;
     this.syncPresentation();
     this.emit();
@@ -347,12 +362,17 @@ export class LayerController {
     }
     this.emit();
   }
-  async load(id: string, level: number, inView = false) {
+  async load(id: string, level?: number, inView?: boolean) {
     const entry = this.find(id);
     if (!entry || entry.definition.mode !== "reconstructable" || entry.status === "loading") return;
+    // 无显式参数时执行已保存的加载方式；左侧的两个快捷操作可主动覆盖它。
+    const useView = inView ?? (level === undefined && entry.definition.loadMode === "view");
+    const targetLevel = level ?? entry.definition.level;
     const token = ++entry.operation;
     entry.status = "loading";
-    entry.message = inView ? "Loading current view…" : `Loading L${level}…`;
+    entry.message = useView
+      ? "Loading current view (automatic level)…"
+      : `Loading L${targetLevel}…`;
     this.emit();
     try {
       await this.initialize(entry);
@@ -360,30 +380,37 @@ export class LayerController {
       const runtime = entry.runtime!;
       const provider = runtime.source.provider;
       if (
-        !Number.isInteger(level) ||
-        level < (provider.minimumLevel ?? 0) ||
-        level > (provider.maximumLevel ?? 24)
+        !useView &&
+        (!Number.isInteger(targetLevel) ||
+          targetLevel < (provider.minimumLevel ?? 0) ||
+          targetLevel > (provider.maximumLevel ?? 24))
       )
         throw new Error(`Choose L${provider.minimumLevel ?? 0}–L${provider.maximumLevel ?? 24}.`);
       if (runtime.rtl) {
-        const coverage = inView ? "view" : `level:${level}`;
+        const coverage = useView ? "view" : `level:${targetLevel}`;
         // RTL 可累积多个 LOD；图层透明度要求同一来源在同一区域只混合一次。
         // 切换覆盖时只清本层图元，保留共享处理器的原始瓦片缓存。
-        if (runtime.coverage && (inView || runtime.coverage !== coverage))
+        if (runtime.coverage && (useView || runtime.coverage !== coverage))
           runtime.rtl.clear(this.viewer);
         runtime.coverage = coverage;
-        if (inView)
+        if (useView)
           await runtime.rtl.refineTilesForView(this.viewer, {
-            minLevel: Math.min(2, provider.maximumLevel ?? 2),
+            minLevel: Math.max(provider.minimumLevel ?? 0, Math.min(2, provider.maximumLevel ?? 2)),
           });
-        else await runtime.rtl.loadSourceTilesAtLevel(this.viewer, level);
+        else await runtime.rtl.loadSourceTilesAtLevel(this.viewer, targetLevel);
         if (!this.current(entry) || token !== entry.operation) return;
         await runtime.rtl.setReconstructionAge(this.age);
       }
       if (!this.current(entry) || token !== entry.operation) return;
-      entry.definition = { ...entry.definition, level };
+      entry.definition = {
+        ...entry.definition,
+        loadMode: useView ? "view" : "level",
+        level: useView ? entry.definition.level : targetLevel,
+      };
       entry.status = "ready";
-      entry.message = inView ? "Current view loaded." : `L${level} loaded.`;
+      entry.message = useView
+        ? "Current view loaded (automatic level)."
+        : `L${targetLevel} loaded.`;
     } catch (error) {
       if (!this.current(entry) || token !== entry.operation) return;
       if (entry.runtime?.rtl && !entry.runtime.rtl.ready) this.releaseRuntime(entry);
@@ -519,7 +546,7 @@ export class LayerController {
   }
   restore(definitions: LayerDefinition[]) {
     for (const entry of this.entries) this.releaseRuntime(entry);
-    // 旧配置允许两种绘制路径交错；导入时保留各组内部顺序，按原生绘制关系分组。
+    // 按原生绘制关系分组，保留各组内部的叠放顺序。
     const ordered = [
       ...definitions.filter((definition) => layerGroup(definition) === "imagery"),
       ...definitions.filter((definition) => layerGroup(definition) === "reconstructable"),

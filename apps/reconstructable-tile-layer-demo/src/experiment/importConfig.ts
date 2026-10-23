@@ -3,12 +3,8 @@ import type { PolygonRenderIntentMode, PrimitiveTransformMode } from "reconstruc
 import { parseLayerDefinitions } from "../layers/serialization";
 import { TIFF_ONLY_MESSAGE } from "../raster/tiffInput";
 
-import {
-  getServicePreset,
-  type ProviderKey,
-  type UrlTemplateProviderConfig,
-} from "../cesium/providers";
-import { migrateUrlTemplateConfig, parseTileServiceConfig } from "../cesium/tileServiceConfig";
+import { PROVIDER_OPTIONS } from "../cesium/providers";
+import { parseTileServiceConfig } from "../cesium/tileServiceConfig";
 import {
   DEFAULT_ANCHOR_PLATE_ID,
   DEFAULT_GPLATES_REFERENCE_POLYGON_COLOR,
@@ -50,20 +46,7 @@ const GPLATES_REFERENCE_POLYGON_KEYS: GplatesReferencePolygonKey[] = [
   "merdith-2021-750",
 ];
 
-const PROVIDER_KEYS: ProviderKey[] = [
-  "gplates-topography-4326",
-  "gplates-topography-3857",
-  "arcgis-world-imagery",
-  "gmrt-topography-wms-3857",
-  "nasa-gibs-blue-marble-3857",
-  "nasa-gibs-blue-marble-4326",
-  "eox-terrain-4326",
-  "eox-terrain-light-4326",
-  "eox-s2-cloudless-2025-4326",
-  "eox-s2-cloudless-2025-3857",
-  "macrostrat-carto",
-  "custom-url-template",
-];
+const PROVIDER_KEYS = PROVIDER_OPTIONS.map((option) => option.key);
 
 const POLYGON_RENDER_INTENTS: PolygonRenderIntentMode[] = ["classified", "all-polygons-area"];
 
@@ -199,28 +182,11 @@ function parseOutput(value: Record<string, unknown>) {
   return { width, height, pixelRatio };
 }
 
-function parseCustomProviderConfig(value: Record<string, unknown>) {
-  const url = getString(value, "url");
-  const tilingSchemeKey = getEnumValue(value, "tilingSchemeKey", ["geographic", "web-mercator"]);
-  const minimumLevel = getInteger(value, "minimumLevel");
-  const maximumLevel = getInteger(value, "maximumLevel");
-  if (!url || !tilingSchemeKey || minimumLevel === undefined || maximumLevel === undefined) {
-    return undefined;
-  }
-
-  return {
-    url,
-    tilingSchemeKey,
-    minimumLevel,
-    maximumLevel,
-  } satisfies UrlTemplateProviderConfig;
-}
-
 export function parseImportedExperimentConfig(value: unknown): ImportedExperimentControlState {
   if (!isRecord(value)) {
     throw new Error("Imported file is not a valid experiment JSON object.");
   }
-  if (value.schemaVersion !== 1 && value.schemaVersion !== 2 && value.schemaVersion !== 3) {
+  if (value.schemaVersion !== 3) {
     throw new Error("Unsupported experiment config schema version.");
   }
 
@@ -231,13 +197,12 @@ export function parseImportedExperimentConfig(value: unknown): ImportedExperimen
   const extent = getRecord(value, "extent");
   const camera3D = getRecord(value, "camera3D");
   const result: ImportedExperimentControlState = {
+    layerStack: parseLayerDefinitions(value.layerStack),
     referencePolygonColor: DEFAULT_GPLATES_REFERENCE_POLYGON_COLOR,
     referencePolygonKey: "off",
     rotationAnchorMode: DEFAULT_ROTATION_ANCHOR_MODE,
     anchorPlateId: DEFAULT_ANCHOR_PLATE_ID,
   };
-  if (value.schemaVersion === 2 || value.schemaVersion === 3)
-    result.layerStack = parseLayerDefinitions(value.layerStack);
   const viewConfig: ImportedExperimentControlState["experimentViewConfig"] = {};
 
   const caseId = getString(value, "caseId");
@@ -267,8 +232,8 @@ export function parseImportedExperimentConfig(value: unknown): ImportedExperimen
 
   const parsedCamera3D = camera3D ? parseCamera3D(camera3D) : undefined;
   if (parsedCamera3D) {
-    // 旧版用 3D_GLOBE + orthographic 表示正射；导入时统一迁移到新的场景选项。
-    const orthographic = viewMode === "3D_ORTHOGRAPHIC" || parsedCamera3D.orthographic;
+    // 场景选项决定投影，避免相机字段与明确选择的视图模式冲突。
+    const orthographic = viewMode === "3D_ORTHOGRAPHIC";
     viewConfig.camera3D = { ...parsedCamera3D, orthographic };
     if (viewMode !== "2D_RECTANGULAR") {
       viewConfig.viewMode = orthographic ? "3D_ORTHOGRAPHIC" : "3D_GLOBE";
@@ -289,7 +254,7 @@ export function parseImportedExperimentConfig(value: unknown): ImportedExperimen
   }
 
   if (sources) {
-    // 描述可移植，File/Blob 本身不可从 JSON 恢复；不接收历史 blob URL。
+    // 描述可移植，File/Blob 本身不可从 JSON 恢复；会话 URL 不能持久化。
     const localRaster = getRecord(sources, "localRaster");
     const localFile = localRaster && getRecord(localRaster, "file");
     const localSource = localRaster && getRecord(localRaster, "source");
@@ -350,20 +315,9 @@ export function parseImportedExperimentConfig(value: unknown): ImportedExperimen
       (rotationFile ? [rotationFile] : undefined);
     result.providerKey = getEnumValue(sources, "providerKey", PROVIDER_KEYS);
 
-    const customProviderConfig = getRecord(sources, "customProviderConfig");
-    const parsedCustomProviderConfig = customProviderConfig
-      ? parseCustomProviderConfig(customProviderConfig)
-      : undefined;
-    if (parsedCustomProviderConfig) {
-      result.customProviderConfig = parsedCustomProviderConfig;
-    }
-    // 新配置保留编辑后的完整连接；旧配置通过示例或四字段 URL 模板迁移。
+    // 完整连接是请求依据；示例标识只用于表单展示，不重新套用预设参数。
     if (sources.serviceConfig !== undefined) {
       result.serviceConfig = parseTileServiceConfig(sources.serviceConfig);
-    } else if (result.providerKey === "custom-url-template" && parsedCustomProviderConfig) {
-      result.serviceConfig = migrateUrlTemplateConfig(parsedCustomProviderConfig);
-    } else if (result.providerKey) {
-      result.serviceConfig = getServicePreset(result.providerKey);
     }
   } else {
     result.featureUrl = getString(value, "platePolygonFile");
@@ -372,7 +326,7 @@ export function parseImportedExperimentConfig(value: unknown): ImportedExperimen
       getStringArray(value, "rotationFiles") ?? (rotationFile ? [rotationFile] : undefined);
   }
 
-  // 同时拒绝旧配置中的 blob URL；不把缺失的旋转文件悄悄替换成当前模型。
+  // 不把会话中的 blob URL 或缺失的旋转文件替换成当前模型。
   const localModelFiles = sources && getRecord(sources, "localModelFiles");
   if (localModelFiles?.feature || result.featureUrl?.trim().startsWith("blob:")) {
     result.featureUrl = "";

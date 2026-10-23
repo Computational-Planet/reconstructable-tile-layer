@@ -6,19 +6,15 @@ import type {
   PrimitiveCollection,
   Rectangle,
 } from "cesium";
-import type { AnchorPlateId } from "rtl-finite-rotation";
-import type { NodeInfo, QuadTreeTileProcessor, TileClipArea } from "rtl-tile-plate-quadtree";
-import type {
-  CesiumTileProcessor,
-  CesiumTileProcessorStats,
-  TileImageAsset,
-} from "rtl-webgl-tile-processor";
+import type { AnchorPlateId } from "../rotation.js";
+import type { NodeInfo, QuadTreeTileProcessor, TileClipArea } from "../quadtree.js";
+import type { TileProcessor, CesiumTileProcessorStats, TileImageAsset } from "../processor.js";
 
 import type {
   FeatureImportDiagnostics,
   PolygonRenderIntentMode,
   RenderIntent,
-} from "../gplates/index.js";
+} from "../gplates.js";
 import type {
   RenderRectangleSubdivision,
   SimpleGeoReconstructBenchmarkObserver,
@@ -334,18 +330,18 @@ export interface SimpleGeoReconstructManagerConstructorOptions
    * Tile processor used for reprojection. The caller owns and destroys it.
    * @deprecated Use the `processor` option through `SimpleGeoReconstructManagerOptions`.
    */
-  processer: CesiumTileProcessor;
+  processer: TileProcessor;
   /** Correctly spelled alias accepted when both option names are supplied. */
-  processor?: CesiumTileProcessor;
+  processor?: TileProcessor;
 }
 
 /** Preferred constructor options using the correctly spelled processor name. */
 export interface SimpleGeoReconstructManagerProcessorOptions
   extends SimpleGeoReconstructManagerBaseOptions {
   /** Tile processor used for reprojection. The caller owns and destroys it. */
-  processor: CesiumTileProcessor;
+  processor: TileProcessor;
   /** @deprecated Use processor. */
-  processer?: CesiumTileProcessor;
+  processer?: TileProcessor;
 }
 
 /** Options accepted by SimpleGeoReconstructManager. */

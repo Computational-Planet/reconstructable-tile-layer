@@ -50,7 +50,7 @@ export {
   parsedGpmlFeaturesToPaleoData,
   parseGpmlText,
   readGplatesXmlFromUrl,
-} from "./gplates/index.js";
+} from "./gplates.js";
 
 export type {
   CoordinateOrder,
@@ -67,7 +67,9 @@ export type {
   PolygonRenderIntentMode,
   Position,
   RenderIntent,
-} from "./gplates/index.js";
+} from "./gplates.js";
 
-export type { AnchorPlateId } from "rtl-finite-rotation";
+export type { AnchorPlateId } from "./rotation.js";
 export { createTileSurfaceAppearance } from "./surfaceAppearance.js";
+
+export * from "./processor.js";

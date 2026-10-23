@@ -45,7 +45,7 @@ export function TimeTilesSection({
         ? "GeoJSON coordinates remain fixed. The timeline controls its visible age range."
         : selectedLayer.mode === "static"
           ? "Imagery loads automatically as you navigate. The timeline controls its visible age range."
-          : `Tile actions apply to ${selectedLayer.name}. All reconstruction layers follow the global timeline.`;
+          : `Tile actions apply to ${selectedLayer.name}. Saved loading: ${selectedLayer.loadMode === "view" ? "current view, automatic level" : `L${selectedLayer.level}`}. All reconstruction layers follow the global timeline.`;
   const ageRangeStyle = {
     "--range-progress": `${Math.min(100, Math.max(0, (age / 1800) * 100))}%`,
   } as CSSProperties;

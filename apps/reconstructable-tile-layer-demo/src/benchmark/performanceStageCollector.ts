@@ -5,7 +5,7 @@ import type {
 import type {
   TileProcessorBenchmarkObserver,
   TileProcessorBenchmarkStage,
-} from "rtl-webgl-tile-processor";
+} from "reconstructable-tile-layer/processor";
 import type {
   BenchmarkStageName,
   BenchmarkStageTiming,

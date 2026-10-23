@@ -1,4 +1,5 @@
 import { parseTileServiceConfig } from "../cesium/tileServiceConfig";
+import { PROVIDER_OPTIONS, type ProviderKey } from "../cesium/providers";
 import type { LocalRasterDescriptor, ModelSelection } from "../raster/context";
 import type { LayerDefinition } from "./types";
 import { validateAgeRange } from "./temporal";
@@ -11,6 +12,13 @@ const finite = (value: unknown): value is number =>
   typeof value === "number" && Number.isFinite(value);
 const strings = (value: unknown): value is string[] =>
   Array.isArray(value) && value.every((item) => typeof item === "string");
+
+function parseExampleKey(value: unknown): ProviderKey | undefined {
+  if (value === undefined) return undefined;
+  if (!PROVIDER_OPTIONS.some((option) => option.key === value))
+    throw new Error("Unknown service example key.");
+  return value as ProviderKey;
+}
 
 /** 仅持久化配置，去掉仅在当前会话有效的本地模型 URL。 */
 export function exportLayerDefinitions(layers: LayerDefinition[]): LayerDefinition[] {
@@ -147,6 +155,7 @@ export function parseLayerDefinitions(value: unknown): LayerDefinition[] {
       !finite(item.opacity) ||
       item.opacity < 0 ||
       item.opacity > 1 ||
+      (item.loadMode !== "level" && item.loadMode !== "view") ||
       !finite(item.level) ||
       !Number.isInteger(item.level) ||
       item.level < 0 ||
@@ -169,7 +178,13 @@ export function parseLayerDefinitions(value: unknown): LayerDefinition[] {
     }
     const source =
       item.source.kind === "service"
-        ? { kind: "service" as const, config: parseTileServiceConfig(item.source.config) }
+        ? {
+            kind: "service" as const,
+            config: parseTileServiceConfig(item.source.config),
+            ...(item.source.exampleKey === undefined
+              ? {}
+              : { exampleKey: parseExampleKey(item.source.exampleKey) }),
+          }
         : item.source.kind === "local"
           ? { kind: "local" as const, descriptor: parseLocalDescriptor(item.source.descriptor) }
           : item.source.kind === "geojson"
@@ -179,6 +194,13 @@ export function parseLayerDefinitions(value: unknown): LayerDefinition[] {
               }
             : null;
     if (!source) throw new Error("Unknown layer source.");
+    if (
+      source.kind === "service" &&
+      item.mode === "reconstructable" &&
+      item.loadMode === "level" &&
+      (item.level < source.config.minimumLevel || item.level > (source.config.maximumLevel ?? 24))
+    )
+      throw new Error("Layer tile level is outside its service range.");
     if (source.kind === "geojson" && item.mode !== "static")
       throw new Error(
         "GeoJSON supports fixed coordinates only; vector reconstruction is not available.",
@@ -202,6 +224,7 @@ export function parseLayerDefinitions(value: unknown): LayerDefinition[] {
       visible: item.visible,
       opacity: item.opacity,
       ageRange,
+      loadMode: item.loadMode,
       level: item.level,
     };
     return exportLayerDefinitions([definition])[0];

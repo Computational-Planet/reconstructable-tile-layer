@@ -1,11 +1,12 @@
 /** Coordinates Cesium viewer and tile processor lifecycle for the demo app. */
 import { useEffect, useRef } from "react";
 import type { Viewer } from "cesium";
-import type {
-  ReconstructableTileLayer,
-  ReconstructableTileLayerStats,
+import {
+  WebGLTileProcessor,
+  type TileImageOutputType,
+  type ReconstructableTileLayer,
+  type ReconstructableTileLayerStats,
 } from "reconstructable-tile-layer";
-import { WebGLTileProcessor, type TileImageOutputType } from "rtl-webgl-tile-processor";
 
 import { applyGlobeBaseColor, createViewer, DEMO_ELLIPSOID_CONFIG } from "../cesium/createViewer";
 import type { ExperimentOutputConfig } from "../experiment";

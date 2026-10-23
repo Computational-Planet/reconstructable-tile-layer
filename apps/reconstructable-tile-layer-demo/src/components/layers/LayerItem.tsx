@@ -31,6 +31,9 @@ export function LayerItem({
   const [error, setError] = useState("");
   const busy = layer.status === "loading";
   const vector = layer.source.kind === "geojson";
+  const minimumLevel = layer.source.kind === "service" ? layer.source.config.minimumLevel : 0;
+  const maximumLevel =
+    layer.source.kind === "service" ? (layer.source.config.maximumLevel ?? 24) : 24;
   useEffect(() => {
     setName(layer.name);
   }, [layer.name]);
@@ -235,45 +238,73 @@ export function LayerItem({
             </button>
           ) : layer.mode === "reconstructable" ? (
             <>
+              <label>
+                Tile loading
+                <select
+                  aria-label="Selected layer loading mode"
+                  value={layer.loadMode}
+                  disabled={busy}
+                  onChange={(event) => {
+                    const loadMode = event.target.value === "view" ? "view" : "level";
+                    const nextLevel = Math.max(minimumLevel, Math.min(layer.level, maximumLevel));
+                    controller.update(layer.id, {
+                      loadMode,
+                      ...(loadMode === "level" ? { level: nextLevel } : {}),
+                    });
+                    if (loadMode === "level") setLevel(nextLevel);
+                  }}
+                >
+                  <option value="level">Specified level</option>
+                  <option value="view">Current view · automatic level</option>
+                </select>
+              </label>
               <div className="layer-load-row">
-                <label>
-                  Level
-                  <input
-                    aria-label="Selected layer tile level"
-                    type="number"
-                    min={0}
-                    max={24}
-                    value={level}
-                    disabled={busy}
-                    onChange={(event) => setLevel(Number(event.target.value))}
-                  />
-                </label>
+                {layer.loadMode === "level" && (
+                  <label>
+                    Level
+                    <input
+                      aria-label="Selected layer tile level"
+                      type="number"
+                      min={minimumLevel}
+                      max={maximumLevel}
+                      value={level}
+                      disabled={busy}
+                      onChange={(event) => {
+                        const value = Number(event.target.value);
+                        setLevel(value);
+                        if (
+                          Number.isInteger(value) &&
+                          value >= minimumLevel &&
+                          value <= maximumLevel
+                        )
+                          controller.update(layer.id, { level: value });
+                      }}
+                    />
+                  </label>
+                )}
                 <button
                   type="button"
                   disabled={busy}
-                  onClick={() => void controller.load(layer.id, level)}
+                  onClick={() =>
+                    void controller.load(layer.id, layer.loadMode === "level" ? level : undefined)
+                  }
                 >
                   Load tiles
                 </button>
               </div>
-              <div className="grid-2">
-                <button
-                  type="button"
-                  className="secondary-button"
-                  disabled={busy}
-                  onClick={() => void controller.load(layer.id, level, true)}
-                >
-                  Load view
-                </button>
-                <button
-                  type="button"
-                  className="secondary-button"
-                  disabled={busy}
-                  onClick={() => controller.clear(layer.id)}
-                >
-                  Clear tiles
-                </button>
-              </div>
+              {layer.loadMode === "view" && (
+                <p className="field-hint">
+                  Uses the current camera view and automatically selects a tile level.
+                </p>
+              )}
+              <button
+                type="button"
+                className="secondary-button"
+                disabled={busy}
+                onClick={() => controller.clear(layer.id)}
+              >
+                Clear tiles
+              </button>
             </>
           ) : layer.status === "error" || layer.status === "unloaded" ? (
             <button type="button" onClick={() => void controller.activateImagery(layer.id)}>

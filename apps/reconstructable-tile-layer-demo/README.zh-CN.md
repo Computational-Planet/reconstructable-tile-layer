@@ -23,8 +23,18 @@ pnpm build:packages
 pnpm dev
 ```
 
-Turbo 会同时启动四个核心库的监听构建和 Vite demo。三个可选栅格库由
+Turbo 会同时启动 RTL、内嵌模块的监听构建和 Vite demo。三个可选栅格库由
 `pnpm build:packages` 构建，修改源码或 Worker 后重新运行该命令。
+
+## 包的接入方式
+
+Demo 从 `reconstructable-tile-layer` 导入 `ReconstructableTileLayer` 和
+`WebGLTileProcessor`；处理器专用类型使用 `/processor` 公共入口。核心模块由 RTL 从
+`packages/reconstructable-tile-layer/modules` 统一打包，Demo 通过 RTL 的公共入口使用它们。
+
+`src/layers`、本地文件控件、object URL 生命周期、时间轴协调及普通 GeoJSON 仍属于
+Demo。数值 TIFF、对应 Cesium provider 和可选 COG 转换继续使用三个独立 Raster 扩展。
+此次发行结构调整保持普通影像/矢量的 Cesium 原生行为和现有重建链路。
 
 ## 面板操作顺序
 
@@ -75,8 +85,7 @@ RTL 包仅提供通用图层容器、显隐、透明度和有序表面材质；�
 
 实验 JSON 区分透视与正射：正射使用 `viewMode: "3D_ORTHOGRAPHIC"` 和
 `projection: "OrthographicGlobe"`，透视保留 `viewMode: "3D_GLOBE"` 并使用
-`projection: "PerspectiveGlobe"`。旧配置中的 `3D_GLOBE` 加 `camera3D.orthographic: true`
-会自动迁移为正射模式；读取投影枚举的外部脚本需支持上述取值。
+`projection: "PerspectiveGlobe"`。导入时由明确的 `viewMode` 决定相机投影。
 
 ## 连接在线影像数据
 
@@ -108,10 +117,10 @@ WMS 的 `TIME` 或 WMTS 时间维度保持固定，与地质年代轴分别管�
 到第 3 步加载重建瓦片。连接测试使用同一 Provider 构造路径并检查图片解码与 Canvas 读取，
 不会替换已应用来源；它只验证一个位置和层级，不保证所有瓦片可用。服务器仍须允许浏览器跨域读取（CORS）。
 
-实验 JSON 将完整连接写入 `sources.serviceConfig`，保留示例标识和编辑后的字段。
-已有服务生效时，导出记录实际应用配置，未应用的表单修改不混入结果。旧版服务选项和四字段
-`customProviderConfig` 会迁移；重新导入恢复表单，仍需点击 **Add layer**。
-未完成且未应用的在线表单不导出。旧版 Demo 不认识新增的 `serviceConfig`，编辑后的 WMS/WMTS 连接需用新版恢复。
+实验 JSON 将每个图层的完整连接写入 `layerStack[].source.config`，保留编辑后的参数。
+`source.exampleKey` 标识服务示例，请求以已保存的连接为准。`sources.serviceConfig` 恢复来源编辑器；
+选中服务时，导出记录其实际应用配置，未应用的表单修改不混入结果。未完成且未应用的在线表单不导出。
+导入恢复图层列表，重建层通过 **Load tiles** 加载；**Add layer** 用于添加另一个图层。
 
 协议参数对应 Cesium 的 [URL template](https://cesium.com/learn/cesiumjs/ref-doc/UrlTemplateImageryProvider.html)、
 [WMS](https://cesium.com/learn/cesiumjs/ref-doc/WebMapServiceImageryProvider.html) 和
@@ -119,7 +128,7 @@ WMS 的 `TIME` 或 WMTS 时间维度保持固定，与地质年代轴分别管�
 
 ## 本地科学栅格
 
-1. 在 **Layer data source → Local TIFF / GeoTIFF → Source settings** 选择带地理配准的 TIFF、BigTIFF 或 COG，文件在浏览器内处理。本 demo 不再加载 NetCDF，请先在外部转换为 GeoTIFF。
+1. 在 **Layer data source → Local TIFF / GeoTIFF → Source settings** 选择带地理配准的 TIFF、BigTIFF 或 COG，文件在浏览器内处理。NetCDF 数据请先在外部转换为 GeoTIFF。
 2. 现代数据需要随时间轴重建时，选择 **Reconstruct from 0 Ma (follows timeline)**，确认板块模型坐标框架，点击 **Add layer** 后加载瓦片。**Paleo snapshot** 初始仅在指定年代显示，**Reference / unknown** 按文件坐标显示；固定坐标图层的可见年代范围在 Layers 中修改。
 3. **Display style** 支持单波段/RGB、抽样或手动数值范围、色带与额外原始 NoData 排除值。配色不改存储数值或数值导出；再次添加生成独立图层。
 4. **Numeric COG export (optional) → Create numeric COG** 按需加载 GDAL，导出 TIFF 的原始数值波段，支持取消。请同时下载 COG 与溯源 JSON；**Load converted COG** 可重新读取结果，再添加为普通或重建图层。
@@ -134,17 +143,16 @@ WMS 的 `TIME` 或 WMTS 时间维度保持固定，与地质年代轴分别管�
 
 选择 **Layer data source → Local GeoJSON**，打开 `.geojson` 或内容为 GeoJSON 的 `.json` 文件，点击 **Add layer**。支持 FeatureCollection、单个 Feature、点线面、Multi 系列与 GeometryCollection。坐标使用 WGS84 经度/纬度，可附带高度；其他投影请先转换。没有可绘制几何的空文件、未闭合环、非有限坐标以及 TopoJSON 等其他格式会明确报错。
 
-矢量通过 Cesium 原生 [GeoJsonDataSource](https://cesium.com/learn/cesiumjs/ref-doc/GeoJsonDataSource.html) 显示，保留其支持的 simplestyle 属性与实体几何。在右侧 **Ordinary vectors** 中可改名、显隐、调整透明度、设置闭区间年代范围、缩放定位和删除。整层透明度乘以各要素原来的 alpha；时间轴只控制显示，不改变坐标。本轮不进行矢量重建、裁剪、栅格化或 RTL 接入。
+矢量通过 Cesium 原生 [GeoJsonDataSource](https://cesium.com/learn/cesiumjs/ref-doc/GeoJsonDataSource.html) 显示，保留其支持的 simplestyle 属性与实体几何。在右侧 **Ordinary vectors** 中可改名、显隐、调整透明度、设置闭区间年代范围、缩放定位和删除。整层透明度乘以各要素原来的 alpha；时间轴只控制显示，不改变坐标。矢量显示不经过重建、裁剪、栅格化或 RTL。
 
 矢量遮挡遵循原生几何深度与透明度规则，不提供矢量上下换位或跨影像/RTL 的统一叠放顺序。格式校验与原生生命周期位于 `src/vector`，文件编辑器独立于栅格控制和 RTL 库。实验配置不内嵌 GeoJSON 内容，导入后用 **Prepare local file** 重选文件，再 **Restore selected layer**。
-
 
 ## 论文工作流
 
 演示程序支持论文案例研究所使用的相同操作：
 
 - 注册 WMS、WMTS、XYZ、URL 模板或自定义的兼容影像源；
-- 加载 GPML、GPMLZ、XML、旧版 JSON、上传的板块域数据和 ROT 文件；
+- 加载 GPML、GPMLZ、XML、兼容 JSON、上传的板块域数据和 ROT 文件；
 - 切换重建年代、刚性板块模型和 Cesium 变换模式；
 - 加载固定的源瓦片层级，或针对当前视图细化瓦片；
 - 叠加现有的 GPlates 参考多边形；
@@ -166,27 +174,24 @@ pnpm --filter reconstructable-tile-layer-demo dev
 
 ## 基本操作顺序
 
-1. 导入实验 JSON，或保留默认配置。
-2. 选择要素数据源、ROT 模型和影像提供器。
-3. 配置场景、输出、多边形意图和变换模式。
-4. 点击 **Add layer** 应用数据源并初始化图层。
-5. 设置 `Age Ma`，然后加载根瓦片、明确层级或当前视图。
-6. 按需导出运行信息或截图。
+1. 从 [case_configs](../../case_configs/README.zh-CN.md) 导入配置，或选择板块模型和数据源后点击 **Add layer** 创建图层。
+2. 在 **Layers** 选中重建层，将 **Tile loading** 设为 **Specified level**（指定层级）或
+   **Current view · automatic level**（当前视图自动选级），点击 **Load tiles**。
+3. 调整全局年代、相机和输出。左侧 **Timeline & tiles** 的明确层级／视图操作完成后，也会更新该图层保存的加载方式。
+4. 按需导出运行信息或截图。
 
-导入的 `schemaVersion: 1` 实验文件会恢复控件值和相机状态，但不会自动初始化或
-加载图层。
+## 实验配置
 
-## 导出兼容性
+实验 JSON 使用 `schemaVersion: 3`，必填的 `layerStack` 保存全部图层的来源、显示设置、时间范围、
+模型和加载方式。`loadMode: "level"` 使用指定的 `level`；`loadMode: "view"` 根据当前相机和 Provider
+范围自动选级，不使用 `level`。全局年代、视图、输出和参考多边形设置与图层一起恢复。
 
-新导出使用 `schemaVersion: 3`，通过 `layerStack` 分组保存全部图层的来源、
-显示设置、时间范围和模型。原来的视图字段及 `geoTileStats`、`tileProcesserStats` 仍保留；
-图层统计表示当前选中的重建层，处理器统计表示共享运行时。读取器需支持版本 3 的 GeoJSON 描述。
-新版仍可读取版本 1 控件配置和版本 2 的服务/TIFF 图层。含 NetCDF 的旧配置在替换场景前报错，请将数据转换为 GeoTIFF 后重新添加。版本 2/3 导入恢复列表并自动加载普通在线影像；
-重建图层通过 **Load tiles** 加载。旧版交错列表会按绘制路径分组，保留组内顺序。
+导入先校验配置，再替换图层列表，并自动激活普通在线影像。重建层点击 **Load tiles** 执行保存的加载方式。
 本地 TIFF 或 GeoJSON 点击 **Prepare local file** 重选文件，再 **Restore selected layer**。
-本地模型需重选后对对应图层使用 **Use current plate model**。
+本地模型需重选后对对应图层使用 **Use current plate model**。文件内容和会话 `blob:` URL 不持久化。
 
-本地上传的模型文件导入后需要重新选择，见前述说明；旧配置中失效的 `blob:` 地址也会被清空。
+案例文件只保存输入参数。运行导出另附当前选中重建层的 `geoTileStats`、共享处理器的 `tileProcesserStats`，
+以及相机和设备测量信息；运行统计不参与之后的配置恢复。
 
 截图直接从 Cesium canvas 获取，不包含控制面板。跨源影像必须允许读取 canvas。
 

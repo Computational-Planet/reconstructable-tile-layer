@@ -6,7 +6,7 @@ import type {
   PolygonRenderIntentMode,
   PrimitiveTransformMode,
 } from "reconstructable-tile-layer";
-import type { WebGLTileProcessor } from "rtl-webgl-tile-processor";
+import type { WebGLTileProcessor } from "reconstructable-tile-layer/processor";
 
 import {
   getCentralMeridian,
@@ -27,9 +27,12 @@ import {
 } from "../dataSources";
 import { roundNumber } from "../utils/numbers";
 import type { ExperimentExportInfo, ExperimentViewConfig } from "./types";
+import { exportLayerDefinitions } from "../layers/serialization";
+import type { LayerDefinition } from "../layers/types";
 
 export type ExperimentExportContext = {
   age: number;
+  layerStack: LayerDefinition[];
   serviceConfig: TileServiceConfig;
   debugEnabled: boolean;
   experimentViewConfig: ExperimentViewConfig;
@@ -100,7 +103,8 @@ export function createExperimentExportInfo(
     : getCentralMeridian(extent);
 
   return {
-    schemaVersion: 1,
+    schemaVersion: 3,
+    layerStack: exportLayerDefinitions(context.layerStack),
     exportedAt: exportedAt.toISOString(),
     exportBaseName,
     caseId: context.experimentViewConfig.caseId,

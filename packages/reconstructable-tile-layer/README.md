@@ -10,6 +10,11 @@ task scheduling, WebGL-processed images, and Cesium primitives.
 The recommended public class is `ReconstructableTileLayer`. The existing
 `SimpleGeoReconstructManager` name remains an alias of the same class.
 
+GPlates reading, rotation mathematics, tile indexing and WebGL processing live
+in four source modules under `modules/`. RTL bundles their implementation and
+declarations; consumers do not need to install the four standalone module packages.
+The demo continues to own file selection and object-URL lifetimes.
+
 ## Highlights
 
 - Registers published imagery services without republishing their tiles.
@@ -24,18 +29,55 @@ The recommended public class is `ReconstructableTileLayer`. The existing
 ## Installation
 
 ```sh
-pnpm add reconstructable-tile-layer rtl-webgl-tile-processor cesium
+pnpm add reconstructable-tile-layer cesium
 ```
 
-The package is browser-only. It requires `fetch`, the DOM, WebGL, and a Cesium
-viewer. The caller owns the viewer, imagery provider, and WebGL processor.
+Rendering requires a browser DOM, WebGL and a Cesium viewer. The caller owns the
+viewer, imagery provider and WebGL processor. Importing a public entry does not
+create these resources. The `/gplates` entry does not import Cesium; GPML parsing
+still requires `DOMParser`, and URL readers require `fetch`.
+
+## Public entries and module boundaries
+
+| Entry                                  | Responsibility                                                           | Optional standalone distribution                                   |
+| -------------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------ |
+| `reconstructable-tile-layer`           | Layer, scheduling, retained records, processor and compatibility exports | Main installation                                                  |
+| `reconstructable-tile-layer/gplates`   | ROT/GPML/GPMLZ reading, feature records and diagnostics                  | [rtl-gplates-source](modules/gplates-source/README.md)             |
+| `reconstructable-tile-layer/rotation`  | Finite rotations and reference-plate chains                              | [rtl-finite-rotation](modules/finite-rotation/README.md)           |
+| `reconstructable-tile-layer/quadtree`  | Tile–plate indexes and clip areas                                        | [rtl-tile-plate-quadtree](modules/tile-plate-quadtree/README.md)   |
+| `reconstructable-tile-layer/processor` | Source image requests, reprojection and WebGL masking                    | [rtl-webgl-tile-processor](modules/webgl-tile-processor/README.md) |
+
+Every entry has ESM, CommonJS and TypeScript declarations. Root and subpath entries
+share implementations within the same module format, so `WebGLTileProcessor` from
+the root and `/processor` is the same constructor. Use public entries instead of
+importing `src`, `dist` or `modules` paths.
+
+The four modules retain their own manifests, builds, tests and standalone package
+names. Their source is compiled into RTL rather than externalized as runtime
+dependencies. Development-only workspace edges record build order and cache
+invalidation. A change to a module requires rebuilding/releasing RTL to reach RTL
+consumers; publishing the standalone module does not update an installed RTL.
+
+Standalone builds have their own class identities. RTL accepts the public structural
+`TileProcessor` contract, so a compatible standalone processor can be injected
+without depending on private class fields. Prefer one distribution per application;
+mixing both may duplicate code and caches. Cesium remains a shared peer dependency.
+The caller still creates and destroys the processor, which may be shared by layers.
+
+GPlates records cross module boundaries as plain data. Rotation owns the mathematics,
+quadtree owns indexing, and processor owns image processing; none imports the RTL
+manager. The standalone rotation build includes the reader code it uses and does not
+require a separate `rtl-gplates-source` installation.
+
+Raster source, imagery-provider and converter packages remain optional extensions.
+Future vector reconstruction belongs to an extension using these public contracts;
+this package change does not add a GeoJSON reconstruction path.
 
 ## Usage
 
 ```ts
 import { Ellipsoid, GeographicTilingScheme, UrlTemplateImageryProvider, Viewer } from "cesium";
-import { ReconstructableTileLayer } from "reconstructable-tile-layer";
-import { WebGLTileProcessor } from "rtl-webgl-tile-processor";
+import { ReconstructableTileLayer, WebGLTileProcessor } from "reconstructable-tile-layer";
 
 const ellipsoid = Ellipsoid.WGS84;
 const viewer = new Viewer("cesiumContainer", {
@@ -234,6 +276,13 @@ components. Service access, CORS, licensing, supported tile organization, model
 coverage, and browser resources remain application constraints.
 
 ## Compatibility
+
+Replace standalone processor imports with `reconstructable-tile-layer` or
+`reconstructable-tile-layer/processor` when migrating an RTL application, then
+remove the unused standalone dependency. `processor`/`processer` properties and
+options now expose the structural `TileProcessor` type. Code that explicitly
+annotates those values with a concrete processor class should use `TileProcessor`
+instead. Public processor members and resource ownership are unchanged.
 
 The original `SimpleGeoReconstructManager`, `provider`, `processor`,
 `featureSource`, `rotationSources`, `initialAge`, `setAge`,

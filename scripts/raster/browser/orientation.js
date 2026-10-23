@@ -4,7 +4,7 @@ import {
   Rectangle,
   WebMercatorTilingScheme,
 } from "cesium";
-import { WebGLTileProcessor } from "../../../packages/rtl-webgl-tile-processor/dist/es/index.js";
+import { WebGLTileProcessor } from "../../../packages/reconstructable-tile-layer/dist/es/processor.js";
 import { RasterImageryProvider } from "../../../packages/rtl-raster-imagery-provider/dist/index.js";
 import { openNetCDFSource } from "../../../packages/rtl-raster-source/dist/netcdf/index.js";
 

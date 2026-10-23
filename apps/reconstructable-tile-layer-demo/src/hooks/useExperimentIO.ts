@@ -7,7 +7,7 @@ import type {
   PolygonRenderIntentMode,
   PrimitiveTransformMode,
 } from "reconstructable-tile-layer";
-import type { WebGLTileProcessor } from "rtl-webgl-tile-processor";
+import type { WebGLTileProcessor } from "reconstructable-tile-layer/processor";
 
 import {
   applyExperimentView,
@@ -32,7 +32,6 @@ import {
 import { canvasToPngBlob, downloadBlob, downloadJson } from "../utils/downloads";
 import type { LocalRasterDescriptor } from "../raster/context";
 import type { LayerController } from "../layers/LayerController";
-import { exportLayerDefinitions } from "../layers/serialization";
 
 type UseExperimentIOOptions = {
   layerControllerRef: MutableRefObject<LayerController | null>;
@@ -154,6 +153,7 @@ export function useExperimentIO({
     const info = createExperimentExportInfo(
       {
         age,
+        layerStack: layerControllerRef.current?.definitions ?? [],
         serviceConfig: initialized && appliedService ? appliedService.config : serviceConfig,
         debugEnabled,
         experimentViewConfig,
@@ -181,8 +181,6 @@ export function useExperimentIO({
       exportedAt,
       exportBaseName,
     );
-    info.schemaVersion = 3;
-    info.layerStack = exportLayerDefinitions(layerControllerRef.current?.definitions ?? []);
     if (localRaster) {
       info.sources.localRaster = localRaster;
       info.sources.providerLabel = `Local raster: ${localRaster.file.name}`;
@@ -229,17 +227,19 @@ export function useExperimentIO({
     try {
       const parsedJson = JSON.parse(await file.text()) as unknown;
       const importedConfig = parseImportedExperimentConfig(parsedJson);
+      const controller = layerControllerRef.current;
+      if (!controller)
+        throw new Error("Viewer runtime is unavailable. Reload the demo before importing.");
       onImportSources(!!importedConfig.localRasterFileName);
-      if (importedConfig.layerStack) layerControllerRef.current?.restore(importedConfig.layerStack);
+      if (importedConfig.age !== undefined) controller.setAge(importedConfig.age);
+      controller.restore(importedConfig.layerStack);
       const rasterNotice = importedConfig.localRasterFileName
         ? ` Reselect the local TIFF ${importedConfig.localRasterFileName} and apply its saved settings; local files are not embedded.`
         : "";
       const modelNotice = importedConfig.requiresLocalModelFiles
         ? " Reselect the local plate-domain/ROT files before initializing the model."
         : "";
-      const layerNotice = importedConfig.layerStack
-        ? ` ${importedConfig.layerStack.length} layers restored to the panel. Ordinary online imagery loads automatically; load reconstruction tiles and reselect local files where indicated.`
-        : "";
+      const layerNotice = ` ${importedConfig.layerStack.length} layers restored to the panel. In Layers, choose Load tiles to use each reconstruction layer's saved loading mode. Ordinary online imagery loads automatically; reselect local files where indicated.`;
       const importedViewConfig = importedConfig.experimentViewConfig;
       const nextViewConfig: ExperimentViewConfig = importedViewConfig
         ? {

@@ -18,7 +18,8 @@ Web 瓦片服务作为影像源，将瓦片内容分配给多边形板块域，�
 本实现重建的是已发布的可视图层，不会恢复源属性、拓扑、要素标识或数值栅格值。
 
 可选本地文件扩展会独立保留 GeoTIFF/NetCDF 原始数值，提供标准 Cesium 影像，并在
-浏览器 Worker 中导出 COG。源码 Demo 已提供这一路径；在线演示可能仍为较早版本。
+浏览器 Worker 中导出 COG。源码 Demo 提供 TIFF/GeoTIFF 和普通 GeoJSON 上传；
+NetCDF 仅保留在可选库 API 中。在线演示可能仍为较早版本。
 详见[本地数据操作说明](apps/reconstructable-tile-layer-demo/README.zh-CN.md#本地科学栅格)
 及[逐数据集验证范围](scripts/raster/README.md#production-demo-and-scientific-meaning)。
 
@@ -35,7 +36,7 @@ Web 瓦片服务作为影像源，将瓦片内容分配给多边形板块域，�
 [`apps/reconstructable-tile-layer-demo`](apps/reconstructable-tile-layer-demo)
 中的应用就是 `pnpm dev` 启动的项目 Demo。它：
 
-- 基于 React、Vite、Cesium、四个 RTL 核心库及三个可选栅格库；
+- 基于 React、Vite、Cesium、统一 RTL 主包及三个可选栅格库；
 - 通过 Turbo 启动核心库的 Rollup 监听构建；
 - 支持替换影像服务、板块域数据和 ROT 模型；
 - 复现论文中的年代切换、源层级加载、视图感知细化、参考图层叠加和结果导出流程。
@@ -89,13 +90,38 @@ Vite 会在终端输出本地地址。命令运行期间，核心库的代码变
 
 ## 工作区
 
-| 工作区                            | 源代码                                       | README                                                                                                                       | 在 RTL 中的作用                                             |
-| --------------------------------- | -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
-| `rtl-finite-rotation`             | [目录](packages/rtl-finite-rotation)         | [English](packages/rtl-finite-rotation/README.md) · [简体中文](packages/rtl-finite-rotation/README.zh-CN.md)                 | 解析 ROT 记录、插值单位四元数并组合板块参考链。             |
-| `rtl-tile-plate-quadtree`         | [目录](packages/rtl-tile-plate-quadtree)     | [English](packages/rtl-tile-plate-quadtree/README.md) · [简体中文](packages/rtl-tile-plate-quadtree/README.zh-CN.md)         | 构建惰性板块域瓦片索引，并生成完整或经过裁剪的源瓦片条目。  |
-| `rtl-webgl-tile-processor`        | [目录](packages/rtl-webgl-tile-processor)    | [English](packages/rtl-webgl-tile-processor/README.md) · [简体中文](packages/rtl-webgl-tile-processor/README.zh-CN.md)       | 请求源影像、重映射 WebMercator 纹理并生成 GPU 掩膜图像。    |
-| `reconstructable-tile-layer`      | [目录](packages/reconstructable-tile-layer)  | [English](packages/reconstructable-tile-layer/README.md) · [简体中文](packages/reconstructable-tile-layer/README.zh-CN.md)   | 实现 RTL 对象、任务调度、保留记录、年代更新和 Cesium 图元。 |
-| `reconstructable-tile-layer-demo` | [目录](apps/reconstructable-tile-layer-demo) | [English](apps/reconstructable-tile-layer-demo/README.md) · [简体中文](apps/reconstructable-tile-layer-demo/README.zh-CN.md) | 使用可替换的服务、模型、年代和视图演示论文工作流。          |
+应用只需安装 RTL 主包及其 Cesium 对等依赖：
+
+```sh
+pnpm add reconstructable-tile-layer cesium
+```
+
+四个可复用核心模块位于 RTL 内部，保留独立构建和发布能力；RTL 自身产物已经包含
+这些模块的实现和类型声明，无需额外安装独立模块包。
+详见[公共入口说明](packages/reconstructable-tile-layer/README.zh-CN.md#公共入口与模块边界)。
+
+```text
+packages/
+  reconstructable-tile-layer/
+    src/                         图层 API 与流程编排
+    modules/
+      gplates-source/            文件读取与源记录
+      finite-rotation/           旋转与参考板块链
+      tile-plate-quadtree/       瓦片覆盖索引
+      webgl-tile-processor/      GPU 影像处理
+  rtl-raster-source/             可选数值栅格输入
+  rtl-raster-imagery-provider/   可选 Cesium 适配器
+  rtl-raster-converter/          可选 COG 导出
+```
+
+| 工作区                            | 源代码                                                                   | README                                                                                                                                                                               | 在 RTL 中的作用                                             |
+| --------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------- |
+| `rtl-gplates-source`              | [目录](packages/reconstructable-tile-layer/modules/gplates-source)       | [English](packages/reconstructable-tile-layer/modules/gplates-source/README.md) · [简体中文](packages/reconstructable-tile-layer/modules/gplates-source/README.zh-CN.md)             | 读取 ROT/GPML/GPMLZ，提供不依赖 Cesium 的模型数据适配。     |
+| `rtl-finite-rotation`             | [目录](packages/reconstructable-tile-layer/modules/finite-rotation)      | [English](packages/reconstructable-tile-layer/modules/finite-rotation/README.md) · [简体中文](packages/reconstructable-tile-layer/modules/finite-rotation/README.zh-CN.md)           | 消费 ROT 记录、插值单位四元数并组合板块参考链。             |
+| `rtl-tile-plate-quadtree`         | [目录](packages/reconstructable-tile-layer/modules/tile-plate-quadtree)  | [English](packages/reconstructable-tile-layer/modules/tile-plate-quadtree/README.md) · [简体中文](packages/reconstructable-tile-layer/modules/tile-plate-quadtree/README.zh-CN.md)   | 构建惰性板块域瓦片索引，并生成完整或经过裁剪的源瓦片条目。  |
+| `rtl-webgl-tile-processor`        | [目录](packages/reconstructable-tile-layer/modules/webgl-tile-processor) | [English](packages/reconstructable-tile-layer/modules/webgl-tile-processor/README.md) · [简体中文](packages/reconstructable-tile-layer/modules/webgl-tile-processor/README.zh-CN.md) | 请求源影像、重映射 WebMercator 纹理并生成 GPU 掩膜图像。    |
+| `reconstructable-tile-layer`      | [目录](packages/reconstructable-tile-layer)                              | [English](packages/reconstructable-tile-layer/README.md) · [简体中文](packages/reconstructable-tile-layer/README.zh-CN.md)                                                           | 实现 RTL 对象、任务调度、保留记录、年代更新和 Cesium 图元。 |
+| `reconstructable-tile-layer-demo` | [目录](apps/reconstructable-tile-layer-demo)                             | [English](apps/reconstructable-tile-layer-demo/README.md) · [简体中文](apps/reconstructable-tile-layer-demo/README.zh-CN.md)                                                         | 使用可替换的服务、模型、年代和视图演示论文工作流。          |
 
 每个工作区的 README 都说明了其方法作用、输入约定、用法和保留资源的生命周期。
 
@@ -110,19 +136,19 @@ Vite 会在终端输出本地地址。命令运行期间，核心库的代码变
 
 ## 方法与代码映射
 
-| 论文术语或阶段  | 推荐代码 API                                    | 软件包                                                |
-| --------------- | ----------------------------------------------- | ----------------------------------------------------- |
-| 可重建瓦片图层  | `ReconstructableTileLayer`                      | `reconstructable-tile-layer`                          |
-| 服务注册        | `provider`、`setImageryProvider`                | `reconstructable-tile-layer`                          |
-| 板块域要素      | `PlateDomainFeature`、`PlateDomainSourceConfig` | `reconstructable-tile-layer`                          |
-| `TileClipArea`  | 地理坐标和瓦片局部坐标下的多边形掩膜            | `rtl-tile-plate-quadtree`、`rtl-webgl-tile-processor` |
-| 有限旋转插值器  | `FiniteRotationInterpolator`                    | `rtl-finite-rotation`                                 |
-| 瓦片-板块四叉树 | `PlateDomainTileQuadtree`                       | `rtl-tile-plate-quadtree`                             |
-| 复合瓦片任务    | `CompositeTileTask`                             | `reconstructable-tile-layer`                          |
-| 已处理瓦片记录  | `ProcessedTileRecord`                           | `reconstructable-tile-layer`                          |
-| WebGL 处理器    | `WebGLTileProcessor`                            | `rtl-webgl-tile-processor`                            |
-| 年代感知更新    | `setReconstructionAge`                          | `reconstructable-tile-layer`                          |
-| 视图感知细化    | `refineTilesForView`                            | `reconstructable-tile-layer`                          |
+| 论文术语或阶段  | 推荐代码 API                                    | 软件包                                                                        |
+| --------------- | ----------------------------------------------- | ----------------------------------------------------------------------------- |
+| 可重建瓦片图层  | `ReconstructableTileLayer`                      | `reconstructable-tile-layer`                                                  |
+| 服务注册        | `provider`、`setImageryProvider`                | `reconstructable-tile-layer`                                                  |
+| 板块域要素      | `PlateDomainFeature`、`PlateDomainSourceConfig` | `reconstructable-tile-layer`                                                  |
+| `TileClipArea`  | 地理坐标和瓦片局部坐标下的多边形掩膜            | `reconstructable-tile-layer/quadtree`、`reconstructable-tile-layer/processor` |
+| 有限旋转插值器  | `FiniteRotationInterpolator`                    | `reconstructable-tile-layer/rotation`                                         |
+| 瓦片-板块四叉树 | `PlateDomainTileQuadtree`                       | `reconstructable-tile-layer/quadtree`                                         |
+| 复合瓦片任务    | `CompositeTileTask`                             | `reconstructable-tile-layer`                                                  |
+| 已处理瓦片记录  | `ProcessedTileRecord`                           | `reconstructable-tile-layer`                                                  |
+| WebGL 处理器    | `WebGLTileProcessor`                            | `reconstructable-tile-layer/processor`                                        |
+| 年代感知更新    | `setReconstructionAge`                          | `reconstructable-tile-layer`                                                  |
+| 视图感知细化    | `refineTilesForView`                            | `reconstructable-tile-layer`                                                  |
 
 这些名称对应论文方法部分的各个阶段：服务注册；板块域与旋转准备；瓦片-板块索引与
 任务调度；以及 GPU 掩膜和 Cesium 渲染。
@@ -130,8 +156,7 @@ Vite 会在终端输出本地地址。命令运行期间，核心库的代码变
 ## 最小 RTL 工作流
 
 ```ts
-import { ReconstructableTileLayer } from "reconstructable-tile-layer";
-import { WebGLTileProcessor } from "rtl-webgl-tile-processor";
+import { ReconstructableTileLayer, WebGLTileProcessor } from "reconstructable-tile-layer";
 
 const webglProcessor = new WebGLTileProcessor({
   outputType: "canvas",
@@ -177,13 +202,18 @@ RTL 接受使用地理坐标 EPSG:4326 或 WebMercator 瓦片方案的 Cesium �
 | --------------------- | -------------------------------------- |
 | `pnpm dev`            | 启动全部库的监听构建和 Vite demo。     |
 | `pnpm build`          | 构建全部库，然后生成 demo 的生产构建。 |
-| `pnpm build:packages` | 仅构建四个可发布库。                   |
+| `pnpm build:packages` | 仅构建工作区内的可发布库。             |
 | `pnpm check`          | 运行格式、lint、构建、类型检查和测试。 |
-| `pnpm test`           | 运行瓦片-板块四叉树测试。              |
+| `pnpm test`           | 运行全部工作区库的测试。               |
 | `pnpm clean`          | 删除工作区构建输出和 Turbo 缓存。      |
 
-共享 Rollup 配置会为全部四个库生成 ESM、CommonJS 和 TypeScript 声明输出。
-Cesium 保持为对等依赖，不会打包进这些软件包。
+共享 Rollup 配置为 RTL 和核心模块生成 ESM、CommonJS 和 TypeScript 声明输出；
+Raster 扩展保留原有 ESM/Worker 构建。Cesium 保持为对等依赖，不会打包进这些软件包。
+
+`pnpm --filter reconstructable-tile-layer build` 可单独构建 RTL，直接读取内嵌模块源码。
+例如 `pnpm --filter rtl-finite-rotation build` 可独立构建旋转包。开发依赖中的 workspace
+关系用于构建顺序和缓存失效；发布后的运行时依赖不含四个核心包名。根入口与子入口
+共享 Rollup chunks，RTL 的监听构建也会追踪内嵌源码的变更。
 
 如果只需启动 demo，请先确保各个库已经构建，再执行：
 
@@ -205,8 +235,11 @@ pnpm --filter reconstructable-tile-layer-demo dev
 pnpm check
 ```
 
-该命令会运行格式检查、lint、软件包和演示程序构建、TypeScript 检查，以及仓库
-原有的四叉树测试。
+该命令会运行格式检查、lint、软件包和演示程序构建、TypeScript 检查及库回归测试。
+构建后执行 `pnpm test:distribution`，会在项目外的临时目录安装真实 tarball，验证仅安装
+RTL、ESM/CJS 入口、类型声明闭合、独立处理器注入、Raster 扩展导入，以及不安装 Cesium
+时的独立 GPlates 读取。该检查不启动服务器，证据保存在临时目录。使用已有离线缓存时，
+设置 `RTL_PNPM_STORE` 并运行 `pnpm test:distribution --offline`。
 
 ## 引用
 

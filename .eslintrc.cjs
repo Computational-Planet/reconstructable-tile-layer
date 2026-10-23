@@ -61,7 +61,9 @@ module.exports = {
       },
     },
     {
-      files: ["packages/rtl-tile-plate-quadtree/src/QuadTreeTileProcesser.ts"],
+      files: [
+        "packages/reconstructable-tile-layer/modules/tile-plate-quadtree/src/QuadTreeTileProcesser.ts",
+      ],
       rules: {
         // Preserve the legacy diagnostics because runtime behavior must remain unchanged.
         "no-console": "off",
