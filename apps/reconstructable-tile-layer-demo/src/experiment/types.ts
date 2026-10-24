@@ -41,7 +41,11 @@ export type ExperimentOutputConfig = {
 
 export type ExperimentViewMode = "2D_RECTANGULAR" | "3D_GLOBE" | "3D_ORTHOGRAPHIC";
 
-export type ExperimentViewPreset = "antimeridian" | "south-pole" | "north-pole";
+export type ExperimentViewPreset =
+  | "prime-meridian"
+  | "antimeridian"
+  | "south-pole"
+  | "north-pole";
 
 export type ExperimentViewConfig = {
   caseId: string;

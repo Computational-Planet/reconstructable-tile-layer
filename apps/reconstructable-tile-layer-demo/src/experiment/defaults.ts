@@ -5,6 +5,7 @@ export const EXPERIMENT_VIEW_PRESETS: Record<
   ExperimentViewPreset,
   { label: string; targetLon: number; targetLat: number }
 > = {
+  "prime-meridian": { label: "Prime Meridian (0°, 0°)", targetLon: 0, targetLat: 0 },
   antimeridian: { label: "Antimeridian (±180°)", targetLon: 180, targetLat: 0 },
   "south-pole": { label: "South Pole", targetLon: 0, targetLat: -90 },
   "north-pole": { label: "North Pole", targetLon: 0, targetLat: 90 },

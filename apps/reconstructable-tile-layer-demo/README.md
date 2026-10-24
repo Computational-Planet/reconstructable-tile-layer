@@ -134,8 +134,9 @@ Parameters map to Cesium's [URL template](https://cesium.com/learn/cesiumjs/ref-
 
 **Camera & Output → Scene mode** offers **2D rectangular**, **3D (perspective)**,
 and **3D (orthographic)** (default). Orthographic mode keeps the 3D globe and reconstruction layers
-and uses parallel projection. **Quick view** centers the antimeridian (±180°), South Pole,
-or North Pole and fits the entire globe to the viewport. Presets retain the current 3D projection;
+and uses parallel projection. **Quick view** centers the prime meridian/equator intersection (0°, 0°),
+antimeridian (±180°), South Pole, or North Pole and fits the entire globe to the viewport.
+Presets retain the current 3D projection;
 from 2D they restore the last selected 3D projection. **Detailed** still provides manual target,
 range, orientation, and output controls.
 
