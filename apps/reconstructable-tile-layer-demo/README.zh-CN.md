@@ -176,15 +176,21 @@ pnpm --filter reconstructable-tile-layer-demo dev
 
 1. 从 [case_configs](../../case_configs/README.zh-CN.md) 导入配置，或选择板块模型和数据源后点击 **Add layer** 创建图层。
 2. 在 **Layers** 选中重建层，将 **Tile loading** 设为 **Specified level**（指定层级）或
-   **Current view · automatic level**（当前视图自动选级），点击 **Load tiles**。
+   **Current view**（当前视图），点击 **Load tiles**。当前视图模式下，不勾选 **Lock view level** 时自动选级；
+   勾选后输入固定层级，支持 L0。
 3. 调整全局年代、相机和输出。左侧 **Timeline & tiles** 的明确层级／视图操作完成后，也会更新该图层保存的加载方式。
 4. 按需导出运行信息或截图。
+
+左侧 **Timeline & tiles** 的 **Load Tiles By View Sphere** 旁也提供 **Lock view level**。
+两侧编辑当前图层的同一份设置，与全域加载的 **Tile level** 独立。输入范围来自数据源，
+包括本地 TIFF 准备后的实际范围。固定层级仍按当前视图筛选瓦片，但不会自动降低层级；完成后显示实际使用的层级。
 
 ## 实验配置
 
 实验 JSON 使用 `schemaVersion: 3`，必填的 `layerStack` 保存全部图层的来源、显示设置、时间范围、
-模型和加载方式。`loadMode: "level"` 使用指定的 `level`；`loadMode: "view"` 根据当前相机和 Provider
-范围自动选级，不使用 `level`。全局年代、视图、输出和参考多边形设置与图层一起恢复。
+模型和加载方式。`loadMode: "level"` 使用指定的 `level`；`loadMode: "view"` 使用可选的 `viewLevel`
+锁定层级，缺省时根据当前相机和 Provider 范围自动选级。`viewLevel: 0` 表示固定 L0。
+全局年代、视图、输出和参考多边形设置与图层一起恢复。
 
 导入先校验配置，再替换图层列表，并自动激活普通在线影像。重建层点击 **Load tiles** 执行保存的加载方式。
 本地 TIFF 或 GeoJSON 点击 **Prepare local file** 重选文件，再 **Restore selected layer**。

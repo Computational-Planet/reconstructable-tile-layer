@@ -352,19 +352,25 @@ export type SimpleGeoReconstructManagerOptions =
 /** Paper-aligned name for the existing manager option contract. */
 export type ReconstructableTileLayerOptions = SimpleGeoReconstructManagerOptions;
 
-/** Controls automatic fine-tile selection for the current view. */
+/** Controls tile selection for the current view, with an optional fixed level. */
 export interface ViewFineTileLoadOptions {
+  /**
+   * Exact source level, including 0. Omit for automatic selection.
+   * Must be a nonnegative integer within the provider's declared level range.
+   * Bypasses all automatic selection preferences below; invalid values reject the request.
+   */
+  level?: number;
   /** Explicit view rectangle; defaults to the current Cesium camera view. */
   viewRectangle?: Rectangle;
   /** Geological age in Ma; defaults to the manager's current age. */
   age?: number;
-  /** Desired projected tile width/height in CSS pixels. Defaults to 256. */
+  /** Automatic selection only: projected tile size in CSS pixels. Defaults to 256. */
   targetTileScreenSize?: number;
-  /** Upper bound used to reduce overly expensive raw-tile selections. */
+  /** Automatic selection only: tile-count budget used to lower the selected level. */
   maxRawViewTileCount?: number;
-  /** Minimum allowed imagery level. */
+  /** Automatic selection only: preferred minimum, bounded by the provider range. */
   minLevel?: number;
-  /** Maximum allowed imagery level. */
+  /** Automatic selection only: preferred maximum, bounded by the provider range. */
   maxLevel?: number;
 }
 

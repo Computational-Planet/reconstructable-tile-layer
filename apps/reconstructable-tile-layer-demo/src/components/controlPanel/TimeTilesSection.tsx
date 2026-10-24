@@ -1,7 +1,8 @@
 /** Renders reconstruction age controls. */
-import type { CSSProperties } from "react";
+import { useState, type CSSProperties } from "react";
 
 import type { ControlPanelProps } from "./ControlPanel.types";
+import { ViewLevelControl } from "../layers/ViewLevelControl";
 
 type TimeTilesSectionProps = Pick<
   ControlPanelProps,
@@ -14,6 +15,7 @@ type TimeTilesSectionProps = Pick<
   | "level"
   | "tileLevelRange"
   | "onLevelChange"
+  | "onViewLevelChange"
   | "onLoadLevel"
   | "onLoadFineInView"
   | "onClear"
@@ -30,6 +32,7 @@ export function TimeTilesSection({
   level,
   tileLevelRange,
   onLevelChange,
+  onViewLevelChange,
   onLoadLevel,
   onLoadFineInView,
   onClear,
@@ -37,6 +40,11 @@ export function TimeTilesSection({
   selectedLayer,
 }: TimeTilesSectionProps) {
   const disabled = busy || !initialized || modelNeedsApply;
+  const [viewLevelValid, setViewLevelValid] = useState(true);
+  const viewLevelLabel =
+    selectedLayer?.viewLevel === undefined
+      ? "automatic level"
+      : `fixed L${selectedLayer.viewLevel}`;
   const guidance = !selectedLayer
     ? "Add a data source in step 2, or select a layer in the Layers panel."
     : selectedLayer.status === "needs-file"
@@ -45,7 +53,7 @@ export function TimeTilesSection({
         ? "GeoJSON coordinates remain fixed. The timeline controls its visible age range."
         : selectedLayer.mode === "static"
           ? "Imagery loads automatically as you navigate. The timeline controls its visible age range."
-          : `Tile actions apply to ${selectedLayer.name}. Saved loading: ${selectedLayer.loadMode === "view" ? "current view, automatic level" : `L${selectedLayer.level}`}. All reconstruction layers follow the global timeline.`;
+          : `Tile actions apply to ${selectedLayer.name}. Saved loading: ${selectedLayer.loadMode === "view" ? `current view, ${viewLevelLabel}` : `L${selectedLayer.level}`}. All reconstruction layers follow the global timeline.`;
   const ageRangeStyle = {
     "--range-progress": `${Math.min(100, Math.max(0, (age / 1800) * 100))}%`,
   } as CSSProperties;
@@ -86,11 +94,21 @@ export function TimeTilesSection({
               Load Tiles By Level
             </button>
           </div>
+          <ViewLevelControl
+            key={selectedLayer?.id ?? "no-layer"}
+            value={selectedLayer?.viewLevel}
+            defaultLevel={level}
+            minimumLevel={tileLevelRange?.minimumLevel ?? 0}
+            maximumLevel={tileLevelRange?.maximumLevel ?? 24}
+            disabled={disabled}
+            onChange={onViewLevelChange}
+            onValidityChange={setViewLevelValid}
+          />
           <div className="map-secondary-actions">
             <button
               className="secondary-button subtle-button"
               type="button"
-              disabled={disabled}
+              disabled={disabled || !viewLevelValid}
               onClick={onLoadFineInView}
             >
               Load Tiles By View Sphere

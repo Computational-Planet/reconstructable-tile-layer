@@ -63,6 +63,7 @@ import {
   getProviderLevelBounds,
   resolveFineTileViewRectangle,
   resolveFineViewLevel,
+  validateFixedViewLevel,
 } from "./manager/viewLevel.js";
 
 export type {
@@ -459,6 +460,8 @@ export class SimpleGeoReconstructManager {
   /**
    * Loads fine tiles intersecting the current or supplied view rectangle.
    * When no level is supplied, a level is selected from the projected tile size.
+   * An explicit numeric argument overrides options.level. Fixed levels are never
+   * lowered by automatic selection preferences and must be within the provider range.
    */
   async loadFineTilesInView(
     viewer: Viewer,
@@ -466,66 +469,60 @@ export class SimpleGeoReconstructManager {
   ): Promise<ViewFineTileLoadResult>;
   async loadFineTilesInView(
     viewer: Viewer,
-    level: number,
+    level: number | undefined,
     options?: ViewFineTileLoadOptions,
   ): Promise<ViewFineTileLoadResult>;
   async loadFineTilesInView(
     viewer: Viewer,
-    levelOrOptions: number | ViewFineTileLoadOptions = {},
+    levelOrOptions?: number | ViewFineTileLoadOptions,
     options: ViewFineTileLoadOptions = {},
   ): Promise<ViewFineTileLoadResult> {
-    if (typeof levelOrOptions === "number") {
-      return this.loadFineTilesInViewAtLevel(viewer, levelOrOptions, options);
-    }
-
-    const resolvedOptions = levelOrOptions;
+    const resolvedOptions =
+      typeof levelOrOptions === "number"
+        ? { ...options, level: levelOrOptions }
+        : (levelOrOptions ?? options);
+    const fixedLevel =
+      resolvedOptions.level === undefined
+        ? undefined
+        : validateFixedViewLevel(resolvedOptions.level, this._provider);
     const viewRectangle = resolveFineTileViewRectangle(viewer, this._provider, resolvedOptions);
     if (!viewRectangle) {
       return createFineTileLoadResult(-1, 0, 0, "no-view-rectangle");
     }
 
-    const level = resolveFineViewLevel(viewer, this._provider, viewRectangle, resolvedOptions);
+    const level =
+      fixedLevel ?? resolveFineViewLevel(viewer, this._provider, viewRectangle, resolvedOptions);
     return this.loadTilesInViewAtResolvedLevel(viewer, level, viewRectangle, resolvedOptions);
   }
 
-  /** Loads view-intersecting tiles at an explicit, clamped imagery level. */
+  /** Loads view-intersecting tiles at exactly this level; rejects invalid provider levels. */
   async loadFineTilesInViewAtLevel(
     viewer: Viewer,
     level: number,
     options: ViewFineTileLoadOptions = {},
   ): Promise<ViewFineTileLoadResult> {
-    const viewRectangle = resolveFineTileViewRectangle(viewer, this._provider, options);
-    if (!viewRectangle) {
-      return createFineTileLoadResult(-1, 0, 0, "no-view-rectangle");
-    }
-
-    return this.loadTilesInViewAtResolvedLevel(
-      viewer,
-      clampFineViewLevel(level, this._provider, options),
-      viewRectangle,
-      options,
-    );
+    return this.loadFineTilesInView(viewer, level, options);
   }
 
-  /** Refines the RTL from the current or supplied reconstructed-frame view. */
+  /** Refines the reconstructed-frame view. Omit level for automatic selection; 0 is valid. */
   async refineTilesForView(
     viewer: Viewer,
     options?: ViewFineTileLoadOptions,
   ): Promise<ViewFineTileLoadResult>;
   async refineTilesForView(
     viewer: Viewer,
-    level: number,
+    level: number | undefined,
     options?: ViewFineTileLoadOptions,
   ): Promise<ViewFineTileLoadResult>;
   async refineTilesForView(
     viewer: Viewer,
-    levelOrOptions: number | ViewFineTileLoadOptions = {},
+    levelOrOptions?: number | ViewFineTileLoadOptions,
     options: ViewFineTileLoadOptions = {},
   ): Promise<ViewFineTileLoadResult> {
-    if (typeof levelOrOptions === "number") {
-      return this.loadFineTilesInView(viewer, levelOrOptions, options);
+    if (typeof levelOrOptions === "object") {
+      return this.loadFineTilesInView(viewer, levelOrOptions);
     }
-    return this.loadFineTilesInView(viewer, levelOrOptions);
+    return this.loadFineTilesInView(viewer, levelOrOptions, options);
   }
 
   private async loadTilesInViewAtResolvedLevel(

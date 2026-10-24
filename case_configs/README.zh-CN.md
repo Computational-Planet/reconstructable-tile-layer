@@ -10,7 +10,8 @@
 1. 在 **Experiment Import** 中选择 **Custom / uploaded config**，点击 **Upload**，并从本目录中选择一个 JSON 文件。
 2. 导入会恢复全局地质年代、视图与输出设置、参考叠加层，以及右侧 **Layers** 中的重建图层。
 3. 选中恢复的图层，点击 **Load tiles**。图层的 **Tile loading** 决定使用 **Specified level**
-   （指定层级）还是 **Current view · automatic level**（当前视图自动选级）。导入本身不请求重建瓦片，无需再次 **Add layer**。
+   （指定层级）还是 **Current view**（当前视图）。当前视图模式可勾选 **Lock view level** 锁定层级，
+   未勾选时自动选级。导入本身不请求重建瓦片，无需再次 **Add layer**。
 4. 按需调整全局年代或视图。按视图加载时，移动相机后再次加载以更新覆盖范围。通过 **Experiment Export**
    保存配置及本次实际运行的测量结果。
 
@@ -21,7 +22,8 @@
 标识服务示例，不覆盖已保存的连接参数。
 
 - `loadMode: "level"`：按 `level` 指定的源瓦片层级加载。
-- `loadMode: "view"`：根据当前相机视图和 Provider 范围自动选择层级；`level` 仅保留为之后按层级加载时的设置。
+- `loadMode: "view"`：可选的 `viewLevel` 锁定源瓦片层级（包括 L0），缺省时根据当前相机视图和 Provider
+  范围自动选级；`level` 仅保留为之后按层级加载时的设置。
 - `timeMa`、视图、输出尺寸和参考多边形设置作用于整个场景。
 - `sources` 同时初始化来源编辑器；每个图层由自己的 `source` 和 `model` 决定，之后修改编辑器不会改动已有图层。
 

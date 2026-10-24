@@ -83,6 +83,7 @@ export type ControlPanelProps = {
   onGraticuleEnabledChange: (value: boolean) => void;
   onImportExperimentConfig: (file: File | null) => void;
   onLevelChange: (value: number) => void;
+  onViewLevelChange: (value: number | undefined) => void;
   onLoadFineInView: () => void;
   onLoadLevel: () => void;
   onPolygonRenderIntentChange: (value: PolygonRenderIntentMode) => void;

@@ -198,17 +198,25 @@ pnpm --filter reconstructable-tile-layer-demo dev
 1. Import a configuration from [case_configs](../../case_configs/README.md), or choose a plate model
    and data source and click **Add layer** to create a layer.
 2. In **Layers**, select a reconstruction layer. Set **Tile loading** to **Specified level** or
-   **Current view · automatic level**, then click **Load tiles**.
+   **Current view**, then click **Load tiles**. For the current view, leave **Lock view level**
+   unchecked for automatic selection, or check it and enter a fixed level (including L0).
 3. Adjust the global geological age, camera and output. The explicit level/view actions in
    **Timeline & tiles** update the selected layer's saved loading mode when they complete.
 4. Export runtime information or a screenshot when needed.
+
+**Timeline & tiles** also provides **Lock view level** beside **Load Tiles By View Sphere**.
+Both panels edit the same setting for the selected layer. The fixed view level is independent of
+the full-extent **Tile level** input. Inputs use the source's available level range, including
+local TIFF limits after preparation. Fixed view loading retains spatial filtering and never
+automatically lowers the requested level; completion reports the actual level used.
 
 ## Experiment configuration
 
 Experiment JSON uses `schemaVersion: 3` with a required `layerStack` containing all layer sources,
 display settings, age ranges, models and loading choices. Each layer retains `loadMode: "level"`
-or `"view"`; `level` is used only for level-based loading. View-based loading selects the level
-automatically from the current camera and provider limits. The global age, view, output and
+or `"view"`; `level` is used only for level-based loading. An optional `viewLevel` locks the level
+for view-based loading; omitting it selects automatically from the current camera and provider
+limits. `viewLevel: 0` locks L0. The global age, view, output and
 reference polygon settings are restored alongside the layers.
 
 Import validates the configuration before replacing the layer list, then activates ordinary online

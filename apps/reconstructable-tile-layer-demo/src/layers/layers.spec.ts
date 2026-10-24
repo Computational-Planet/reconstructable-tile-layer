@@ -67,6 +67,32 @@ const layer: LayerDefinition = {
   level: 2,
 };
 describe("layer configuration", () => {
+  it.each([undefined, 0, 5])(
+    "round trips optional view level %s independently of the full-extent level",
+    (viewLevel) => {
+      const exported = JSON.parse(
+        JSON.stringify(exportLayerDefinitions([{ ...layer, viewLevel, level: 2 }])),
+      );
+      const restored = parseLayerDefinitions(exported)[0];
+      expect(restored.viewLevel).toBe(viewLevel);
+      expect(restored.level).toBe(2);
+      if (viewLevel === undefined) expect(exported[0]).not.toHaveProperty("viewLevel");
+    },
+  );
+
+  it.each([null, "0", -1, 1.5, NaN, 25])(
+    "rejects malformed fixed view level %s before import",
+    (viewLevel) => {
+      expect(() => parseLayerDefinitions([{ ...layer, viewLevel }])).toThrow(/Fixed view level/);
+    },
+  );
+
+  it("checks fixed view levels against the service range even while full-extent loading is selected", () => {
+    expect(() => parseLayerDefinitions([{ ...layer, viewLevel: 20, loadMode: "level" }])).toThrow(
+      /service range/,
+    );
+  });
+
   it("round trips order and display settings while marking local model files for reselection", () => {
     const staticLayer = {
       ...layer,

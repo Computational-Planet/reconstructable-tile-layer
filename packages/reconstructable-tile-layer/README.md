@@ -212,15 +212,29 @@ an identity anchor. Ages are millions of years ago (Ma).
 - `loadSourceTilesAtLevel(viewer, level)` loads all relevant source tiles at
   one explicit level.
 - `refineTilesForView(viewer, options)` selects a source level from the current
-  reconstructed view.
-- `refineTilesForView(viewer, level, options)` uses an explicit clamped level
-  while keeping view filtering.
+  reconstructed view, or locks it to `options.level` when supplied.
+- `refineTilesForView(viewer, level, options)` locks the source level while keeping
+  view filtering. An `undefined` level uses `options.level`, or automatic selection
+  if neither is set. A numeric argument takes precedence over `options.level`.
 - `setReconstructionAge(age)` changes visibility and plate transforms while
   reusing retained processed images.
 
 A refinement result contains the selected `level`, `loadedCount`, and
 `taskCount`. `skippedReason` explains a no-op caused by missing view state,
 unprepared input, or a stale age request.
+
+```ts
+await rtl.refineTilesForView(viewer); // automatic selection
+await rtl.refineTilesForView(viewer, { level: 0 }); // current view at exactly L0
+const level: number | undefined = fixedLevelEnabled ? selectedLevel : undefined;
+await rtl.refineTilesForView(viewer, level);
+```
+
+A fixed level must be a nonnegative integer within the provider's declared range;
+invalid values reject with `RangeError`. `minLevel`, `maxLevel`,
+`targetTileScreenSize`, and `maxRawViewTileCount` affect automatic selection only.
+Fixed levels are not lowered to satisfy that tile budget. The same rules apply to
+`loadFineTilesInView` and `loadFineTilesInViewAtLevel`.
 
 ## Composite tasks and retained state
 

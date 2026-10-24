@@ -1,5 +1,9 @@
 import { ImageryLayer, PrimitiveCollection, type ImageryProvider, type Viewer } from "cesium";
-import { ReconstructableTileLayer, type PrimitiveTransformMode } from "reconstructable-tile-layer";
+import {
+  ReconstructableTileLayer,
+  type PrimitiveTransformMode,
+  type ViewAwareTileLoadResult,
+} from "reconstructable-tile-layer";
 import type { WebGLTileProcessor } from "reconstructable-tile-layer/processor";
 import { createTileServiceProvider } from "../cesium/providers";
 import { resolveDemoAssetUrl } from "../utils/demoAssetUrl";
@@ -77,6 +81,8 @@ export class LayerController {
         status: entry.status,
         message: entry.message,
         effectiveVisible: isLayerVisible(entry.definition, this.age),
+        tileLevelRange:
+          entry.definition.mode === "reconstructable" ? this.levelRange(entry) : undefined,
       })),
     };
   }
@@ -85,6 +91,16 @@ export class LayerController {
   }
   private find(id: string | null) {
     return this.entries.find((entry) => entry.definition.id === id);
+  }
+  private levelRange(entry: Entry) {
+    // 本地 TIFF 的范围只有准备文件后才能准确取得；两侧面板使用同一份 provider 范围。
+    const source = entry.definition.source;
+    const range =
+      entry.runtime?.source.provider ?? (source.kind === "service" ? source.config : undefined);
+    return {
+      minimumLevel: range?.minimumLevel ?? 0,
+      maximumLevel: Math.min(range?.maximumLevel ?? 24, 24),
+    };
   }
   private current(entry: Entry) {
     return !this.disposed && this.entries.includes(entry);
@@ -131,6 +147,7 @@ export class LayerController {
               ageRange: restored.definition.ageRange,
               loadMode: restored.definition.loadMode,
               level: restored.definition.level,
+              viewLevel: restored.definition.viewLevel,
             }
           : {}),
       },
@@ -306,7 +323,10 @@ export class LayerController {
   update(
     id: string,
     patch: Partial<
-      Pick<LayerDefinition, "name" | "visible" | "opacity" | "ageRange" | "level" | "loadMode">
+      Pick<
+        LayerDefinition,
+        "name" | "visible" | "opacity" | "ageRange" | "level" | "loadMode" | "viewLevel"
+      >
     >,
   ) {
     const entry = this.find(id);
@@ -329,6 +349,18 @@ export class LayerController {
         next.level > (next.source.config.maximumLevel ?? 24))
     )
       throw new Error("Layer tile level is outside its service range.");
+    const range = this.levelRange(entry);
+    // 重选 TIFF 后的范围可能变小；允许先调整显隐等属性，在修改层级或加载时校验范围。
+    if (
+      "viewLevel" in patch &&
+      next.viewLevel !== undefined &&
+      (!Number.isInteger(next.viewLevel) ||
+        next.viewLevel < range.minimumLevel ||
+        next.viewLevel > range.maximumLevel)
+    )
+      throw new Error(
+        `Choose a fixed view level between L${range.minimumLevel} and L${range.maximumLevel}.`,
+      );
     entry.definition = next;
     this.syncPresentation();
     this.emit();
@@ -368,10 +400,11 @@ export class LayerController {
     // 无显式参数时执行已保存的加载方式；左侧的两个快捷操作可主动覆盖它。
     const useView = inView ?? (level === undefined && entry.definition.loadMode === "view");
     const targetLevel = level ?? entry.definition.level;
+    const viewLevel = entry.definition.viewLevel;
     const token = ++entry.operation;
     entry.status = "loading";
     entry.message = useView
-      ? "Loading current view (automatic level)…"
+      ? `Loading current view (${viewLevel === undefined ? "automatic level" : `fixed L${viewLevel}`})…`
       : `Loading L${targetLevel}…`;
     this.emit();
     try {
@@ -379,13 +412,15 @@ export class LayerController {
       if (!this.current(entry) || token !== entry.operation) return;
       const runtime = entry.runtime!;
       const provider = runtime.source.provider;
+      const requestedLevel = useView ? viewLevel : targetLevel;
       if (
-        !useView &&
-        (!Number.isInteger(targetLevel) ||
-          targetLevel < (provider.minimumLevel ?? 0) ||
-          targetLevel > (provider.maximumLevel ?? 24))
+        requestedLevel !== undefined &&
+        (!Number.isInteger(requestedLevel) ||
+          requestedLevel < (provider.minimumLevel ?? 0) ||
+          requestedLevel > Math.min(provider.maximumLevel ?? 24, 24))
       )
         throw new Error(`Choose L${provider.minimumLevel ?? 0}–L${provider.maximumLevel ?? 24}.`);
+      let viewResult: ViewAwareTileLoadResult | undefined;
       if (runtime.rtl) {
         const coverage = useView ? "view" : `level:${targetLevel}`;
         // RTL 可累积多个 LOD；图层透明度要求同一来源在同一区域只混合一次。
@@ -393,11 +428,14 @@ export class LayerController {
         if (runtime.coverage && (useView || runtime.coverage !== coverage))
           runtime.rtl.clear(this.viewer);
         runtime.coverage = coverage;
-        if (useView)
-          await runtime.rtl.refineTilesForView(this.viewer, {
+        if (useView) {
+          viewResult = await runtime.rtl.refineTilesForView(this.viewer, {
+            ...(viewLevel === undefined ? {} : { level: viewLevel }),
             minLevel: Math.max(provider.minimumLevel ?? 0, Math.min(2, provider.maximumLevel ?? 2)),
           });
-        else await runtime.rtl.loadSourceTilesAtLevel(this.viewer, targetLevel);
+          if (viewResult.skippedReason)
+            throw new Error(`View tiles not loaded: ${viewResult.skippedReason}.`);
+        } else await runtime.rtl.loadSourceTilesAtLevel(this.viewer, targetLevel);
         if (!this.current(entry) || token !== entry.operation) return;
         await runtime.rtl.setReconstructionAge(this.age);
       }
@@ -409,7 +447,7 @@ export class LayerController {
       };
       entry.status = "ready";
       entry.message = useView
-        ? "Current view loaded (automatic level)."
+        ? `Current view loaded at L${viewResult!.level} (${viewLevel === undefined ? "automatic" : "fixed"} level).`
         : `L${targetLevel} loaded.`;
     } catch (error) {
       if (!this.current(entry) || token !== entry.operation) return;

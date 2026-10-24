@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { LayerController } from "../../layers/LayerController";
 import type { LayerDefinition, LayerView } from "../../layers/types";
 import { validateAgeRange } from "../../layers/temporal";
+import { ViewLevelControl } from "./ViewLevelControl";
 
 interface Props {
   layer: LayerView;
@@ -29,11 +30,11 @@ export function LayerItem({
   const [oldest, setOldest] = useState(String(layer.ageRange?.oldestMa ?? age));
   const [level, setLevel] = useState(layer.level);
   const [error, setError] = useState("");
+  const [viewLevelValid, setViewLevelValid] = useState(true);
   const busy = layer.status === "loading";
   const vector = layer.source.kind === "geojson";
-  const minimumLevel = layer.source.kind === "service" ? layer.source.config.minimumLevel : 0;
-  const maximumLevel =
-    layer.source.kind === "service" ? (layer.source.config.maximumLevel ?? 24) : 24;
+  const minimumLevel = layer.tileLevelRange?.minimumLevel ?? 0;
+  const maximumLevel = layer.tileLevelRange?.maximumLevel ?? 24;
   useEffect(() => {
     setName(layer.name);
   }, [layer.name]);
@@ -255,9 +256,20 @@ export function LayerItem({
                   }}
                 >
                   <option value="level">Specified level</option>
-                  <option value="view">Current view · automatic level</option>
+                  <option value="view">Current view</option>
                 </select>
               </label>
+              {layer.loadMode === "view" && (
+                <ViewLevelControl
+                  value={layer.viewLevel}
+                  defaultLevel={layer.level}
+                  minimumLevel={minimumLevel}
+                  maximumLevel={maximumLevel}
+                  disabled={busy}
+                  onChange={(viewLevel) => controller.update(layer.id, { viewLevel })}
+                  onValidityChange={setViewLevelValid}
+                />
+              )}
               <div className="layer-load-row">
                 {layer.loadMode === "level" && (
                   <label>
@@ -284,7 +296,7 @@ export function LayerItem({
                 )}
                 <button
                   type="button"
-                  disabled={busy}
+                  disabled={busy || (layer.loadMode === "view" && !viewLevelValid)}
                   onClick={() =>
                     void controller.load(layer.id, layer.loadMode === "level" ? level : undefined)
                   }
@@ -292,11 +304,6 @@ export function LayerItem({
                   Load tiles
                 </button>
               </div>
-              {layer.loadMode === "view" && (
-                <p className="field-hint">
-                  Uses the current camera view and automatically selects a tile level.
-                </p>
-              )}
               <button
                 type="button"
                 className="secondary-button"

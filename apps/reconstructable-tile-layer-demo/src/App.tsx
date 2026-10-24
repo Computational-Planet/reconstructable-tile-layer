@@ -180,7 +180,8 @@ function App() {
     focusSource();
   };
   const loadSelected = (inView = false) => {
-    if (layers.selected) void layerControllerRef.current?.load(layers.selected.id, level, inView);
+    if (layers.selected)
+      void layerControllerRef.current?.load(layers.selected.id, inView ? undefined : level, inView);
   };
 
   const experimentIO = useExperimentIO({
@@ -383,14 +384,7 @@ function App() {
         anchorPlateIdInput={anchorPlateIdInput}
         initialized={initialized}
         level={level}
-        tileLevelRange={
-          initialized && appliedService
-            ? {
-                minimumLevel: appliedService.config.minimumLevel,
-                maximumLevel: appliedService.config.maximumLevel ?? undefined,
-              }
-            : undefined
-        }
+        tileLevelRange={layers.selected?.tileLevelRange}
         polygonRenderIntent={polygonRenderIntent}
         primitiveTransformMode={primitiveTransformMode}
         providerKey={providerKey}
@@ -438,6 +432,10 @@ function App() {
         onGraticuleEnabledChange={setGraticuleEnabled}
         onImportExperimentConfig={experimentIO.handleImportExperimentConfig}
         onLevelChange={setLevel}
+        onViewLevelChange={(viewLevel) => {
+          if (layers.selected)
+            layerControllerRef.current?.update(layers.selected.id, { viewLevel });
+        }}
         onLoadFineInView={() => loadSelected(true)}
         onLoadLevel={() => loadSelected()}
         onPolygonRenderIntentChange={setPolygonRenderIntent}

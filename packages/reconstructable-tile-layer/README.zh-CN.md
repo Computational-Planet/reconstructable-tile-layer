@@ -186,12 +186,25 @@ EPSG:4326 和 WebMercator 瓦片方案。使用 `setImageryProvider(viewer, prov
 
 - `loadRootTiles(viewer)` 创建自适应的初始表示。
 - `loadSourceTilesAtLevel(viewer, level)` 加载一个明确层级上的所有相关源瓦片。
-- `refineTilesForView(viewer, options)` 根据当前重建视图选择源层级。
-- `refineTilesForView(viewer, level, options)` 使用显式限制后的层级，同时保留视图过滤。
+- `refineTilesForView(viewer, options)` 根据当前重建视图自动选级；提供 `options.level` 时锁定该层级。
+- `refineTilesForView(viewer, level, options)` 锁定源层级，同时保留视图过滤。`level` 为 `undefined` 时
+  使用 `options.level`，两者均未设置则自动选级。显式数字参数优先于 `options.level`。
 - `setReconstructionAge(age)` 更改可见性和板块变换，同时复用保留的已处理图像。
 
 细化结果包含选定的 `level`、`loadedCount` 和 `taskCount`。如果因缺少视图状态、
 输入尚未准备或年代请求已经过期而未执行操作，`skippedReason` 会说明原因。
+
+```ts
+await rtl.refineTilesForView(viewer); // 自动选级
+await rtl.refineTilesForView(viewer, { level: 0 }); // 当前视图，严格使用 L0
+const level: number | undefined = fixedLevelEnabled ? selectedLevel : undefined;
+await rtl.refineTilesForView(viewer, level);
+```
+
+固定层级必须是数据源声明范围内的非负整数，非法值以 `RangeError` 拒绝。
+`minLevel`、`maxLevel`、`targetTileScreenSize` 和 `maxRawViewTileCount` 仅用于自动选级；
+固定层级不会因瓦片数量预算而降级。`loadFineTilesInView` 和 `loadFineTilesInViewAtLevel`
+采用相同规则。
 
 ## 复合任务与保留状态
 

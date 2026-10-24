@@ -13,7 +13,8 @@ Tile Layer demo. The subdirectories correspond to the individual cases.
 2. The import restores the geological age, camera/output settings, reference overlay and
    reconstruction layer in the right-hand **Layers** panel.
 3. Select the restored layer and click **Load tiles**. Its **Tile loading** setting specifies
-   either **Specified level** or **Current view · automatic level**. Importing a case does
+   either **Specified level** or **Current view**. In current-view mode, **Lock view level**
+   optionally fixes the level; leave it unchecked for automatic selection. Importing a case does
    not fetch reconstruction tiles; no additional **Add layer** action is needed.
 4. Change the global timeline or view as needed. Load again after moving the camera when
    using current-view loading. Use **Experiment Export** to save the configuration and
@@ -27,8 +28,9 @@ opacity, `loadMode` and `level`. `source.config` defines requests; `source.examp
 identifies the service example without replacing the saved connection.
 
 - `loadMode: "level"` loads the specified source-tile `level`.
-- `loadMode: "view"` selects the level automatically from the current camera view and
-  provider limits. The stored `level` is only the setting for a subsequent level-based load.
+- `loadMode: "view"` uses an optional `viewLevel` to lock the source level (including L0), or
+  selects automatically from the current camera and provider limits when it is omitted.
+  The stored `level` is only the setting for a subsequent level-based load.
 - `timeMa`, view/output settings and reference polygon settings apply to the whole scene.
 - `sources` also initializes the source editor; each layer's `source` and `model` govern
   that layer independently of later editor changes.

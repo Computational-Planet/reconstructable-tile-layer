@@ -75,6 +75,7 @@ export function ControlPanel(props: ControlPanelProps) {
           level={props.level}
           tileLevelRange={props.tileLevelRange}
           onLevelChange={props.onLevelChange}
+          onViewLevelChange={props.onViewLevelChange}
           onLoadLevel={props.onLoadLevel}
           onLoadFineInView={props.onLoadFineInView}
           onClear={props.onClear}

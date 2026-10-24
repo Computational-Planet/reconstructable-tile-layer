@@ -18,6 +18,7 @@ import type { WebGLTileProcessor } from "reconstructable-tile-layer/processor";
 import { ReconstructableTileLayer } from "reconstructable-tile-layer";
 import { emptyTileServiceConfig } from "../cesium/tileServiceConfig";
 import { LayerController } from "./LayerController";
+import { exportLayerDefinitions, parseLayerDefinitions } from "./serialization";
 import type { LayerDefinition, NewLayer } from "./types";
 import { parseGeoJson, type LocalGeoJsonDescriptor } from "../vector/geojson";
 
@@ -65,6 +66,69 @@ function setup() {
 }
 
 describe("saved reconstruction loading", () => {
+  it("keeps fixed view levels per layer, preserves L0 through export/import, and returns to automatic selection", async () => {
+    vi.spyOn(ReconstructableTileLayer.prototype, "initialize").mockResolvedValue();
+    vi.spyOn(ReconstructableTileLayer.prototype, "bindSceneModeSync").mockReturnValue(() => {});
+    vi.spyOn(ReconstructableTileLayer.prototype, "setReconstructionAge").mockResolvedValue();
+    vi.spyOn(ReconstructableTileLayer.prototype, "destroy").mockImplementation(() => {});
+    const clear = vi
+      .spyOn(ReconstructableTileLayer.prototype, "clear")
+      .mockImplementation(() => {});
+    const viewLoad = vi
+      .spyOn(ReconstructableTileLayer.prototype, "refineTilesForView")
+      .mockResolvedValue({ level: 0, loadedCount: 2, taskCount: 2 });
+    const { controller, viewer } = setup();
+    const model = {
+      name: "Test model",
+      featureUrl: "/plates.gpml",
+      featureLabel: "plates",
+      rotationUrls: ["/model.rot"],
+      rotationLabels: ["model.rot"],
+      anchorPlateId: "0",
+    };
+    controller.restore([
+      {
+        ...ordinary,
+        id: "first",
+        mode: "reconstructable",
+        model,
+        loadMode: "view",
+        level: 4,
+        viewLevel: 0,
+      },
+      { ...ordinary, id: "second", mode: "reconstructable", model, loadMode: "view", viewLevel: 5 },
+    ]);
+    await controller.load("first");
+    expect(viewLoad).toHaveBeenLastCalledWith(viewer, { minLevel: 2, level: 0 });
+    expect(controller.snapshot.layers[0].message).toBe("Current view loaded at L0 (fixed level).");
+    expect(controller.definitions[0].level).toBe(4);
+    controller.select("second");
+    expect(controller.snapshot.layers[1].viewLevel).toBe(5);
+    controller.select("first");
+    expect(controller.snapshot.layers[0].viewLevel).toBe(0);
+    for (const viewLevel of [-1, 1.5, NaN, 19])
+      expect(() => controller.update("first", { viewLevel })).toThrow(/fixed view level/);
+    expect(controller.definitions[0].viewLevel).toBe(0);
+    expect(clear).not.toHaveBeenCalled();
+
+    const saved = parseLayerDefinitions(
+      JSON.parse(JSON.stringify(exportLayerDefinitions(controller.definitions))),
+    );
+    controller.restore(saved);
+    await controller.load("first");
+    expect(viewLoad).toHaveBeenLastCalledWith(viewer, { minLevel: 2, level: 0 });
+    controller.update("first", { viewLevel: undefined });
+    viewLoad.mockResolvedValue({ level: 3, loadedCount: 1, taskCount: 1 });
+    await controller.load("first", undefined, true);
+    expect(viewLoad).toHaveBeenLastCalledWith(viewer, { minLevel: 2 });
+    expect(controller.snapshot.layers[0].message).toBe(
+      "Current view loaded at L3 (automatic level).",
+    );
+    expect(controller.definitions[0].level).toBe(4);
+    expect(controller.definitions[1].viewLevel).toBe(5);
+    expect(JSON.parse(JSON.stringify(controller.definitions))[0]).not.toHaveProperty("viewLevel");
+  });
+
   it("dispatches the saved mode, records explicit overrides, and replays the result", async () => {
     // 只替代 RTL 的耗时入口，验证真实控制器如何调用库和更新可导出的定义。
     vi.spyOn(ReconstructableTileLayer.prototype, "initialize").mockResolvedValue();
@@ -147,9 +211,28 @@ describe("saved reconstruction loading", () => {
     await controller.load(id);
     expect(viewLoad).toHaveBeenCalledWith(viewer, { minLevel: 5 });
     expect(controller.snapshot.layers[0].status).toBe("ready");
+    expect(controller.snapshot.layers[0].tileLevelRange).toEqual({
+      minimumLevel: 5,
+      maximumLevel: 7,
+    });
+    expect(() => controller.update(id, { viewLevel: 4 })).toThrow(/L5.*L7/);
+    controller.update(id, { viewLevel: 7 });
+    viewLoad.mockResolvedValue({ level: 7, loadedCount: 0, taskCount: 0 });
+    await controller.load(id);
+    expect(viewLoad).toHaveBeenLastCalledWith(viewer, { minLevel: 5, level: 7 });
+    expect(controller.snapshot.layers[0].message).toBe("Current view loaded at L7 (fixed level).");
     await controller.load(id, 2, false);
     expect(controller.snapshot.layers[0].message).toContain("L5–L7");
     expect(controller.definitions[0].loadMode).toBe("view");
+    viewLoad.mockResolvedValue({
+      level: -1,
+      loadedCount: 0,
+      taskCount: 0,
+      skippedReason: "no-view-rectangle",
+    });
+    await controller.load(id);
+    expect(controller.snapshot.layers[0].status).toBe("error");
+    expect(controller.snapshot.layers[0].message).toContain("no-view-rectangle");
   });
 });
 

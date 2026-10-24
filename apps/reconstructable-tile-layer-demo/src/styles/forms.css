@@ -225,6 +225,27 @@ button:disabled {
   height: 16px;
 }
 
+.view-level-control {
+  display: grid;
+  gap: 6px;
+}
+
+.view-level-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 68px;
+  gap: 10px;
+  align-items: center;
+}
+
+.view-level-row .checkbox-row,
+.view-level-control .field-hint {
+  margin: 0;
+}
+
+.view-level-row input[aria-invalid="true"] {
+  border-color: #ffc58e;
+}
+
 .section-actions {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

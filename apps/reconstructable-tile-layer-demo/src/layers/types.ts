@@ -3,7 +3,7 @@ import type { LocalRasterDescriptor, ModelSelection } from "../raster/context";
 import type { LocalGeoJsonDescriptor } from "../vector/geojson";
 
 export type LayerMode = "reconstructable" | "static";
-/** level 使用指定层级；view 根据当前视图自动选择层级。 */
+/** level 加载指定层级的全部瓦片；view 只加载当前视图内的瓦片。 */
 export type TileLoadMode = "level" | "view";
 export type AgeRange = { youngestMa: number; oldestMa: number };
 export type LayerSource =
@@ -24,14 +24,23 @@ export interface LayerDefinition {
   ageRange: AgeRange | null;
   /** 重建图层的加载方式；普通图层由 Cesium 自动管理加载。 */
   loadMode: TileLoadMode;
-  /** 按层级加载时使用；按视图加载会自动选级，不使用此值。 */
+  /** 按层级加载时使用，与视图加载的层级设置独立。 */
   level: number;
+  /** 按视图加载的固定层级；缺省表示自动选级，0 是有效的固定层级。 */
+  viewLevel?: number;
+}
+
+export interface TileLevelRange {
+  minimumLevel: number;
+  maximumLevel: number;
 }
 
 export interface LayerView extends LayerDefinition {
   status: "unloaded" | "needs-file" | "loading" | "ready" | "error";
   message: string;
   effectiveVisible: boolean;
+  /** 数据源的实际可用范围；仅供界面使用，不写入配置。 */
+  tileLevelRange?: TileLevelRange;
 }
 
 export interface LayerSnapshot {

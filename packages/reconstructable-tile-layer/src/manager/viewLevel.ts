@@ -85,6 +85,24 @@ export function clampFineViewLevel(
   return clampNumber(normalizeInteger(level, minLevel), minLevel, maxLevel);
 }
 
+export function validateFixedViewLevel(level: number, provider: ImageryProvider) {
+  const minLevel = provider.minimumLevel ?? 0;
+  const maxLevel = provider.maximumLevel;
+  // 固定层级不套用自动选级的偏好或预算，也不能静默调整为另一个层级。
+  if (
+    !Number.isSafeInteger(level) ||
+    level < 0 ||
+    level < minLevel ||
+    (maxLevel !== undefined && level > maxLevel)
+  ) {
+    const range = maxLevel === undefined ? `at least ${minLevel}` : `${minLevel}–${maxLevel}`;
+    throw new RangeError(
+      `Fixed view level must be a nonnegative integer in the provider range (${range}).`,
+    );
+  }
+  return level;
+}
+
 /** Selects the imagery level whose tile size best matches the current view. */
 export function resolveFineViewLevel(
   viewer: Viewer,

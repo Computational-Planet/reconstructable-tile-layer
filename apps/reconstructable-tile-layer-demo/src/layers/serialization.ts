@@ -164,6 +164,14 @@ export function parseLayerDefinitions(value: unknown): LayerDefinition[] {
     )
       throw new Error("Invalid or duplicate layer definition.");
     ids.add(item.id);
+    if (
+      item.viewLevel !== undefined &&
+      (!finite(item.viewLevel) ||
+        !Number.isInteger(item.viewLevel) ||
+        item.viewLevel < 0 ||
+        item.viewLevel > 24)
+    )
+      throw new Error("Fixed view level must be an integer between 0 and 24.");
     let ageRange = null;
     if (item.ageRange !== null && item.ageRange !== undefined) {
       if (
@@ -201,6 +209,13 @@ export function parseLayerDefinitions(value: unknown): LayerDefinition[] {
       (item.level < source.config.minimumLevel || item.level > (source.config.maximumLevel ?? 24))
     )
       throw new Error("Layer tile level is outside its service range.");
+    if (
+      source.kind === "service" &&
+      item.viewLevel !== undefined &&
+      (item.viewLevel < source.config.minimumLevel ||
+        item.viewLevel > (source.config.maximumLevel ?? 24))
+    )
+      throw new Error("Fixed view level is outside its service range.");
     if (source.kind === "geojson" && item.mode !== "static")
       throw new Error(
         "GeoJSON supports fixed coordinates only; vector reconstruction is not available.",
@@ -226,6 +241,7 @@ export function parseLayerDefinitions(value: unknown): LayerDefinition[] {
       ageRange,
       loadMode: item.loadMode,
       level: item.level,
+      ...(item.viewLevel === undefined ? {} : { viewLevel: item.viewLevel }),
     };
     return exportLayerDefinitions([definition])[0];
   });
