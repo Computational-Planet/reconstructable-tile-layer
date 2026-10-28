@@ -38,6 +38,14 @@ export function RenderingSection({
     <section className="panel-section">
       <div className="panel-section-heading">
         <h2>Rendering</h2>
+        <label className="checkbox-row rendering-graticule">
+          <input
+            type="checkbox"
+            checked={graticuleEnabled}
+            onChange={(event) => onGraticuleEnabledChange(event.target.checked)}
+          />
+          Show graticule
+        </label>
         <button
           aria-expanded={detailsOpen}
           className="secondary-button source-detail-toggle"
@@ -48,41 +56,30 @@ export function RenderingSection({
         </button>
       </div>
 
-      <label className="checkbox-row">
-        <input
-          type="checkbox"
-          checked={graticuleEnabled}
-          onChange={(event) => onGraticuleEnabledChange(event.target.checked)}
-        />
-        Show graticule
-      </label>
-
       {detailsOpen ? (
         <div className="source-detail-panel">
-        <label>
-          Transform mode
-          <div className="setting-action-row">
-            <select
-              value={primitiveTransformMode}
-              onChange={(event) =>
-                onPrimitiveTransformModeChange(
-                  event.target.value as PrimitiveTransformMode,
-                )
-              }
-            >
-              <option value="dynamic3D">dynamic3D</option>
-              <option value="bakedInstance">bakedInstance</option>
-            </select>
-            <button
-              className="secondary-button source-inline-button"
-              disabled={busy || !initialized}
-              type="button"
-              onClick={onApplyTransformMode}
-            >
-              Apply
-            </button>
-          </div>
-        </label>
+          <label>
+            Transform mode
+            <div className="setting-action-row">
+              <select
+                value={primitiveTransformMode}
+                onChange={(event) =>
+                  onPrimitiveTransformModeChange(event.target.value as PrimitiveTransformMode)
+                }
+              >
+                <option value="dynamic3D">dynamic3D</option>
+                <option value="bakedInstance">bakedInstance</option>
+              </select>
+              <button
+                className="secondary-button source-inline-button"
+                disabled={busy || !initialized}
+                type="button"
+                onClick={onApplyTransformMode}
+              >
+                Apply
+              </button>
+            </div>
+          </label>
 
           <label>
             Globe color

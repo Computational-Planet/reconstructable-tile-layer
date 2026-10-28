@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import type { LayerController } from "../../layers/LayerController";
 import type { LayerDefinition, LayerView } from "../../layers/types";
 import { validateAgeRange } from "../../layers/temporal";
 import { ViewLevelControl } from "./ViewLevelControl";
+import { HelpHint } from "../HelpHint";
 
 interface Props {
   layer: LayerView;
@@ -25,6 +26,7 @@ export function LayerItem({
   onPrepareFile,
   onUseModel,
 }: Props) {
+  const id = useId();
   const [name, setName] = useState(layer.name);
   const [youngest, setYoungest] = useState(String(layer.ageRange?.youngestMa ?? age));
   const [oldest, setOldest] = useState(String(layer.ageRange?.oldestMa ?? age));
@@ -80,15 +82,8 @@ export function LayerItem({
           aria-pressed={selected}
           onClick={() => controller.select(layer.id)}
         >
-          <strong>{layer.name}</strong>
-          <span>
-            {vector
-              ? "GeoJSON · Ordinary vector"
-              : layer.mode === "static"
-                ? "Ordinary imagery"
-                : "Reconstruction"}{" "}
-            · {state}
-          </span>
+          <strong title={layer.name}>{layer.name}</strong>
+          <span>{state}</span>
         </button>
         {!vector && (
           <div className="layer-order-actions">
@@ -117,9 +112,20 @@ export function LayerItem({
       </div>
       {selected && (
         <div className="layer-details">
-          <label>
-            Name
+          <div className="layer-name-row">
+            <div className="field-heading">
+              <label htmlFor={`${id}-name`}>Name</label>
+              <HelpHint label="Layer source">
+                <strong>Source</strong>
+                <div>
+                  {layer.source.kind !== "service"
+                    ? layer.source.descriptor.file.name
+                    : layer.source.config.url}
+                </div>
+              </HelpHint>
+            </div>
             <input
+              id={`${id}-name`}
               aria-label="Selected layer name"
               value={name}
               onChange={(event) => setName(event.target.value)}
@@ -128,9 +134,9 @@ export function LayerItem({
                 else setName(layer.name);
               }}
             />
-          </label>
+          </div>
           <label className="layer-opacity">
-            Opacity <span>{Math.round(layer.opacity * 100)}%</span>
+            Opacity
             <input
               aria-label="Selected layer opacity"
               type="range"
@@ -142,10 +148,19 @@ export function LayerItem({
                 controller.update(layer.id, { opacity: Number(event.target.value) })
               }
             />
+            <span>{Math.round(layer.opacity * 100)}%</span>
           </label>
           {layer.mode === "static" ? (
             <fieldset className="layer-age-range">
-              <legend>Visible geological ages</legend>
+              <legend>
+                <span className="field-heading">
+                  Visible ages (Ma)
+                  <HelpHint label="Visible geological ages">
+                    Both endpoints are included. Coordinates remain fixed. All ages removes the time
+                    limit; hiding a layer still takes precedence over its age range.
+                  </HelpHint>
+                </span>
+              </legend>
               <label className="checkbox-row">
                 <input
                   type="checkbox"
@@ -161,9 +176,9 @@ export function LayerItem({
               </label>
               {layer.ageRange && (
                 <>
-                  <div className="grid-2">
+                  <div className="layer-age-fields">
                     <label>
-                      Youngest (Ma)
+                      Youngest
                       <input
                         aria-label="Youngest visible age"
                         type="number"
@@ -174,7 +189,7 @@ export function LayerItem({
                       />
                     </label>
                     <label>
-                      Oldest (Ma)
+                      Oldest
                       <input
                         aria-label="Oldest visible age"
                         type="number"
@@ -184,38 +199,40 @@ export function LayerItem({
                         onChange={(event) => setOldest(event.target.value)}
                       />
                     </label>
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      aria-label="Apply age range"
+                      onClick={applyRange}
+                    >
+                      Apply
+                    </button>
                   </div>
-                  <button type="button" className="secondary-button" onClick={applyRange}>
-                    Apply age range
-                  </button>
-                  <p className="field-hint">
-                    Both endpoints are included. Coordinates remain fixed.
-                  </p>
                 </>
               )}
             </fieldset>
           ) : (
-            <>
-              <p className="field-hint">
-                Follows the global timeline · {age} Ma
-                <br />
+            <div className="layer-model-row">
+              <p className="field-hint" title={layer.model?.name}>
                 Model: {layer.model?.name || "Applied plate model"}
               </p>
+              <HelpHint label="Layer plate model">
+                <strong>{layer.model?.name || "Applied plate model"}.</strong> This layer follows
+                the global timeline using its applied model. Use current replaces it with the plate
+                domains, ROT files and anchor selected on the left, clears its loaded tiles, and
+                requires reloading.
+              </HelpHint>
               <button
                 type="button"
                 className="secondary-button"
+                aria-label="Use current plate model"
                 disabled={busy}
                 onClick={() => onUseModel(layer.id)}
               >
-                Use current plate model
+                Use current
               </button>
-            </>
+            </div>
           )}
-          <p className="field-hint layer-source-name">
-            {layer.source.kind !== "service"
-              ? layer.source.descriptor.file.name
-              : layer.source.config.url}
-          </p>
           <p className={`layer-status${layer.status === "error" ? " is-error" : ""}`} role="status">
             {layer.message}
           </p>
@@ -238,10 +255,19 @@ export function LayerItem({
               Zoom to layer
             </button>
           ) : layer.mode === "reconstructable" ? (
-            <>
-              <label>
-                Tile loading
+            <div className="layer-loading-controls">
+              <div className="field-heading">
+                <label htmlFor={`${id}-load-mode`}>Tile loading</label>
+                <HelpHint label="Layer tile loading">
+                  Specified level loads all relevant tiles at that level. Current view adds tiles in
+                  the camera's view sphere while retaining previously loaded tiles. Lock view level
+                  forces a level, including L0; leave it unchecked for automatic selection. Clear
+                  tiles releases this layer's loaded tiles without removing the layer.
+                </HelpHint>
+              </div>
+              <div className={layer.loadMode === "level" ? "layer-load-settings" : undefined}>
                 <select
+                  id={`${id}-load-mode`}
                   aria-label="Selected layer loading mode"
                   value={layer.loadMode}
                   disabled={busy}
@@ -258,7 +284,24 @@ export function LayerItem({
                   <option value="level">Specified level</option>
                   <option value="view">Current view</option>
                 </select>
-              </label>
+                {layer.loadMode === "level" && (
+                  <input
+                    aria-label="Selected layer tile level"
+                    title="Tile level"
+                    type="number"
+                    min={minimumLevel}
+                    max={maximumLevel}
+                    value={level}
+                    disabled={busy}
+                    onChange={(event) => {
+                      const value = Number(event.target.value);
+                      setLevel(value);
+                      if (Number.isInteger(value) && value >= minimumLevel && value <= maximumLevel)
+                        controller.update(layer.id, { level: value });
+                    }}
+                  />
+                )}
+              </div>
               {layer.loadMode === "view" && (
                 <ViewLevelControl
                   value={layer.viewLevel}
@@ -266,34 +309,12 @@ export function LayerItem({
                   minimumLevel={minimumLevel}
                   maximumLevel={maximumLevel}
                   disabled={busy}
+                  compact
                   onChange={(viewLevel) => controller.update(layer.id, { viewLevel })}
                   onValidityChange={setViewLevelValid}
                 />
               )}
-              <div className="layer-load-row">
-                {layer.loadMode === "level" && (
-                  <label>
-                    Level
-                    <input
-                      aria-label="Selected layer tile level"
-                      type="number"
-                      min={minimumLevel}
-                      max={maximumLevel}
-                      value={level}
-                      disabled={busy}
-                      onChange={(event) => {
-                        const value = Number(event.target.value);
-                        setLevel(value);
-                        if (
-                          Number.isInteger(value) &&
-                          value >= minimumLevel &&
-                          value <= maximumLevel
-                        )
-                          controller.update(layer.id, { level: value });
-                      }}
-                    />
-                  </label>
-                )}
+              <div className="layer-action-row">
                 <button
                   type="button"
                   disabled={busy || (layer.loadMode === "view" && !viewLevelValid)}
@@ -303,16 +324,16 @@ export function LayerItem({
                 >
                   Load tiles
                 </button>
+                <button
+                  type="button"
+                  className="secondary-button"
+                  disabled={busy}
+                  onClick={() => controller.clear(layer.id)}
+                >
+                  Clear tiles
+                </button>
               </div>
-              <button
-                type="button"
-                className="secondary-button"
-                disabled={busy}
-                onClick={() => controller.clear(layer.id)}
-              >
-                Clear tiles
-              </button>
-            </>
+            </div>
           ) : layer.status === "error" || layer.status === "unloaded" ? (
             <button type="button" onClick={() => void controller.activateImagery(layer.id)}>
               Retry layer

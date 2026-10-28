@@ -13,7 +13,7 @@
   Viewer,
 } from "cesium";
 import { RotationOperator } from "./rotation.js";
-import { QuadTreeTileProcessor, type NodeInfo } from "./quadtree.js";
+import { QuadTreeTileProcessor, type NodeInfo, type TileXYL } from "./quadtree.js";
 import type { TileProcessor, TileImageAsset } from "./processor.js";
 import { loadFeaturePolygonDataWithDiagnostics } from "./gplates.js";
 import {
@@ -53,6 +53,9 @@ import type {
   TileGenerationReport,
   TilePrimitiveRecord,
   TileTaskPartition,
+  SourceRegionQueryOptions,
+  SourceRegionQueryResult,
+  ReconstructionSourceRegion,
   ViewFineTileLoadOptions,
   ViewFineTileLoadResult,
 } from "./manager/types.js";
@@ -65,8 +68,17 @@ import {
   resolveFineViewLevel,
   validateFixedViewLevel,
 } from "./manager/viewLevel.js";
+import {
+  boundingSphereToGeographicRectangles,
+  intersectSourceRectangles,
+  sourceTileRectangles,
+  uniqueSourceRectangles,
+} from "./manager/sourceRegions.js";
 
 export type {
+  ReconstructionSourceRegion,
+  SourceRegionQueryOptions,
+  SourceRegionQueryResult,
   CompositeTileTask,
   FeatureSourceConfig,
   GeoTileStats,
@@ -565,6 +577,88 @@ export class SimpleGeoReconstructManager {
     return createFineTileLoadResult(level, loadedCount, tasks.length);
   }
 
+  /** Query modern source extents using view-loading rotation and quadtree selection. */
+  async querySourceRegions(
+    viewRectangle: Rectangle,
+    options: SourceRegionQueryOptions,
+  ): Promise<SourceRegionQueryResult> {
+    const level = validateFixedViewLevel(options.level, this._provider);
+    const age = options.age ?? this._currentAge;
+    if (!Number.isFinite(age) || age < 0)
+      throw new RangeError("Supply a nonnegative geological age.");
+    Rectangle.validate(viewRectangle);
+    if (
+      ![viewRectangle.west, viewRectangle.south, viewRectangle.east, viewRectangle.north].every(
+        Number.isFinite,
+      ) ||
+      viewRectangle.width <= 0 ||
+      viewRectangle.height <= 0
+    )
+      throw new RangeError("Supply a nonempty geographic rectangle.");
+    const empty: SourceRegionQueryResult = { age, level, regions: [], rectangles: [] };
+    if (!this._ready) return { ...empty, skippedReason: "not-ready" };
+    const generation = this._generationToken;
+    const staleReason = () =>
+      generation !== this._generationToken
+        ? ("stale-source" as const)
+        : options.age === undefined && age !== this._currentAge
+          ? ("stale-age" as const)
+          : undefined;
+    const sphere = createViewBoundingSphereFromRectangle(this._provider, viewRectangle);
+    const matrices = await this.getPlateMatrixEntries(age);
+    if (staleReason()) return { ...empty, skippedReason: staleReason() };
+    this.updateQuadTreeBoundingSpheres(matrices);
+    const candidates = await this.collectSourcePlateQueries(sphere, age, generation, true);
+    if (staleReason()) return { ...empty, skippedReason: staleReason() };
+    const regions: ReconstructionSourceRegion[] = [];
+    const allTiles = new Map<string, TileXYL>();
+    for (const { plateId, modernBoundingSphere, polygonItems } of candidates) {
+      const plateTiles = new Map<string, TileXYL>();
+      for (const { quadTree } of polygonItems) {
+        const tiles: NodeInfo[] = [];
+        // 与 Load view 使用同一遍历：NONE 直接剪枝，只保留与球相交的 FULL/NEED_CLIP。
+        // 不能使用任务缓存过滤；已经加载或正在加载的瓦片仍需要出现在图例范围中。
+        quadTree.findTilesByLevelInBoundingSphere(level, modernBoundingSphere, tiles);
+        for (const { tileXYL } of tiles) {
+          const key = `${tileXYL.x}:${tileXYL.y}`;
+          plateTiles.set(key, tileXYL);
+          allTiles.set(key, tileXYL);
+        }
+      }
+      if (plateTiles.size === 0) continue;
+      const tileRectangles = sourceTileRectangles(
+        plateTiles.values(),
+        this._provider.tilingScheme,
+        level,
+      );
+      // 点选等小范围查询只借助瓦片筛选覆盖，返回范围须限制在逆旋转后查询球的小四至内。
+      // 先逐板块求交，再合并；不能先把不同板块的小范围拼成一个宽大的外包框。
+      const rectangles = options.clipToView
+        ? intersectSourceRectangles(
+            tileRectangles,
+            boundingSphereToGeographicRectangles(
+              modernBoundingSphere,
+              this._provider.tilingScheme.ellipsoid,
+            ),
+          )
+        : tileRectangles;
+      if (rectangles.length === 0) continue;
+      regions.push({
+        plateId,
+        modernBoundingSphere,
+        rectangles,
+      });
+    }
+    return {
+      age,
+      level,
+      regions,
+      rectangles: options.clipToView
+        ? uniqueSourceRectangles(regions.flatMap((region) => region.rectangles))
+        : sourceTileRectangles(allTiles.values(), this._provider.tilingScheme, level),
+    };
+  }
+
   /**
    * Generates the adaptive root tiles for every feature.
    * @deprecated Use loadTilesAtRoot.
@@ -976,29 +1070,12 @@ export class SimpleGeoReconstructManager {
     const uniqueRawTileIds = new Set<string>();
     let sourceTaskCount = 0;
 
-    for (const plateItem of this.plates.values()) {
-      let modernViewBoundingSphere: BoundingSphere | null = null;
-
-      for (const polygonItem of plateItem.polygonQuadTrees.values()) {
-        if (!polygonItem.quadTree.intersectsCurrentBoundingSphere(viewBoundingSphere)) {
-          continue;
-        }
-
-        if (!modernViewBoundingSphere) {
-          modernViewBoundingSphere = await this.rotateBoundingSphereToModernCoordinates(
-            viewBoundingSphere,
-            plateItem.plateId,
-            age,
-          );
-        }
-
-        if (generationToken !== this._generationToken) return [];
+    const queries = await this.collectSourcePlateQueries(viewBoundingSphere, age, generationToken);
+    if (generationToken !== this._generationToken) return [];
+    for (const { modernBoundingSphere, polygonItems } of queries) {
+      for (const polygonItem of polygonItems) {
         const tiles: NodeInfo[] = [];
-        polygonItem.quadTree.findTilesByLevelInBoundingSphere(
-          level,
-          modernViewBoundingSphere,
-          tiles,
-        );
+        polygonItem.quadTree.findTilesByLevelInBoundingSphere(level, modernBoundingSphere, tiles);
         tiles.forEach((tileInfo) => {
           if (this.appendCompositeTileTask(taskMap, uniqueRawTileIds, polygonItem, tileInfo)) {
             sourceTaskCount++;
@@ -1011,6 +1088,36 @@ export class SimpleGeoReconstructManager {
     this.updateGeoTileStats(tasks, sourceTaskCount, uniqueRawTileIds.size, now() - collectionStart);
     this._benchmarkObserver?.onStageOperation("task-gen", collectionStart, now());
     return tasks;
+  }
+
+  private async collectSourcePlateQueries(
+    sphere: BoundingSphere,
+    age: number,
+    generation: number,
+    activeOnly = false,
+  ) {
+    // 同步保存候选，避免等待旋转时其他查询更新四叉树的当前年代包围球。
+    const candidates = Array.from(this.plates.values())
+      .map((plate) => ({
+        plateId: plate.plateId,
+        polygonItems: Array.from(plate.polygonQuadTrees.values()).filter(
+          (item) =>
+            (!activeOnly || (age <= item.info.time.begine && age >= item.info.time.end)) &&
+            item.quadTree.intersectsCurrentBoundingSphere(sphere),
+        ),
+      }))
+      .filter((plate) => plate.polygonItems.length > 0);
+    const queries = [];
+    for (const candidate of candidates) {
+      const modernBoundingSphere = await this.rotateBoundingSphereToModernCoordinates(
+        sphere,
+        candidate.plateId,
+        age,
+      );
+      if (generation !== this._generationToken) return [];
+      queries.push({ ...candidate, modernBoundingSphere });
+    }
+    return queries;
   }
 
   private appendCompositeTileTask(

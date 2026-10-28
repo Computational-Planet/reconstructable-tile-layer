@@ -6,6 +6,7 @@ interface Props {
   minimumLevel: number;
   maximumLevel: number;
   disabled: boolean;
+  compact?: boolean;
   onChange(value: number | undefined): void;
   onValidityChange(valid: boolean): void;
 }
@@ -17,6 +18,7 @@ export function ViewLevelControl({
   minimumLevel,
   maximumLevel,
   disabled,
+  compact = false,
   onChange,
   onValidityChange,
 }: Props) {
@@ -71,7 +73,11 @@ export function ViewLevelControl({
           }}
         />
       </div>
-      <p id={`${id}-hint`} className="field-hint" role={valid ? undefined : "alert"}>
+      <p
+        id={`${id}-hint`}
+        className={compact && valid ? "sr-only" : "field-hint"}
+        role={valid ? undefined : "alert"}
+      >
         {!valid
           ? `Enter a whole level from L${minimumLevel} to L${maximumLevel}.`
           : locked

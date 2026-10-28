@@ -1,4 +1,5 @@
 import type {
+  BoundingSphere,
   Ellipsoid,
   ImageryProvider,
   Matrix4,
@@ -391,6 +392,32 @@ export interface ViewFineTileLoadResult {
   taskCount: number;
   /** Reason no load was attempted, when applicable. */
   skippedReason?: string;
+}
+
+/** Modern source coverage selected for one active plate, without generating imagery. */
+export interface ReconstructionSourceRegion {
+  plateId: string;
+  modernBoundingSphere: BoundingSphere;
+  /** Selected source extents in radians, optionally limited to the view; west <= east. */
+  rectangles: Rectangle[];
+}
+
+/** Age defaults to the layer's current age. Explicit ages do not change layer state. */
+export interface SourceRegionQueryOptions {
+  /** Exact quadtree level, within the provider's supported level range. */
+  level: number;
+  age?: number;
+  /** Intersect selected tile extents with the inverse-rotated view sphere's bounds. Defaults to false. */
+  clipToView?: boolean;
+}
+
+export interface SourceRegionQueryResult {
+  age: number;
+  level: number;
+  regions: ReconstructionSourceRegion[];
+  /** Combined source extents across plates, respecting clipToView and excluding unselected tiles. */
+  rectangles: Rectangle[];
+  skippedReason?: "not-ready" | "stale-source" | "stale-age";
 }
 
 /** Options used when switching primitive transform strategies. */

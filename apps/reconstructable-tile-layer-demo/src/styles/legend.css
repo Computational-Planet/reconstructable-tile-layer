@@ -1,0 +1,137 @@
+.reference-tool + .reference-tool {
+  margin-top: 12px;
+}
+.legend-controls {
+  display: grid;
+  min-width: 0;
+  gap: 10px;
+}
+.legend-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.legend-actions button {
+  padding: 0 10px;
+  font-size: 13px;
+}
+.legend-error {
+  margin: 0;
+  color: #ffc58e;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.legend-source-bounds {
+  max-height: 130px;
+  overflow: auto;
+  margin-top: 8px;
+}
+.legend-results {
+  display: grid;
+  gap: 6px;
+  max-height: 320px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.legend-results > li {
+  min-width: 0;
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: 6px;
+}
+.legend-results summary {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) 12px;
+  gap: 10px;
+  align-items: center;
+  padding: 8px;
+  cursor: pointer;
+  list-style: none;
+}
+.legend-results summary:focus-visible {
+  outline: 2px solid #8fb6ff;
+  outline-offset: -2px;
+}
+.legend-results strong {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.legend-results small {
+  display: block;
+  margin-top: 2px;
+  color: #bbc8d8;
+  font-size: 11px;
+}
+.legend-swatch {
+  width: 20px;
+  height: 20px;
+  border: 1px solid rgb(255 255 255 / 30%);
+  border-radius: 3px;
+}
+.legend-swatch.is-unknown {
+  background: repeating-linear-gradient(45deg, #697787 0 3px, transparent 3px 6px);
+}
+.legend-detail-indicator {
+  color: #9fb3c8;
+}
+.legend-results details[open] .legend-detail-indicator {
+  transform: rotate(90deg);
+}
+.legend-entry-detail {
+  padding: 0 10px 10px;
+  color: #bbc8d8;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.legend-entry-detail p {
+  margin: 6px 0 0;
+}
+.legend-attributes {
+  margin: 6px 0 0;
+}
+.legend-attributes > div + div {
+  margin-top: 8px;
+}
+.legend-attributes dt {
+  font-weight: 600;
+  color: #d8e2ed;
+}
+.legend-attributes dd {
+  margin: 2px 0 0;
+}
+.legend-records {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+.legend-records > li {
+  padding-top: 8px;
+  border-top: 1px solid rgb(255 255 255 / 10%);
+}
+.legend-records > li + li {
+  margin-top: 10px;
+}
+.legend-attribution {
+  color: #9fb3c8;
+  font-size: 11px;
+  width: fit-content;
+}
+/* 临时框选覆盖地图输入；完成或取消后移除，恢复相机原有交互状态。 */
+.legend-selection-overlay {
+  position: absolute;
+  z-index: 8;
+  inset: 0;
+  cursor: crosshair;
+  touch-action: none;
+  user-select: none;
+}
+.legend-selection-box {
+  position: absolute;
+  pointer-events: none;
+  border: 2px solid #ffb16f;
+  background: rgb(241 121 34 / 14%);
+}

@@ -1,0 +1,56 @@
+/* 问号只占一个小按钮；说明在视口内浮出，可点击、键盘打开或用 Escape 关闭。 */
+.help-hint-toggle {
+  display: inline-grid;
+  flex: 0 0 24px;
+  width: 24px;
+  height: 24px;
+  min-height: 24px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #9aaabd;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.help-hint-toggle > span {
+  display: grid;
+  width: 16px;
+  height: 16px;
+  place-items: center;
+  border: 1px solid #627185;
+  border-radius: 50%;
+  line-height: 1;
+}
+
+.help-hint-toggle:hover,
+.help-hint-toggle:focus-visible,
+.help-hint-toggle[aria-expanded="true"] {
+  background: rgb(143 182 255 / 12%);
+  color: #dce8ff;
+}
+
+.help-hint-toggle:focus-visible {
+  outline: 2px solid #8fb6ff;
+  outline-offset: 2px;
+}
+
+.help-hint-panel {
+  position: fixed;
+  z-index: 100;
+  width: min(300px, calc(100vw - 24px));
+  max-height: min(320px, calc(100dvh - 24px));
+  overflow: auto;
+  padding: 12px;
+  border: 1px solid rgb(143 182 255 / 30%);
+  border-radius: 8px;
+  background: #151d28;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 35%);
+  color: #d9e2ec;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}

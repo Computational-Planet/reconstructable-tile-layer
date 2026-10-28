@@ -8,8 +8,7 @@ Tile Layer demo. The subdirectories correspond to the individual cases.
 
 ## Usage
 
-1. In **Experiment Import**, select **Custom / uploaded config**, click
-   **Upload**, and choose a JSON file from this directory.
+1. In **Experiment**, click **Import** and choose a JSON file from this directory.
 2. The import restores the geological age, camera/output settings, reference overlay and
    reconstruction layer in the right-hand **Layers** panel.
 3. Select the restored layer and click **Load tiles**. Its **Tile loading** setting specifies
@@ -17,7 +16,8 @@ Tile Layer demo. The subdirectories correspond to the individual cases.
    optionally fixes the level; leave it unchecked for automatic selection. Importing a case does
    not fetch reconstruction tiles; no additional **Add layer** action is needed.
 4. Change the global timeline or view as needed. Load again after moving the camera when
-   using current-view loading. Use **Experiment Export** to save the configuration and
+   using current-view loading; new view tiles accumulate alongside existing tiles. Use **Clear tiles**
+   to reset coverage. Use **Experiment → Export info** to save the configuration and
    measurements from the actual run.
 
 ## Configuration contents

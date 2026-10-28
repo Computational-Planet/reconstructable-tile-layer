@@ -47,6 +47,7 @@ import type { ImagerySourceKind } from "./components/controlPanel/ControlPanel.t
 import { useLayerManager } from "./layers/useLayerManager";
 import { LayerPanel } from "./components/layers/LayerPanel";
 import type { LayerDefinition, LayerMode } from "./layers/types";
+import { useMacrostratLegend } from "./legend/useMacrostratLegend";
 
 function App() {
   const [age, setAge] = useState(0);
@@ -139,6 +140,14 @@ function App() {
   });
   const localRaster = useLocalRaster({ viewerRef, model, addLayer: layers.addRaster });
   const localGeoJson = useLocalGeoJson({ addLayer: layers.addGeoJson });
+  const macrostratLegend = useMacrostratLegend({
+    viewerRef,
+    controllerRef: layerControllerRef,
+    layers: layers.layers,
+    selectedId: layers.selected?.id,
+    age,
+    viewMode: experimentViewConfig.viewMode,
+  });
   const initialized = !!layers.selected && layers.selected.status !== "needs-file";
   const stats = layers.stats;
   const selectedService =
@@ -361,6 +370,7 @@ function App() {
   return (
     <main className={`app-shell${layers.panelOpen ? " has-layer-panel" : ""}`}>
       <ControlPanel
+        macrostratLegend={macrostratLegend}
         localRaster={localRaster}
         localGeoJson={localGeoJson}
         sourceKind={sourceKind}

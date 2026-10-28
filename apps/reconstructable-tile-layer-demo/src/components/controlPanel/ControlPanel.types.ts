@@ -2,6 +2,7 @@
 import type { LocalRasterControls } from "../../hooks/useLocalRaster";
 import type { LocalGeoJsonControls } from "../../vector/useLocalGeoJson";
 import type { LayerMode, LayerView } from "../../layers/types";
+import type { MacrostratLegendControls } from "../../legend/useMacrostratLegend";
 import type {
   ReconstructableTileLayerStats,
   PolygonRenderIntentMode,
@@ -25,6 +26,7 @@ import type {
 } from "../../experiment";
 
 export type ControlPanelProps = {
+  macrostratLegend: MacrostratLegendControls;
   selectedLayer: LayerView | null;
   serviceMode: LayerMode;
   onServiceModeChange: (mode: LayerMode) => void;

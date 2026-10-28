@@ -1,4 +1,5 @@
 import type { LocalGeoJsonControls } from "../../vector/useLocalGeoJson";
+import { HelpHint } from "../HelpHint";
 
 export function LocalGeoJsonSection({
   vector,
@@ -10,9 +11,16 @@ export function LocalGeoJsonSection({
   const descriptor = vector.entry?.descriptor;
   return (
     <section className="local-raster-section" aria-label="Local GeoJSON">
-      <label>
-        Local GeoJSON file
+      <div className="source-choice-field">
+        <div className="field-heading">
+          <label htmlFor="local-geojson-file">Local GeoJSON file</label>
+          <HelpHint label="GeoJSON coordinates">
+            Points, lines and polygons in WGS84 longitude/latitude. Added as an ordinary vector
+            layer; the timeline controls visibility only. Supported GeoJSON styles are preserved.
+          </HelpHint>
+        </div>
         <input
+          id="local-geojson-file"
           type="file"
           aria-label="Local GeoJSON file"
           accept=".geojson,.json,application/geo+json,application/json"
@@ -22,12 +30,7 @@ export function LocalGeoJsonSection({
             event.target.value = "";
           }}
         />
-      </label>
-      <p className="field-hint">
-        Points, lines and polygons in WGS84 longitude/latitude. Added as an ordinary vector layer;
-        the timeline controls visibility only. Colors and other supported GeoJSON styles are
-        preserved.
-      </p>
+      </div>
       {descriptor && (
         <div className="raster-summary" data-testid="geojson-summary">
           <p>

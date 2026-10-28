@@ -11,6 +11,7 @@ import {
   ImageryLayer,
   ImageryLayerCollection,
   PrimitiveCollection,
+  Rectangle,
   UrlTemplateImageryProvider,
   type Viewer,
 } from "cesium";
@@ -66,6 +67,106 @@ function setup() {
 }
 
 describe("saved reconstruction loading", () => {
+  it("prepares a restored model for source queries without loading or clearing tiles", async () => {
+    const initialize = vi
+      .spyOn(ReconstructableTileLayer.prototype, "initialize")
+      .mockResolvedValue();
+    vi.spyOn(ReconstructableTileLayer.prototype, "bindSceneModeSync").mockReturnValue(() => {});
+    vi.spyOn(ReconstructableTileLayer.prototype, "setReconstructionAge").mockResolvedValue();
+    vi.spyOn(ReconstructableTileLayer.prototype, "destroy").mockImplementation(() => {});
+    const clear = vi
+      .spyOn(ReconstructableTileLayer.prototype, "clear")
+      .mockImplementation(() => {});
+    const load = vi
+      .spyOn(ReconstructableTileLayer.prototype, "loadSourceTilesAtLevel")
+      .mockResolvedValue();
+    const query = vi
+      .spyOn(ReconstructableTileLayer.prototype, "querySourceRegions")
+      .mockResolvedValue({ age: 120, level: 4, regions: [], rectangles: [] });
+    const { controller, clearProvider } = setup();
+    controller.restore([
+      {
+        ...ordinary,
+        id: "legend",
+        mode: "reconstructable",
+        model: {
+          name: "Model",
+          featureUrl: "/plates.gpml",
+          featureLabel: "plates",
+          rotationUrls: ["/model.rot"],
+          rotationLabels: ["rot"],
+          anchorPlateId: "0",
+        },
+      },
+    ]);
+    const before = controller.snapshot;
+    const rectangle = Rectangle.fromDegrees(-100, 40, -90, 50);
+    await controller.querySourceRegions("legend", rectangle, 120, 4);
+    await controller.querySourceRegions("legend", rectangle, 120, 5, true);
+    expect(initialize).toHaveBeenCalledOnce();
+    expect(query).toHaveBeenNthCalledWith(1, rectangle, { age: 120, level: 4, clipToView: false });
+    expect(query).toHaveBeenLastCalledWith(rectangle, { age: 120, level: 5, clipToView: true });
+    expect(controller.snapshot).toEqual(before);
+    expect(load).not.toHaveBeenCalled();
+    expect(clear).not.toHaveBeenCalled();
+    expect(clearProvider).not.toHaveBeenCalled();
+
+    let resolve!: (value: { age: number; level: number; regions: []; rectangles: [] }) => void;
+    query.mockReturnValueOnce(
+      new Promise((done) => {
+        resolve = done;
+      }),
+    );
+    const stale = controller.querySourceRegions("legend", rectangle, 120, 4);
+    await vi.waitFor(() => expect(query).toHaveBeenCalledTimes(3));
+    controller.remove("legend");
+    resolve({ age: 120, level: 4, regions: [], rectangles: [] });
+    await expect(stale).rejects.toThrow(/changed/);
+  });
+
+  it("can retry a source-region query after the initial model request fails", async () => {
+    const initialize = vi
+      .spyOn(ReconstructableTileLayer.prototype, "initialize")
+      .mockRejectedValueOnce(new Error("Model request failed"))
+      .mockResolvedValue();
+    vi.spyOn(ReconstructableTileLayer.prototype, "bindSceneModeSync").mockReturnValue(() => {});
+    vi.spyOn(ReconstructableTileLayer.prototype, "setReconstructionAge").mockResolvedValue();
+    vi.spyOn(ReconstructableTileLayer.prototype, "destroy").mockImplementation(() => {});
+    vi.spyOn(ReconstructableTileLayer.prototype, "querySourceRegions").mockResolvedValue({
+      age: 120,
+      level: 4,
+      regions: [],
+      rectangles: [],
+    });
+    const { controller } = setup();
+    controller.restore([
+      {
+        ...ordinary,
+        id: "legend",
+        mode: "reconstructable",
+        model: {
+          name: "Model",
+          featureUrl: "/plates.gpml",
+          featureLabel: "plates",
+          rotationUrls: ["/model.rot"],
+          rotationLabels: ["rot"],
+          anchorPlateId: "0",
+        },
+      },
+    ]);
+    const rectangle = Rectangle.fromDegrees(-100, 40, -90, 50);
+    await expect(controller.querySourceRegions("legend", rectangle, 120, 4)).rejects.toThrow(
+      /Model request failed/,
+    );
+    await expect(controller.querySourceRegions("legend", rectangle, 120, 4)).resolves.toEqual({
+      age: 120,
+      level: 4,
+      regions: [],
+      rectangles: [],
+    });
+    expect(initialize).toHaveBeenCalledTimes(2);
+  });
+
   it("keeps fixed view levels per layer, preserves L0 through export/import, and returns to automatic selection", async () => {
     vi.spyOn(ReconstructableTileLayer.prototype, "initialize").mockResolvedValue();
     vi.spyOn(ReconstructableTileLayer.prototype, "bindSceneModeSync").mockReturnValue(() => {});
@@ -127,6 +228,7 @@ describe("saved reconstruction loading", () => {
     expect(controller.definitions[0].level).toBe(4);
     expect(controller.definitions[1].viewLevel).toBe(5);
     expect(JSON.parse(JSON.stringify(controller.definitions))[0]).not.toHaveProperty("viewLevel");
+    expect(clear).not.toHaveBeenCalled();
   });
 
   it("dispatches the saved mode, records explicit overrides, and replays the result", async () => {
@@ -163,17 +265,29 @@ describe("saved reconstruction loading", () => {
     await controller.load("case", 4);
     expect(levelLoad).toHaveBeenLastCalledWith(viewer, 4);
     expect(controller.definitions[0]).toMatchObject({ loadMode: "level", level: 4 });
+    expect(clear).toHaveBeenCalledTimes(1);
     expect(() => controller.update("case", { level: 20 })).toThrow(/service range/);
     expect(controller.definitions[0].level).toBe(4);
     await controller.load("case");
     expect(levelLoad).toHaveBeenCalledTimes(2);
-    await controller.load("case", 4, true);
+    // 左侧 Load view 从全域覆盖追加；右侧按保存的 Current view 连续追加。
+    await controller.load("case", undefined, true);
     expect(controller.definitions[0]).toMatchObject({ loadMode: "view", level: 4 });
+    await controller.load("case");
+    controller.update("case", { viewLevel: 5 });
+    viewLoad.mockResolvedValue({ level: 5, loadedCount: 1, taskCount: 1 });
+    await controller.load("case");
+    expect(viewLoad).toHaveBeenLastCalledWith(viewer, { minLevel: 2, level: 5 });
+    expect(clear).toHaveBeenCalledTimes(1);
+
+    controller.clear("case");
+    expect(clear).toHaveBeenCalledTimes(2);
+    await controller.load("case");
     expect(clear).toHaveBeenCalledTimes(2);
     const saved = controller.definitions;
     controller.restore(saved);
     await controller.load("case");
-    expect(viewLoad).toHaveBeenCalledTimes(3);
+    expect(viewLoad).toHaveBeenCalledTimes(6);
     expect(controller.snapshot.layers[0].status).toBe("ready");
   });
 

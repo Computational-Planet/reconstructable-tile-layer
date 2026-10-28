@@ -2,6 +2,7 @@ import type { LocalRasterControls } from "../../hooks/useLocalRaster";
 import { stringifyScientific, type RasterRole } from "../../raster/context";
 import { getGeographicBounds } from "rtl-raster-source";
 import { getRasterLevelInfo } from "rtl-raster-imagery-provider";
+import { HelpHint } from "../HelpHint";
 
 export function LocalRasterSection({
   raster,
@@ -117,30 +118,37 @@ export function LocalRasterSection({
             </details>
           )}
           <fieldset disabled={disabled}>
-            <legend>Coordinate use</legend>
-            <label>
+            <legend>
+              <span className="field-heading">
+                Coordinate use
+                <HelpHint label="Raster coordinate use">
+                  Reconstruct from 0 Ma moves a present-day raster with the selected plate model.
+                  The timeline sets its reconstruction age. A paleo snapshot keeps stored
+                  coordinates and starts with its published age as the visible range; edit that
+                  range in Layers.
+                </HelpHint>
+              </span>
+            </legend>
+            <label className="sr-only" htmlFor="raster-coordinate-use">
               Coordinate use
-              <select
-                aria-label="Raster coordinate use"
-                value={raster.context.role}
-                onChange={(event) =>
-                  editContext({
-                    role: event.target.value as RasterRole,
-                    modelConfirmed: false,
-                  })
-                }
-              >
-                <option value="modern-reconstructable">
-                  Reconstruct from 0 Ma (follows timeline)
-                </option>
-                <option value="reference-only">Reference / unknown coordinate age</option>
-                <option value="paleo-snapshot">Paleo snapshot (visible at one age)</option>
-              </select>
             </label>
-            <p className="field-hint">
-              To move a present-day raster with the plates, choose Reconstruct from 0 Ma. The
-              timeline sets the target reconstruction age.
-            </p>
+            <select
+              id="raster-coordinate-use"
+              aria-label="Raster coordinate use"
+              value={raster.context.role}
+              onChange={(event) =>
+                editContext({
+                  role: event.target.value as RasterRole,
+                  modelConfirmed: false,
+                })
+              }
+            >
+              <option value="modern-reconstructable">
+                Reconstruct from 0 Ma (follows timeline)
+              </option>
+              <option value="reference-only">Reference / unknown coordinate age</option>
+              <option value="paleo-snapshot">Paleo snapshot (visible at one age)</option>
+            </select>
             {raster.context.role === "paleo-snapshot" && (
               <>
                 <label>
@@ -162,29 +170,26 @@ export function LocalRasterSection({
                     onChange={(event) => editContext({ ageSource: event.target.value })}
                   />
                 </label>
-                <p className="field-hint">
-                  This layer starts with its published age as the visible range. Edit that range in
-                  Layers. For a 0 Ma file that should move with the timeline, choose Reconstruct
-                  from 0 Ma.
-                </p>
               </>
             )}
             {raster.context.role === "modern-reconstructable" && (
               <>
-                <label className="checkbox-row">
-                  <input
-                    type="checkbox"
-                    checked={raster.context.modelConfirmed}
-                    onChange={(event) => editContext({ modelConfirmed: event.target.checked })}
-                  />
-                  Data use the present-day frame of the selected plate model.
-                </label>
-                <p className="field-hint">
-                  Adding a layer binds this raster to the plate domains, ROT files and anchor
-                  selected above. Then use Load Tiles By Level and move the timeline to reconstruct
-                  it, just like an online map. New layers use L2 for low-resolution sources and L3
-                  when available. Use Load Tiles By View Sphere for finer levels.
-                </p>
+                <div className="field-heading raster-model-confirmation">
+                  <label className="checkbox-row">
+                    <input
+                      type="checkbox"
+                      checked={raster.context.modelConfirmed}
+                      onChange={(event) => editContext({ modelConfirmed: event.target.checked })}
+                    />
+                    Uses this model's present-day frame
+                  </label>
+                  <HelpHint label="Raster plate model">
+                    Confirm the raster uses the present-day frame of the selected plate model.
+                    Adding it binds the plate domains, ROT files and anchor selected above. Load
+                    tiles, then change the timeline to reconstruct. New layers start at L2 for
+                    low-resolution sources or L3 when available; view loading supports finer levels.
+                  </HelpHint>
+                </div>
               </>
             )}
             <details className="panel-disclosure">

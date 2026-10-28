@@ -236,6 +236,51 @@ invalid values reject with `RangeError`. `minLevel`, `maxLevel`,
 Fixed levels are not lowered to satisfy that tile budget. The same rules apply to
 `loadFineTilesInView` and `loadFineTilesInViewAtLevel`.
 
+## Query modern source regions
+
+`querySourceRegions(rectangle, { level, age?, clipToView? })` uses the same bounding-sphere candidate
+selection, inverse plate rotations, and quadtree traversal as view refinement. At the
+exact requested `level`, it selects intersecting FULL and NEED_CLIP tiles from domains
+valid at the requested age. NONE nodes are pruned without descending into them.
+`level` must be an integer within the provider's supported range; it is never adjusted
+automatically. Omit `age` to use the layer's current age. Initialize the layer first;
+the query expands the spatial index as needed but neither fetches imagery nor changes
+loaded tiles, task statistics, or the displayed age. Already-loaded tiles remain eligible.
+
+```ts
+import { Rectangle, Math as CesiumMath } from "cesium";
+
+const result = await rtl.querySourceRegions(Rectangle.fromDegrees(100, 20, 110, 30), {
+  level: 4,
+  age: 120,
+});
+if (!result.skippedReason) {
+  for (const rectangle of result.rectangles) {
+    const bounds = [rectangle.west, rectangle.south, rectangle.east, rectangle.north].map(
+      CesiumMath.toDegrees,
+    );
+    console.log(bounds);
+  }
+}
+```
+
+`SourceRegionQueryResult` contains `age`, `level`, `regions`, combined `rectangles`, and optional `skippedReason`
+(`not-ready`, `stale-source`, or `stale-age`). Each `ReconstructionSourceRegion`
+contains `plateId`, `modernBoundingSphere`, and per-plate `rectangles` in radians.
+By default, the combined rectangles deduplicate selected tiles across plates and pack adjacent
+tiles into solid rectangles without filling holes or including unselected tiles.
+Bounds follow the provider's tile grid (including WebMercator latitude spacing) and
+are split at the antimeridian. A plate with no selected tiles contributes no region.
+Set **`clipToView: true`** for point-sized or other narrow queries: each plate's
+selected coverage is intersected with the geographic bounds of its inverse-rotated
+view sphere before combining results. This preserves the query's small footprint
+instead of expanding it to whole tiles. Empty intersections are omitted and identical
+or contained bounds are removed; the same level, age and NONE-node filters still apply.
+Returned rectangles are conservative bounds, not exact plate-clipped footprints;
+they can still contain neighboring units. Service-specific requests and legend grouping
+remain application responsibilities. The exported `boundingSphereToGeographicRectangles`
+and `splitGeographicRectangle` helpers are independently usable geometry utilities.
+
 ## Composite tasks and retained state
 
 Feature contributions are merged into `CompositeTileTask` objects by plate

@@ -20,6 +20,9 @@ export {
   type ReconstructableTileLayerOptions,
   type ReconstructableTileLayerStats,
   type ReconstructionTaskReport,
+  type ReconstructionSourceRegion,
+  type SourceRegionQueryOptions,
+  type SourceRegionQueryResult,
   type ResolvedFeatureFiles,
   type SetPrimitiveTransformModeOptions,
   type SimpleGeoReconstructManagerConstructorOptions,
@@ -71,5 +74,9 @@ export type {
 
 export type { AnchorPlateId } from "./rotation.js";
 export { createTileSurfaceAppearance } from "./surfaceAppearance.js";
+export {
+  boundingSphereToGeographicRectangles,
+  splitGeographicRectangle,
+} from "./manager/sourceRegions.js";
 
 export * from "./processor.js";

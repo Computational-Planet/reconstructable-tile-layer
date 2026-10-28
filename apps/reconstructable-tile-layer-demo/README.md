@@ -46,16 +46,23 @@ existing reconstruction path.
 1. **Plate model**: choose plate domains and ROT files. Use **Model settings** for URLs, anchor and polygon mode.
 2. **Layer data source**: choose **Tile map service**, **Local TIFF / GeoTIFF** or **Local GeoJSON**. Services have a visible connection
    form; local files use **Source settings**. **Add layer** preserves existing layers.
-   Services can reconstruct or use fixed coordinates. **Selected layer** identifies the selection in the right panel.
+   Services can reconstruct or use fixed coordinates. **Selected** identifies the selection in the right panel.
 3. **Timeline & tiles**: tile actions apply to the selected reconstruction layer; the age control updates every reconstruction layer.
 
 Local settings collapse after successful application; the online connection form stays visible. Spatial metadata, citations, display style and optional COG export
 expand on demand. Reference overlays, view/render controls, experiment import/export and statistics follow the main workflow.
+Click the small **?** beside a field to read its instructions; click outside or press Escape to close them.
+Errors, loading progress and the selected layer's state remain visible. Short controls share rows;
+**Experiment** groups **Import**, **Export info** and **Screenshot** together.
 Ordinary imagery, including reference and snapshot rasters, uses Cesium's native `ImageryLayer` and loads automatically as you navigate.
 
 ## Right-hand Layers panel
 
 Hide the panel with **Hide**, then reopen it with the top-right **Layers** button.
+The header, global age and **Add layer** stay visible while the layer list scrolls independently.
+Scrolling stops at the list's edges, so long layer stacks do not scroll the page.
+Small **?** buttons explain layer ordering, source details, model replacement, age ranges and tile loading.
+Escape closes an open explanation first; pressing it again closes the panel. Layer status and errors remain visible.
 Layers are grouped into reconstruction, ordinary imagery and ordinary vectors. Vector list order does not set draw order. Higher entries within a group draw on top;
 reconstruction layers draw above native imagery. Move layers within their group using the arrows.
 Each layer has visibility, a name, opacity and removal. Only reconstruction layers have manual tile controls.
@@ -67,9 +74,12 @@ Snapshots initially use their scientific age as both endpoints; editing their di
 Adding a snapshot does not move the timeline. Graticules and reference outlines remain auxiliary overlays.
 
 Changing the source form or plate model prepares the next addition without clearing existing layers.
-Use **Use current plate model** on a reconstruction layer to explicitly replace its model, then reload its tiles.
-Switching reconstruction tile levels or loading the current view replaces that layer's coverage, preventing
-overlapping LODs from applying opacity twice. Other layers keep their tiles.
+Use **Use current** beside a reconstruction layer's model to explicitly replace it, then reload its tiles.
+**Load view** on the left and **Current view → Load tiles** on the right retain existing tiles
+and add coverage for the current view, including when the automatic or fixed view level changes.
+Repeated requests skip already-loaded tasks. Use **Clear** / **Clear tiles** to reset the accumulated
+coverage. Different retained levels can overlap and blend their opacity; clearing first starts a fresh view.
+Whole-layer **Specified level** loading replaces coverage when switching from view loading or another level.
 Cesium handles ordinary imagery LOD, view-dependent requests, caching and texture cleanup directly;
 ordinary layers do not use the RTL processor or the demo's manual tile loader.
 **Clear prepared file** releases only the local editor's file reference. Added layers retain independent references;
@@ -83,6 +93,66 @@ the processor supports provider-scoped cache invalidation. Sources keep independ
 labels (on by default), independently of imagery and reconstruction age. The grid
 uses the demo's sphere in 2D and 3D, appears in screenshots, and is saved/restored
 through the existing experiment JSON field `layers.graticule`.
+
+## Reference & Legend
+
+**Reference & Legend**, **GPlates reference**, and **Macrostrat legend** are collapsed
+by default. GPlates outlines keep their existing source and colour controls.
+
+In **Macrostrat legend**, set **Zoom (z)** (default **4**) to match the source tiles,
+then use the adjacent **Select area** or **Select point** buttons. **Select area**
+drags a rectangle; keep the whole box on the globe and zoom in or use 2D if necessary.
+**Select point** takes one click on the globe and marks it with a small orange dot.
+The point becomes a tiny box extending **0.0001°** in each direction (0.0002° wide/high,
+with latitude clamped at the poles and longitude wrapped at the dateline). Both
+selection modes share model selection, caching and legend display. Escape or **Cancel** ends selection
+and restores camera controls. **Query again** reuses the saved point or area;
+**Clear** removes the selection and its marker. Expand **Query point** / **Query area**
+to inspect the selected coordinates and modern query bounds.
+
+At **0 Ma**, the selected bounds are queried directly. At older ages, choose a
+Macrostrat Carto reconstruction layer: the query uses that layer's bound plate model,
+the global age, and RTL's inverse view-sphere path followed by quadtree selection
+at the exact Legend **z** level (within the layer's provider range). NONE nodes are
+pruned; only intersecting FULL and NEED_CLIP tiles contribute. For area queries, selected tiles are
+packed per plate, then deduplicated and combined across plates without filling gaps
+or holes. Disconnected coverage can therefore produce several query rectangles.
+Point queries enable RTL's `clipToView` option: intersect each plate's selected coverage
+with the inverse-rotated small query bounds, then combine and deduplicate those bounds.
+The requested area stays small rather than growing to a z-level tile. Zoom still controls
+quadtree filtering and the Macrostrat legend level. This can prepare an imported layer's
+model without loading or clearing its tiles. Antimeridian-crossing ranges are split.
+Returned rectangles are conservative and can include nearby units, so this is not a
+pixel-exact legend of the rotated image.
+
+Duplicate bounds and bounds fully contained by another are removed before querying.
+Results appear as each area finishes and are merged by `legend_id`; there is no need
+to wait for all areas. Failed or timed-out requests are skipped, with their count
+shown alongside the partial results. **Query again** retries failed areas while
+reusing successful cached areas. **Cancel** stops remaining requests and keeps the
+entries already received. The display groups records by normalized colour, retaining
+every original ID and its associated attributes. Common names/ages label each colour;
+different names/ages are shown as multiple units/ages, with their records in the details.
+Common properties appear once; differing lithology, descriptions, source IDs and age
+ranges remain associated with their original legend IDs. Identical attribute combinations
+share a detail row listing their IDs. A shared colour does not identify the rock at a particular location.
+
+**Limit (colors)** defaults to **1000** (editable from 1 to 1000) and counts displayed
+colour groups, not raw records. Exceeding it hides **all** groups and asks for a smaller
+area. Missing/invalid colours remain separate records rather than a shared grey category.
+The status reports both colour-group and original-record counts. Changing the age, model, layer, zoom,
+limit or view mode invalidates the displayed result and cancels pending work.
+
+The demo's `src/legend` owns selection, API requests, cancellation and a five-minute,
+64-area cache with a total budget of 50,000 original records; `entries.ts` owns normalization
+and grouping, while `MacrostratLegendSection` and `LegendGroupItem` own the UI. Record
+details are rendered only when a colour is expanded. Requests use
+`https://macrostrat.org/api/v3/map/carto/legend?bounds=W,S,E,N&zoom=z`, with at most
+three concurrent requests and a 25-second timeout per request. Partial results are
+explicitly marked, and an all-failed query is reported separately from an empty legend. See
+[Macrostrat data services](https://macrostrat.org/docs/data-services) for service
+details. Legend settings, selections and results are temporary session tools and
+are not included in experiment JSON.
 
 ## Connect online imagery
 
@@ -205,7 +275,7 @@ pnpm --filter reconstructable-tile-layer-demo dev
    **Timeline & tiles** update the selected layer's saved loading mode when they complete.
 4. Export runtime information or a screenshot when needed.
 
-**Timeline & tiles** also provides **Lock view level** beside **Load Tiles By View Sphere**.
+**Timeline & tiles** also provides **Lock view level** beside **Load view**.
 Both panels edit the same setting for the selected layer. The fixed view level is independent of
 the full-extent **Tile level** input. Inputs use the source's available level range, including
 local TIFF limits after preparation. Fixed view loading retains spatial filtering and never
@@ -223,7 +293,7 @@ reference polygon settings are restored alongside the layers.
 Import validates the configuration before replacing the layer list, then activates ordinary online
 imagery automatically. **Load tiles** runs the saved loading choice for a reconstruction layer.
 Local layers require **Prepare local file**, TIFF/GeoJSON reselection and **Restore selected layer**.
-Reselect local plate-model files and use **Use current plate model** on the affected layer.
+Reselect local plate-model files and use **Use current** on the affected layer.
 File contents and session `blob:` URLs are not persisted.
 
 Case files contain inputs only. Runtime exports additionally include `geoTileStats` for the selected

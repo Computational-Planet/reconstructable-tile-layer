@@ -3,6 +3,7 @@ import { validateTileServiceConfig } from "../../cesium/tileServiceConfig";
 import { LocalRasterSection } from "./LocalRasterSection";
 import { LocalGeoJsonSection } from "./LocalGeoJsonSection";
 import { ServiceConnectionForm } from "./ServiceConnectionForm";
+import { HelpHint } from "../HelpHint";
 import type { ControlPanelProps, ImagerySourceKind } from "./ControlPanel.types";
 
 // 新的数据源类型在此登记，并提供独立的配置编辑器；应用入口和生效状态保持统一。
@@ -82,49 +83,72 @@ export function ImagerySourceSection({
       aria-label="Layer data source"
       aria-busy={busy}
     >
-      <h2>
-        <span className="workflow-step">2</span> Layer data source
-      </h2>
+      <div className="field-heading">
+        <h2>
+          <span className="workflow-step">2</span> Layer data source
+        </h2>
+        <HelpHint label="Layer data source">
+          Add the source as a new layer, then load reconstruction tiles in Timeline &amp; tiles or
+          Layers. Fixed-coordinate layers can have a visible age range in Layers. Changing these
+          inputs leaves existing layers unchanged.
+        </HelpHint>
+      </div>
       <div className="active-source" data-testid="active-source" aria-live="polite">
-        <span className="active-source-label">Selected layer</span>
+        <div className="active-source-heading">
+          <span className="active-source-label">Selected</span>
+          <strong title={selectedLayer?.name}>{selectedLayer?.name ?? "No layer selected"}</strong>
+        </div>
         {selectedLayer ? (
-          <div data-testid="raster-applied">
-            <strong>{selectedLayer.name}</strong>
-            <p className="field-hint">
-              {selectedLayer.mode === "reconstructable"
-                ? `Reconstruction · ${age} Ma`
-                : "Fixed coordinates"}
-              {" · "}
-              {selectedLayer.effectiveVisible ? "enabled at current age" : "hidden"}
-            </p>
-          </div>
-        ) : (
-          <strong>No layer selected</strong>
-        )}
+          <p className="field-hint" data-testid="raster-applied">
+            {selectedLayer.mode === "reconstructable"
+              ? `Reconstruction · ${age} Ma`
+              : "Fixed coordinates"}
+            {" · "}
+            {selectedLayer.effectiveVisible ? "Visible" : "Hidden"}
+          </p>
+        ) : null}
         {modelNeedsApply && (
           <p className="field-hint">Plate model changed. Apply source to use the new model.</p>
         )}
       </div>
 
-      <label>
-        Source type
-        <select
-          id="source-kind"
-          aria-label="Layer source type"
-          value={sourceKind}
-          disabled={busy}
-          onChange={(event) => {
-            onSourceKindChange(event.target.value as ImagerySourceKind);
-            setSettingsOpen(true);
-          }}
-        >
-          {SOURCE_KINDS.map((item) => (
-            <option key={item.key} value={item.key}>
-              {item.label}
-            </option>
-          ))}
-        </select>
-      </label>
+      <div className={localSource ? "source-choice-field" : "panel-field-grid"}>
+        <label>
+          Source type
+          <select
+            id="source-kind"
+            aria-label="Layer source type"
+            value={sourceKind}
+            disabled={busy}
+            onChange={(event) => {
+              onSourceKindChange(event.target.value as ImagerySourceKind);
+              setSettingsOpen(true);
+            }}
+          >
+            {SOURCE_KINDS.map((item) => (
+              <option key={item.key} value={item.key}>
+                {item.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        {!localSource && (
+          <label>
+            Coordinates
+            <select
+              aria-label="Service layer coordinates"
+              value={serviceMode}
+              disabled={busy}
+              onChange={(event) =>
+                onServiceModeChange(event.target.value as "reconstructable" | "static")
+              }
+            >
+              <option value="reconstructable">Reconstruct (0 Ma)</option>
+              <option value="static">Fixed coordinates</option>
+            </select>
+          </label>
+        )}
+      </div>
 
       {localSource ? (
         <details
@@ -141,20 +165,6 @@ export function ImagerySourceSection({
         </details>
       ) : (
         <>
-          <label>
-            Coordinates
-            <select
-              aria-label="Service layer coordinates"
-              value={serviceMode}
-              disabled={busy}
-              onChange={(event) =>
-                onServiceModeChange(event.target.value as "reconstructable" | "static")
-              }
-            >
-              <option value="reconstructable">Reconstruct from 0 Ma</option>
-              <option value="static">Fixed coordinates</option>
-            </select>
-          </label>
           <ServiceConnectionForm
             config={serviceConfig}
             exampleKey={providerKey}
@@ -169,14 +179,14 @@ export function ImagerySourceSection({
         serviceActive &&
         JSON.stringify(serviceConfig) !== JSON.stringify(appliedService.config) && (
           <p className="field-hint" data-testid="service-pending">
-            Add this connection as another layer. Existing layers keep their applied settings.
+            Connection edited. Add it as a new layer.
           </p>
         )}
       <div className="source-apply-actions">
         <button
           type="button"
           disabled={!!disabledReason}
-          aria-describedby="source-apply-help"
+          aria-describedby={disabledReason ? "source-apply-help" : undefined}
           onClick={() =>
             local ? void raster.apply() : geojson ? void vector.apply() : onApplyProvider()
           }
@@ -201,14 +211,11 @@ export function ImagerySourceSection({
           </button>
         )}
       </div>
-      <p id="source-apply-help" className="field-hint">
-        {disabledReason ??
-          (geojson ||
-          (local && raster.context.role !== "modern-reconstructable") ||
-          (!localSource && serviceMode === "static")
-            ? "Add a fixed-coordinate layer, then set its visible age range in Layers."
-            : "Add the source as a new layer, then load its tiles in step 3 or the Layers panel.")}
-      </p>
+      {disabledReason && (
+        <p id="source-apply-help" className="field-hint">
+          {disabledReason}
+        </p>
+      )}
       {geojson && (
         <>
           <p className="field-hint" role="status" data-testid="geojson-status">

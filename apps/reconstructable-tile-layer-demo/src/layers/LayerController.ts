@@ -1,4 +1,10 @@
-import { ImageryLayer, PrimitiveCollection, type ImageryProvider, type Viewer } from "cesium";
+import {
+  ImageryLayer,
+  PrimitiveCollection,
+  type ImageryProvider,
+  type Rectangle,
+  type Viewer,
+} from "cesium";
 import {
   ReconstructableTileLayer,
   type PrimitiveTransformMode,
@@ -69,6 +75,39 @@ export class LayerController {
   }
   get firstManager() {
     return this.entries.find((entry) => entry.runtime?.rtl)?.runtime?.rtl ?? null;
+  }
+
+  /** 只准备绑定的模型并反查来源范围；不加载、清空或改变图层的瓦片覆盖。 */
+  async querySourceRegions(
+    id: string,
+    rectangle: Rectangle,
+    age: number,
+    level: number,
+    clipToView = false,
+  ) {
+    const entry = this.find(id);
+    if (!entry || entry.definition.mode !== "reconstructable")
+      throw new Error("Choose a reconstruction layer for the source-region query.");
+    const operation = entry.operation;
+    const initialRuntime = entry.runtime;
+    try {
+      await this.initialize(entry);
+    } catch (error) {
+      // 首次模型准备失败后允许重试；不清理原本已加载的运行时。
+      if (!initialRuntime && this.current(entry) && entry.operation === operation)
+        this.releaseRuntime(entry);
+      throw error;
+    }
+    if (!this.current(entry) || entry.operation !== operation || !entry.runtime?.rtl)
+      throw new Error("The layer changed. Query the legend again.");
+    const result = await entry.runtime.rtl.querySourceRegions(rectangle, {
+      age,
+      level,
+      clipToView,
+    });
+    if (!this.current(entry) || entry.operation !== operation || result.skippedReason)
+      throw new Error("The reconstruction model changed or is not ready. Query again.");
+    return result;
   }
   get hasLayers() {
     return this.entries.length > 0;
@@ -423,9 +462,9 @@ export class LayerController {
       let viewResult: ViewAwareTileLoadResult | undefined;
       if (runtime.rtl) {
         const coverage = useView ? "view" : `level:${targetLevel}`;
-        // RTL 可累积多个 LOD；图层透明度要求同一来源在同一区域只混合一次。
-        // 切换覆盖时只清本层图元，保留共享处理器的原始瓦片缓存。
-        if (runtime.coverage && (useView || runtime.coverage !== coverage))
+        // 按视野加载累积覆盖，保留已有瓦片；RTL 会跳过已加载或正在加载的同一任务。
+        // 全域指定层级加载仍在切换覆盖时清理本层，避免保留其他层级的重叠覆盖。
+        if (!useView && runtime.coverage && runtime.coverage !== coverage)
           runtime.rtl.clear(this.viewer);
         runtime.coverage = coverage;
         if (useView) {

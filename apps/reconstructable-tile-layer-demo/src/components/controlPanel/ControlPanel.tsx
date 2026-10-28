@@ -4,8 +4,7 @@ import { CameraOutputSection } from "./CameraOutputSection";
 import { PlateModelSection } from "./PlateModelSection";
 import { ImagerySourceSection } from "./ImagerySourceSection";
 import { ReferenceSection } from "./ReferenceSection";
-import { ExperimentExportSection } from "./ExperimentExportSection";
-import { ExperimentImportSection } from "./ExperimentImportSection";
+import { ExperimentSection } from "./ExperimentSection";
 import { RenderingSection } from "./RenderingSection";
 import { StatsSection } from "./StatsSection";
 import { TimeTilesSection } from "./TimeTilesSection";
@@ -83,6 +82,7 @@ export function ControlPanel(props: ControlPanelProps) {
         />
 
         <ReferenceSection
+          macrostratLegend={props.macrostratLegend}
           referencePolygonColor={props.referencePolygonColor}
           referencePolygonKey={props.referencePolygonKey}
           referencePolygonSources={props.referencePolygonSources}
@@ -115,13 +115,9 @@ export function ControlPanel(props: ControlPanelProps) {
           onPrimitiveTransformModeChange={props.onPrimitiveTransformModeChange}
         />
 
-        <ExperimentImportSection
+        <ExperimentSection
           busy={props.busy}
           onImportExperimentConfig={props.onImportExperimentConfig}
-        />
-
-        <ExperimentExportSection
-          busy={props.busy}
           onCaptureScreenshot={props.onCaptureScreenshot}
           onExportInfo={props.onExportInfo}
         />

@@ -206,6 +206,44 @@ await rtl.refineTilesForView(viewer, level);
 固定层级不会因瓦片数量预算而降级。`loadFineTilesInView` 和 `loadFineTilesInViewAtLevel`
 采用相同规则。
 
+## 反查现代来源范围
+
+`querySourceRegions(rectangle, { level, age?, clipToView? })` 复用按视野加载的包围球候选筛选、板块逆旋转
+和四叉树遍历，在指定 `level` 上保留与球相交、且属于当前有效板块的 FULL / NEED_CLIP 瓦片。
+NONE 节点直接剪枝，不继续向下查找。`level` 必须是 provider 支持范围内的整数，不会自动调整；
+省略 `age` 时使用图层当前年代。调用前先初始化图层；查询按需展开空间索引，但不请求影像，
+不改变已加载瓦片、任务统计或显示年代。已经加载的瓦片仍参与范围查询。
+
+```ts
+import { Rectangle, Math as CesiumMath } from "cesium";
+
+const result = await rtl.querySourceRegions(Rectangle.fromDegrees(100, 20, 110, 30), {
+  level: 4,
+  age: 120,
+});
+if (!result.skippedReason) {
+  for (const rectangle of result.rectangles) {
+    const bounds = [rectangle.west, rectangle.south, rectangle.east, rectangle.north].map(
+      CesiumMath.toDegrees,
+    );
+    console.log(bounds);
+  }
+}
+```
+
+`SourceRegionQueryResult` 包含 `age`、`level`、`regions`、合并后的 `rectangles` 和可选的 `skippedReason`
+（`not-ready`、`stale-source`、`stale-age`）。每个 `ReconstructionSourceRegion`
+包含 `plateId`、`modernBoundingSphere` 及逐板块的弧度制 `rectangles`。
+默认先对各板块选中的瓦片取并集、去重，再将相邻瓦片拼成实心矩形，不填平孔洞或纳入未选瓦片。
+四至使用 provider 的实际网格边界（包括 WebMercator 非等间隔纬度），在反经线处分开。
+没有选中瓦片的候选板块不会生成查询范围。
+点选等小范围查询可设置 **`clipToView: true`**：先将每个板块的选中覆盖与逆旋转后查询球的
+经纬度四至求交，再汇总去重，保持查询的小范围，不扩展到整张瓦片。
+空交集直接跳过，重复及被包含的四至会删除；层级、有效年代与 NONE 剪枝规则仍然适用。
+返回范围是保守四至，可能包含附近单元，并非精确板块裁剪轮廓。
+特定服务请求与图例分组由应用层实现。导出的 `boundingSphereToGeographicRectangles`、
+`splitGeographicRectangle` 仍可作为独立几何工具使用。
+
 ## 复合任务与保留状态
 
 各个要素的贡献会按照板块标识、有效时间区间和源瓦片坐标合并到

@@ -3,24 +3,44 @@
   grid-template-columns: minmax(400px, 460px) minmax(0, 1fr) 310px;
 }
 .layer-panel {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
   min-width: 0;
+  min-height: 0;
   height: 100%;
-  overflow-y: auto;
-  padding: 18px 14px;
+  max-height: 100dvh;
+  overflow: hidden;
+  padding: 14px;
   border-left: 1px solid rgb(255 255 255 / 12%);
   background: #0c1118;
+}
+/* 顶部操作保持可见；仅列表分配剩余高度并滚动，滚轮到边缘也不传给外层页面。 */
+.layer-panel > header,
+.layer-panel-toolbar {
+  flex-shrink: 0;
+}
+.layer-panel-content {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   scrollbar-color: #3d4654 #0c1118;
   scrollbar-width: thin;
+  scrollbar-gutter: stable;
+}
+.layer-panel-content:focus-visible {
+  outline: 1px solid #8fb6ff;
+  outline-offset: 2px;
 }
 .layer-panel[hidden],
 .layer-panel-toggle[hidden] {
   display: none;
 }
 .layer-panel h2 {
-  margin: 4px 0 0;
+  margin: 0;
   font-size: 20px;
 }
 .layer-panel h2 span,
@@ -41,22 +61,33 @@
   justify-content: space-between;
   gap: 10px;
 }
-.layer-panel button {
+.layer-panel :where(button:not(.help-hint-toggle)) {
   padding: 0 10px;
   font-size: 12px;
 }
 .layer-list {
   display: grid;
-  gap: 10px;
+  gap: 8px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
+.layer-group + .layer-group {
+  margin-top: 14px;
+}
+.layer-group-heading {
+  min-height: 24px;
+  margin-bottom: 6px;
+}
 .layer-group h3 {
-  margin: 0 0 10px;
+  margin: 0;
   color: #bbc8d8;
   font-size: 12px;
   font-weight: 500;
+}
+.layer-group h3 span {
+  margin-left: 4px;
+  color: #9fb3c8;
 }
 .layer-card {
   min-width: 0;
@@ -84,14 +115,16 @@
   display: grid;
   flex: 1;
   min-width: 0;
-  gap: 5px;
+  gap: 3px;
   padding: 2px 0;
   text-align: left;
   background: transparent;
   font-weight: 400;
 }
 .layer-select strong {
-  overflow-wrap: anywhere;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: #f1f5f9;
   font-size: 13px;
 }
@@ -101,19 +134,18 @@
 }
 .layer-order-actions {
   display: flex;
-  flex-direction: column;
-  gap: 3px;
+  gap: 4px;
 }
-.layer-order-actions button {
+.layer-panel .layer-order-actions button {
   min-height: 24px;
-  width: 26px;
+  width: 24px;
   padding: 0;
 }
 .layer-details {
   display: grid;
-  gap: 12px;
-  margin-top: 12px;
-  padding-top: 12px;
+  gap: 10px;
+  margin-top: 10px;
+  padding-top: 10px;
   border-top: 1px solid rgb(255 255 255 / 10%);
 }
 .layer-details label {
@@ -125,15 +157,41 @@
 .layer-details .checkbox-row {
   display: flex;
 }
-.layer-opacity {
-  grid-template-columns: 1fr auto;
+.layer-details input,
+.layer-details select {
+  font-size: 13px;
 }
-.layer-opacity input {
-  grid-column: 1 / -1;
+.layer-name-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+.layer-opacity {
+  grid-template-columns: auto minmax(0, 1fr) 38px;
+  align-items: center;
+}
+.layer-details .layer-opacity {
+  gap: 8px;
+}
+.layer-opacity span {
+  text-align: right;
+}
+.layer-model-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 24px auto;
+  align-items: center;
+  gap: 4px;
+}
+.layer-model-row p {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
 }
 .layer-age-range {
   display: grid;
-  gap: 10px;
+  gap: 8px;
   min-width: 0;
   margin: 0;
   padding: 10px;
@@ -145,9 +203,14 @@
   font-size: 12px;
   padding: 0 4px;
 }
-.layer-source-name {
-  max-height: 60px;
-  overflow: auto;
+.layer-age-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
+  align-items: end;
+  gap: 6px;
+}
+.layer-age-fields input {
+  padding: 0 6px;
 }
 .layer-status {
   margin: 0;
@@ -159,14 +222,20 @@
 .layer-status.is-error {
   color: #ffc58e;
 }
-.layer-load-row {
+.layer-loading-controls {
   display: grid;
-  grid-template-columns: 68px 1fr;
-  gap: 10px;
-  align-items: end;
+  gap: 8px;
+  min-width: 0;
 }
-.layer-load-row > button:only-child {
-  grid-column: 1 / -1;
+.layer-load-settings {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 62px;
+  gap: 8px;
+}
+.layer-action-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
 }
 .layer-details .layer-remove {
   color: #ffc58e;
@@ -208,5 +277,8 @@
   .layer-panel {
     position: fixed;
     height: 100dvh;
+  }
+  .layer-panel-toggle {
+    position: fixed;
   }
 }

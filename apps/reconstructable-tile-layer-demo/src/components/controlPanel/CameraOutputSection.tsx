@@ -37,18 +37,14 @@ export function CameraOutputSection({
 }: CameraOutputSectionProps) {
   const [detailsOpen, setDetailsOpen] = useState(false);
 
-  const updateExperimentViewConfig = (
-    patch: Partial<ExperimentViewConfig>,
-  ) => {
+  const updateExperimentViewConfig = (patch: Partial<ExperimentViewConfig>) => {
     onExperimentViewConfigChange({
       ...experimentViewConfig,
       ...patch,
     });
   };
 
-  const updateExtent = (
-    patch: Partial<ExperimentViewConfig["extent"]>,
-  ) => {
+  const updateExtent = (patch: Partial<ExperimentViewConfig["extent"]>) => {
     updateExperimentViewConfig({
       extent: {
         ...experimentViewConfig.extent,
@@ -57,9 +53,7 @@ export function CameraOutputSection({
     });
   };
 
-  const updateCamera3D = (
-    patch: Partial<ExperimentViewConfig["camera3D"]>,
-  ) => {
+  const updateCamera3D = (patch: Partial<ExperimentViewConfig["camera3D"]>) => {
     updateExperimentViewConfig({
       camera3D: {
         ...experimentViewConfig.camera3D,
@@ -68,9 +62,7 @@ export function CameraOutputSection({
     });
   };
 
-  const updateOutput = (
-    patch: Partial<ExperimentViewConfig["output"]>,
-  ) => {
+  const updateOutput = (patch: Partial<ExperimentViewConfig["output"]>) => {
     updateExperimentViewConfig({
       output: {
         ...experimentViewConfig.output,
@@ -93,41 +85,40 @@ export function CameraOutputSection({
         </button>
       </div>
 
-      <label>
-        Scene mode
-        <select
-          disabled={busy}
-          value={experimentViewConfig.viewMode}
-          onChange={(event) =>
-            onExperimentSceneModeChange(
-              event.target.value as ExperimentViewMode,
-            )
-          }
-        >
-          <option value="2D_RECTANGULAR">2D rectangular</option>
-          <option value="3D_GLOBE">3D (perspective)</option>
-          <option value="3D_ORTHOGRAPHIC">3D (orthographic)</option>
-        </select>
-      </label>
+      <div className="panel-field-grid">
+        <label>
+          Scene mode
+          <select
+            disabled={busy}
+            value={experimentViewConfig.viewMode}
+            onChange={(event) =>
+              onExperimentSceneModeChange(event.target.value as ExperimentViewMode)
+            }
+          >
+            <option value="2D_RECTANGULAR">2D rectangular</option>
+            <option value="3D_GLOBE">3D (perspective)</option>
+            <option value="3D_ORTHOGRAPHIC">3D (orthographic)</option>
+          </select>
+        </label>
 
-      <label>
-        Quick view
-        <select
-          disabled={busy}
-          value=""
-          onChange={(event) => onApplyCameraPreset(event.target.value as ExperimentViewPreset)}
-        >
-          <option value="" disabled>
-            Choose a view…
-          </option>
-          {Object.entries(EXPERIMENT_VIEW_PRESETS).map(([key, preset]) => (
-            <option key={key} value={key}>
-              {preset.label}
+        <label>
+          Quick view
+          <select
+            disabled={busy}
+            value=""
+            onChange={(event) => onApplyCameraPreset(event.target.value as ExperimentViewPreset)}
+          >
+            <option value="" disabled>
+              Choose a view…
             </option>
-          ))}
-        </select>
-      </label>
-
+            {Object.entries(EXPERIMENT_VIEW_PRESETS).map(([key, preset]) => (
+              <option key={key} value={key}>
+                {preset.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
       {detailsOpen ? (
         <div className="source-detail-panel">
           <div className="grid-2">
@@ -165,9 +156,7 @@ export function CameraOutputSection({
                 min={-180}
                 type="number"
                 value={formatRequiredNumber(experimentViewConfig.extent.west)}
-                onChange={(event) =>
-                  updateExtent({ west: event.target.valueAsNumber })
-                }
+                onChange={(event) => updateExtent({ west: event.target.valueAsNumber })}
               />
             </label>
 
@@ -178,9 +167,7 @@ export function CameraOutputSection({
                 min={-90}
                 type="number"
                 value={formatRequiredNumber(experimentViewConfig.extent.south)}
-                onChange={(event) =>
-                  updateExtent({ south: event.target.valueAsNumber })
-                }
+                onChange={(event) => updateExtent({ south: event.target.valueAsNumber })}
               />
             </label>
 
@@ -191,9 +178,7 @@ export function CameraOutputSection({
                 min={-180}
                 type="number"
                 value={formatRequiredNumber(experimentViewConfig.extent.east)}
-                onChange={(event) =>
-                  updateExtent({ east: event.target.valueAsNumber })
-                }
+                onChange={(event) => updateExtent({ east: event.target.valueAsNumber })}
               />
             </label>
 
@@ -204,9 +189,7 @@ export function CameraOutputSection({
                 min={-90}
                 type="number"
                 value={formatRequiredNumber(experimentViewConfig.extent.north)}
-                onChange={(event) =>
-                  updateExtent({ north: event.target.valueAsNumber })
-                }
+                onChange={(event) => updateExtent({ north: event.target.valueAsNumber })}
               />
             </label>
           </div>
@@ -227,12 +210,8 @@ export function CameraOutputSection({
                 max={180}
                 min={-180}
                 type="number"
-                value={formatRequiredNumber(
-                  experimentViewConfig.camera3D.targetLon,
-                )}
-                onChange={(event) =>
-                  updateCamera3D({ targetLon: event.target.valueAsNumber })
-                }
+                value={formatRequiredNumber(experimentViewConfig.camera3D.targetLon)}
+                onChange={(event) => updateCamera3D({ targetLon: event.target.valueAsNumber })}
               />
             </label>
 
@@ -242,12 +221,8 @@ export function CameraOutputSection({
                 max={90}
                 min={-90}
                 type="number"
-                value={formatRequiredNumber(
-                  experimentViewConfig.camera3D.targetLat,
-                )}
-                onChange={(event) =>
-                  updateCamera3D({ targetLat: event.target.valueAsNumber })
-                }
+                value={formatRequiredNumber(experimentViewConfig.camera3D.targetLat)}
+                onChange={(event) => updateCamera3D({ targetLat: event.target.valueAsNumber })}
               />
             </label>
 
@@ -256,12 +231,8 @@ export function CameraOutputSection({
               <input
                 min={1}
                 type="number"
-                value={formatRequiredNumber(
-                  experimentViewConfig.camera3D.range,
-                )}
-                onChange={(event) =>
-                  updateCamera3D({ range: event.target.valueAsNumber })
-                }
+                value={formatRequiredNumber(experimentViewConfig.camera3D.range)}
+                onChange={(event) => updateCamera3D({ range: event.target.valueAsNumber })}
               />
             </label>
 
@@ -269,12 +240,8 @@ export function CameraOutputSection({
               Heading deg
               <input
                 type="number"
-                value={formatRequiredNumber(
-                  experimentViewConfig.camera3D.heading,
-                )}
-                onChange={(event) =>
-                  updateCamera3D({ heading: event.target.valueAsNumber })
-                }
+                value={formatRequiredNumber(experimentViewConfig.camera3D.heading)}
+                onChange={(event) => updateCamera3D({ heading: event.target.valueAsNumber })}
               />
             </label>
 
@@ -282,12 +249,8 @@ export function CameraOutputSection({
               Pitch deg
               <input
                 type="number"
-                value={formatRequiredNumber(
-                  experimentViewConfig.camera3D.pitch,
-                )}
-                onChange={(event) =>
-                  updateCamera3D({ pitch: event.target.valueAsNumber })
-                }
+                value={formatRequiredNumber(experimentViewConfig.camera3D.pitch)}
+                onChange={(event) => updateCamera3D({ pitch: event.target.valueAsNumber })}
               />
             </label>
 
@@ -295,12 +258,8 @@ export function CameraOutputSection({
               Roll deg
               <input
                 type="number"
-                value={formatRequiredNumber(
-                  experimentViewConfig.camera3D.roll,
-                )}
-                onChange={(event) =>
-                  updateCamera3D({ roll: event.target.valueAsNumber })
-                }
+                value={formatRequiredNumber(experimentViewConfig.camera3D.roll)}
+                onChange={(event) => updateCamera3D({ roll: event.target.valueAsNumber })}
               />
             </label>
           </div>
@@ -321,9 +280,7 @@ export function CameraOutputSection({
                 min={1}
                 type="number"
                 value={formatRequiredNumber(experimentViewConfig.output.width)}
-                onChange={(event) =>
-                  updateOutput({ width: event.target.valueAsNumber })
-                }
+                onChange={(event) => updateOutput({ width: event.target.valueAsNumber })}
               />
             </label>
 
@@ -333,9 +290,7 @@ export function CameraOutputSection({
                 min={1}
                 type="number"
                 value={formatRequiredNumber(experimentViewConfig.output.height)}
-                onChange={(event) =>
-                  updateOutput({ height: event.target.valueAsNumber })
-                }
+                onChange={(event) => updateOutput({ height: event.target.valueAsNumber })}
               />
             </label>
 
@@ -346,12 +301,8 @@ export function CameraOutputSection({
                 min={0.1}
                 step={0.1}
                 type="number"
-                value={formatRequiredNumber(
-                  experimentViewConfig.output.pixelRatio,
-                )}
-                onChange={(event) =>
-                  updateOutput({ pixelRatio: event.target.valueAsNumber })
-                }
+                value={formatRequiredNumber(experimentViewConfig.output.pixelRatio)}
+                onChange={(event) => updateOutput({ pixelRatio: event.target.valueAsNumber })}
               />
             </label>
           </div>

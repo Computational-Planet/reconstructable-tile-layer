@@ -8,6 +8,7 @@ import {
 import { validateTileServiceConfig } from "../../cesium/tileServiceConfig";
 import { useServiceTileTest } from "../../hooks/useServiceTileTest";
 import { CitationInfo } from "./SourceCitation";
+import { HelpHint } from "../HelpHint";
 
 type Props = {
   config: TileServiceConfig;
@@ -40,13 +41,15 @@ export function ServiceConnectionForm({
     patch({ wmts: { ...config.wmts, ...value } });
   return (
     <div className="service-connection-form" role="form" aria-label="Tile service connection">
-      <p className="field-hint">
-        Connect to your data: enter a service URL, or fill this form from an example. Every setting
-        below is editable.
-      </p>
       <fieldset className="unstyled-fieldset source-compact-stack" disabled={busy}>
         <div className="source-choice-field">
-          <label htmlFor="service-example">Fill from example</label>
+          <div className="field-heading">
+            <label htmlFor="service-example">Fill from example</label>
+            <HelpHint label="Service examples">
+              Enter your own service URL, or fill this form from an example. Every setting is
+              editable.
+            </HelpHint>
+          </div>
           <div className="source-select-row">
             <select
               id="service-example"
@@ -94,27 +97,73 @@ export function ServiceConnectionForm({
             </div>
           )}
         </div>
-        <label>
-          Service type
-          <select
-            aria-label="Service type"
-            value={config.protocol}
-            onChange={(event) =>
-              patch({ protocol: event.target.value as TileServiceConfig["protocol"] })
-            }
-          >
-            <option value="url-template">XYZ / TMS URL template</option>
-            <option value="wms">WMS · map images</option>
-            <option value="wmts">WMTS · tiled map service</option>
-          </select>
-        </label>
-        <label>
-          {config.protocol === "url-template"
-            ? "Tile URL template"
-            : "Service endpoint / REST template"}
+        <div className="panel-field-grid">
+          <label>
+            Service type
+            <select
+              aria-label="Service type"
+              value={config.protocol}
+              onChange={(event) =>
+                patch({ protocol: event.target.value as TileServiceConfig["protocol"] })
+              }
+            >
+              <option value="url-template">XYZ / TMS</option>
+              <option value="wms">WMS</option>
+              <option value="wmts">WMTS</option>
+            </select>
+          </label>
+          <div className="source-choice-field">
+            <div className="field-heading">
+              <label htmlFor="service-tiling-scheme">Projection</label>
+              <HelpHint label="Service projection">
+                Match the service's tile grid; EPSG alone does not specify it. L0:{" "}
+                {config.levelZeroTilesX} columns × {config.levelZeroTilesY} rows; each level doubles
+                both. Edit the grid in the additional parameters below.
+              </HelpHint>
+            </div>
+            <select
+              id="service-tiling-scheme"
+              aria-label="Service tiling scheme"
+              value={config.tilingSchemeKey}
+              onChange={(event) => {
+                const geographic = event.target.value === "geographic";
+                patch({
+                  tilingSchemeKey: geographic ? "geographic" : "web-mercator",
+                  levelZeroTilesX: geographic ? 2 : 1,
+                  levelZeroTilesY: 1,
+                  bounds: null,
+                  wms: { ...config.wms, crs: geographic ? "EPSG:4326" : "EPSG:3857" },
+                });
+              }}
+            >
+              <option value="geographic">EPSG:4326</option>
+              <option value="web-mercator">EPSG:3857</option>
+            </select>
+          </div>
+        </div>
+        <div className="source-choice-field">
+          <div className="field-heading">
+            <label htmlFor="service-url">
+              {config.protocol === "url-template"
+                ? "Tile URL template"
+                : "Service endpoint / REST template"}
+            </label>
+            <HelpHint label="Service URL">
+              <span data-testid="service-address-help">
+                {config.url.trim().startsWith("/tiles/")
+                  ? "These tiles are hosted with this Demo. The relative URL uses this site's address; replace it with your own endpoint if needed."
+                  : config.protocol === "url-template"
+                    ? "{z} = level, {x} = column; {y} counts rows from the north (XYZ), {reverseY} from the south (TMS)."
+                    : config.protocol === "wms"
+                      ? "Cesium builds GetMap requests from these fields. Service, layer or BBOX values in the endpoint query are replaced by the form and tile grid."
+                      : "Use a WMTS endpoint for KVP, or a REST template with {TileMatrix}, {TileRow}, {TileCol}. {Layer} and {style} follow the form fields."}
+              </span>
+            </HelpHint>
+          </div>
           <textarea
+            id="service-url"
             aria-label="Service URL"
-            rows={3}
+            rows={2}
             spellCheck={false}
             value={config.url}
             placeholder={
@@ -124,44 +173,21 @@ export function ServiceConnectionForm({
             }
             onChange={(event) => patch({ url: event.target.value })}
           />
-        </label>
-        <p className="field-hint" data-testid="service-address-help">
-          {config.url.trim().startsWith("/tiles/")
-            ? "These tiles are hosted with this Demo. The relative URL uses this site's address; you can replace it with your own endpoint."
-            : config.protocol === "url-template"
-              ? "{z} = level, {x} = column; {y} counts rows from the north (XYZ), {reverseY} from the south (TMS)."
-              : config.protocol === "wms"
-                ? "Cesium builds GetMap requests from the fields below. Any service, layer or BBOX values in the endpoint query are replaced by the form and tile grid."
-                : "Use a WMTS endpoint for KVP, or a REST template with {TileMatrix}, {TileRow}, {TileCol}. {Layer} and {style} follow the form fields."}
-        </p>
-        <label>
-          Projection / tiling scheme
-          <select
-            aria-label="Service tiling scheme"
-            value={config.tilingSchemeKey}
-            onChange={(event) => {
-              const geographic = event.target.value === "geographic";
-              patch({
-                tilingSchemeKey: geographic ? "geographic" : "web-mercator",
-                levelZeroTilesX: geographic ? 2 : 1,
-                levelZeroTilesY: 1,
-                bounds: null,
-                wms: { ...config.wms, crs: geographic ? "EPSG:4326" : "EPSG:3857" },
-              });
-            }}
-          >
-            <option value="geographic">EPSG:4326 · Geographic</option>
-            <option value="web-mercator">EPSG:3857 · Web Mercator</option>
-          </select>
-        </label>
-        <p className="field-hint">
-          L0 grid: {config.levelZeroTilesX} columns × {config.levelZeroTilesY} rows. Each next level
-          doubles both. Match the service's tile grid; EPSG alone does not specify it.
-        </p>
+        </div>
 
         {config.protocol === "wms" && (
           <fieldset className="service-protocol-fields">
-            <legend>WMS request</legend>
+            <legend>
+              <span className="field-heading">
+                WMS request
+                <HelpHint label="WMS request">
+                  {config.wms.version === "1.3.0" && config.wms.crs === "EPSG:4326"
+                    ? "WMS 1.3.0 / EPSG:4326 uses latitude, longitude BBOX order. Cesium handles it automatically."
+                    : "BBOX follows the selected CRS and WMS version."}{" "}
+                  Leave Styles blank to use the server's default style.
+                </HelpHint>
+              </span>
+            </legend>
             <label>
               Layers
               <input
@@ -211,28 +237,26 @@ export function ServiceConnectionForm({
                 </select>
               </label>
             </div>
-            <p className="field-hint">
-              {config.wms.version === "1.3.0" && config.wms.crs === "EPSG:4326"
-                ? "WMS 1.3.0 / EPSG:4326 uses latitude, longitude BBOX order. Cesium handles it automatically."
-                : "BBOX follows the selected CRS and WMS version."}
-            </p>
-            <label>
-              Styles (blank = default)
-              <input
-                aria-label="WMS styles"
-                value={config.wms.styles}
-                onChange={(event) => wms({ styles: event.target.value })}
-              />
-            </label>
-            <label>
-              Image format
-              <input
-                aria-label="WMS image format"
-                list="service-image-formats"
-                value={config.wms.format}
-                onChange={(event) => wms({ format: event.target.value })}
-              />
-            </label>
+            <div className="panel-field-grid">
+              <label>
+                Styles
+                <input
+                  aria-label="WMS styles"
+                  placeholder="Default"
+                  value={config.wms.styles}
+                  onChange={(event) => wms({ styles: event.target.value })}
+                />
+              </label>
+              <label>
+                Image format
+                <input
+                  aria-label="WMS image format"
+                  list="service-image-formats"
+                  value={config.wms.format}
+                  onChange={(event) => wms({ format: event.target.value })}
+                />
+              </label>
+            </div>
             <label className="checkbox-row">
               <input
                 type="checkbox"
@@ -245,7 +269,15 @@ export function ServiceConnectionForm({
         )}
         {config.protocol === "wmts" && (
           <fieldset className="service-protocol-fields">
-            <legend>WMTS request</legend>
+            <legend>
+              <span className="field-heading">
+                WMTS request
+                <HelpHint label="WMTS request">
+                  Use the matrix set ID from GetCapabilities. Its projection and L0 grid must match
+                  this form.
+                </HelpHint>
+              </span>
+            </legend>
             <label>
               Layer
               <input
@@ -281,10 +313,6 @@ export function ServiceConnectionForm({
                 />
               </label>
             </div>
-            <p className="field-hint">
-              Use the matrix set ID from GetCapabilities. Its projection and L0 grid must match this
-              form.
-            </p>
           </fieldset>
         )}
         <datalist id="service-image-formats">
@@ -304,9 +332,16 @@ export function ServiceConnectionForm({
               onChange={(event) => patch({ minimumLevel: event.target.valueAsNumber })}
             />
           </label>
-          <label>
-            Max level (blank = unlimited)
+          <div className="source-choice-field">
+            <div className="field-heading">
+              <label htmlFor="service-max-level">Max level</label>
+              <HelpHint label="Service level limits">
+                Leave Max level blank when the service declares no upper limit. These are service
+                limits; choose the loading level in Timeline &amp; tiles.
+              </HelpHint>
+            </div>
             <input
+              id="service-max-level"
               aria-label="Service maximum level"
               type="number"
               min={0}
@@ -318,11 +353,8 @@ export function ServiceConnectionForm({
                 })
               }
             />
-          </label>
+          </div>
         </div>
-        <p className="field-hint">
-          These are service limits. Choose the reconstruction loading level separately in step 3.
-        </p>
 
         <details className="panel-disclosure service-advanced">
           <summary>Grid, coverage and additional parameters</summary>
@@ -462,17 +494,20 @@ export function ServiceConnectionForm({
           ))}
         </ul>
       )}
-      <button
-        type="button"
-        className="secondary-button"
-        disabled={busy || errors.length > 0 || result?.loading}
-        onClick={() => void test()}
-      >
-        Test tile connection
-      </button>
-      <p className="field-hint">
-        Requests run in this browser. The server must allow browser access (CORS).
-      </p>
+      <div className="action-with-help">
+        <button
+          type="button"
+          className="secondary-button"
+          disabled={busy || errors.length > 0 || result?.loading}
+          onClick={() => void test()}
+        >
+          Test tile connection
+        </button>
+        <HelpHint label="Test tile connection">
+          Fetch a sample tile to check the connection. Requests run in this browser; the server must
+          allow browser access (CORS).
+        </HelpHint>
+      </div>
       {result && (
         <div className="service-tile-test" role="status" data-testid="service-test-result">
           {result.image && (
