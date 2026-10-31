@@ -19,6 +19,7 @@
   place-items: center;
   overflow: hidden;
   padding: 24px;
+  padding-bottom: 40px;
   background-color: #070a0f;
   background-image: linear-gradient(rgb(255 255 255 / 8%) 1px, transparent 1px),
     linear-gradient(90deg, rgb(255 255 255 / 8%) 1px, transparent 1px),
@@ -30,6 +31,28 @@
     80px 80px,
     20px 20px,
     20px 20px;
+}
+
+/* 标注属于格子工作区，底部留白避开地图画布，并随工作区宽度变化移动。 */
+.cesium-attribution {
+  position: absolute;
+  right: 16px;
+  bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #9fb3c8;
+  font-size: 11px;
+  line-height: 1.2;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+}
+
+.cesium-attribution img {
+  display: block;
+  width: 104px;
+  height: auto;
 }
 
 .viewer-stage {
@@ -67,6 +90,6 @@
 
   .viewer-workspace {
     min-height: 380px;
-    padding: 16px;
+    padding: 16px 16px 40px;
   }
 }

@@ -465,6 +465,16 @@ function App() {
         <div className="viewer-stage">
           <div ref={containerRef} className="cesium-container" style={cesiumContainerStyle} />
         </div>
+        <div className="cesium-attribution">
+          <span>Powered by</span>
+          <img
+            src={`${import.meta.env.BASE_URL}icons/CesiumJS_light_color.svg`}
+            alt="CesiumJS"
+            width={104}
+            height={18}
+            draggable={false}
+          />
+        </div>
       </section>
       <LayerPanel
         controller={layerControllerRef.current}

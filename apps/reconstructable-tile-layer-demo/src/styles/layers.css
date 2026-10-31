@@ -1,6 +1,10 @@
 /* 图层面板是 demo 的独立侧栏；复用左侧表单与配色，不挤占来源配置。 */
+.app-shell {
+  /* 极窄窗口也给格子背景和紧凑标注留出空间；侧栏与标注共用同一宽度。 */
+  --layer-panel-width: min(310px, calc(100vw - 96px));
+}
 .app-shell.has-layer-panel {
-  grid-template-columns: minmax(400px, 460px) minmax(0, 1fr) 310px;
+  grid-template-columns: minmax(400px, 460px) minmax(0, 1fr) var(--layer-panel-width);
 }
 .layer-panel {
   position: relative;
@@ -266,8 +270,23 @@
     z-index: 6;
     top: 0;
     right: 0;
-    width: min(310px, 90vw);
+    width: var(--layer-panel-width);
     box-shadow: -12px 0 30px rgb(0 0 0 / 35%);
+  }
+  /* 浮动侧栏不改变工作区宽度，因此单独把标注移到侧栏左侧。 */
+  .app-shell.has-layer-panel .cesium-attribution {
+    right: calc(var(--layer-panel-width) + 12px);
+  }
+}
+@media (min-width: 901px) and (max-width: 1000px), (max-width: 500px) {
+  .app-shell.has-layer-panel .cesium-attribution {
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+    font-size: 10px;
+  }
+  .app-shell.has-layer-panel .cesium-attribution img {
+    width: 76px;
   }
 }
 @media (max-width: 900px) {
