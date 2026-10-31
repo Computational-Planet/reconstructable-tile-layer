@@ -16,6 +16,16 @@ There are **15 map configurations and one loading helper**. The [case guide](cas
 
 ## Use in the Demo
 
-Choose **Experiment → Import**, select the restored layer and click **Load tiles** using the settings described in the relevant guide. Model files and bundled map resources are resolved relative to the Demo; Macrostrat imagery is retrieved from its online service.
+Choose **Experiment → Import**, select the restored layer in the right-hand **Layers** panel and click **Load tiles** using the settings described in the relevant guide. No additional **Add layer** or separate initialization is needed. Model files and bundled map resources are resolved relative to the Demo; Macrostrat imagery is retrieved from its online service.
 
 Import restores settings, not loaded imagery or loading history, and replaces existing layers. For Figure 6(b), load L4 before adding local L8 in the same layer. For Figure 6(c), use `case/steps/Figure_6c_Load_Local_First.json` to load the small view before zooming out.
+
+All files use `schemaVersion: 3` and explicit `layerStack` entries. **Specified level**
+uses `level`; **Current view** uses `viewLevel` when supplied, otherwise automatic
+selection. Current-view loading retains existing tiles. Do not import another file
+between operations that need to preserve accumulated coverage.
+
+**Experiment → Screenshot** saves the map PNG and matching runtime JSON. It excludes
+the control panels, legend list and workspace branding; use a browser/system screenshot
+for Figure 6(d) or other UI illustrations. Macrostrat legend selections and results
+are not stored in these configurations and must be queried separately.

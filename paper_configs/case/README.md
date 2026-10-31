@@ -36,7 +36,7 @@ Import each configuration and load L4, or import the 0 Ma configuration once, lo
 
 1. Import `Figure_6a_120Ma_Local_L4.json`, load the Macrostrat layer at **Specified level = 4**, and export (a).
 2. Keep the same layer, age and camera. Switch to **Current view**, enable **Lock view level**, set **8**, and click **Load tiles**. This adds local L8 while retaining L4.
-3. Export (b), then capture the actual fixed-L8 controls and completion message for (d).
+3. Use **Experiment → Screenshot** for (b), then use a browser/system screenshot to capture the actual fixed-L8 controls and completion message for (d). The map PNG does not include the panels.
 
 The standalone (b) file stores the final settings. If starting from that file, load **Specified level = 4** first, then switch back to **Current view / fixed L8** and load again. Importing and loading L8 alone does not recreate the L4 background.
 
@@ -44,7 +44,7 @@ The standalone (b) file stores the final settings. If starting from that file, l
 
 1. Import `steps/Figure_6c_Load_Local_First.json`. It restores both layers at 120 Ma, their ordering, the small detail view and a 900 × 600 output setting.
 2. Load **GPlates Topography** at specified L4 (opacity 0.5), and **Macrostrat Carto** for the current view at fixed L8. Do not add global Macrostrat L4 for this coverage illustration.
-3. After loading, use **Camera & output** to set **600 × 600, pixel ratio 2** and click **Apply output size**. Enter the overview extent below and click **Apply extent**.
+3. After loading, expand **Camera & Output → Detailed**, set **600 × 600, pixel ratio 2**, and click **Apply output size**. Enter the overview extent below and click **Apply extent**.
 4. Export the overview with the retained tiles. Do not load L8 again for the larger view or import the final overview JSON. That JSON records the final composition but cannot restore the preceding small-view loading history.
 
 | View                   |       West |      South |      East |      North | Configured output  |
@@ -54,7 +54,7 @@ The standalone (b) file stores the final settings. If starting from that file, l
 | Figure 6(c) overview   | −56.899985 | −66.188197 | 13.685864 |   4.397653 | 600 × 600, ratio 2 |
 | Figure 7 comparison    | −81.389933 | −72.768463 | 55.931516 |  18.663286 | 900 × 600, ratio 2 |
 
-Coordinates describe the reconstructed view at 120 Ma, except that the Figure 5 extent is shared across all four ages. Output values specify the Demo's output settings; the exported pixel dimensions also depend on device pixel ratio.
+Coordinates describe the reconstructed view at 120 Ma, except that the Figure 5 extent is shared across all four ages. Output width and height are CSS pixels; exported dimensions also depend on device pixel ratio and browser zoom. **Screenshot** downloads both the PNG and matching JSON; check `output.canvasWidth` and `output.canvasHeight` in that JSON for the actual pixel dimensions.
 
 ### Figure 7: model comparison
 
@@ -69,5 +69,11 @@ Import (a) and (b) separately, loading visible layers at L4, or start with the t
 - Files use `schemaVersion: 3` and a complete `layerStack`. Each layer's `source` and `model` govern its inputs; `sources` initializes the source editor.
 - `viewLevel: 8` locks current-view loading. `level` is the setting for a later specified-level load, not an inventory of loaded levels.
 - Panel letters, locator boxes, partial legends and UI cropping belong to figure preparation and are not Demo configuration fields.
+
+For an interactive Macrostrat legend, expand **Reference & Legend → Macrostrat legend**,
+set **Zoom (z)** to the source level being illustrated, and use **Select area** or
+**Select point**. At nonzero ages, select the matching Macrostrat reconstruction layer.
+The demo merges results by ID and then colour; the default limit is 1000 colour groups.
+Legend state is not saved in these JSON files or included in the map PNG.
 
 The Demo's model, topography and reference resources must be available at the configured URLs. Macrostrat imagery requires network access and CORS support.

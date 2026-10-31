@@ -172,7 +172,8 @@ display. See each package's README for worker hosting and ownership examples.
 Already-paleo snapshots such as PaleoDEM use ordinary Cesium imagery at an explicit
 display age, without RTL rotation. Model-calendar time must not be interpreted as
 geological age. Transporting modern elevation with a plate model does not predict
-paleo topography. Query/inverse sampling is not implemented by this integration.
+paleo topography. Numeric point queries and inverse raster sampling are not implemented
+by this integration; source-region queries return geographic bounds rather than values.
 
 Provider replacement invalidates cached tile coverage, age/rebuild work and pending
 image delivery. `clear()` keeps the manager reusable. `destroy()` invalidates pending
@@ -233,6 +234,11 @@ invalid values reject with `RangeError`. `minLevel`, `maxLevel`,
 `targetTileScreenSize`, and `maxRawViewTileCount` affect automatic selection only.
 Fixed levels are not lowered to satisfy that tile budget. The same rules apply to
 `loadFineTilesInView` and `loadFineTilesInViewAtLevel`.
+
+Loading accumulates processed tiles and skips tasks already loaded or pending;
+`refineTilesForView` does not clear existing coverage, including when its level
+changes. Call `clear(viewer)` to reset coverage explicitly. The demo separately
+chooses to clear when switching to a different whole-layer specified-level load.
 
 ## Query modern source regions
 
@@ -305,8 +311,9 @@ collection, leaving the caller's parent intact.
 `createTileSurfaceAppearance(image, { ordered: true, opacity })` gives other
 fixed-coordinate surfaces the same alpha blending behavior. Ordered rendering
 targets coincident raster surfaces on an ellipsoid, not general 3D transparency.
-Opacity is applied per surface; applications should replace old LOD coverage
-before loading a different level to avoid blending overlapping levels twice.
+Opacity is applied per surface. Retaining multiple levels can blend overlapping
+coverage more than once; an application that needs only one coverage set can
+clear it explicitly before reloading. RTL does not automatically evict old levels.
 
 In shared mode, clearing one RTL leaves other sources' caches intact. Before
 closing a source, destroy its referencing layers, call

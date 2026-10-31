@@ -6,8 +6,8 @@
 `PlateDomainTileQuadtree` 将现代地理参考系中的一个多边形板块域要素映射到影像
 提供器所使用的准确瓦片方案中的源瓦片。
 
-本软件包通过 `TileClipArea` 保留 MultiPolygon 的各个部分和内环。选出的条目表示
-无覆盖、完整覆盖，或者必须由 WebGL 处理器进行掩膜的部分覆盖。
+本软件包通过 `TileClipArea` 保留 MultiPolygon 的各个部分和内环。节点区分 NONE、FULL
+和 NEED_CLIP；查询跳过 NONE，只返回完整覆盖或需要 WebGL 掩膜的部分覆盖瓦片。
 
 ## 功能特性
 
@@ -61,15 +61,19 @@ const entries = tilePlateIndex.queryTilesAtLevel(5);
 ## 视图感知查询
 
 ```ts
-const candidates = tilePlateIndex.queryTilesInBoundingSphere(level, reconstructedViewSphere);
+const candidates = tilePlateIndex.queryTilesInBoundingSphere(level, modernViewSphere);
 ```
 
-在重建参考系的包围球查询之前，请调用 `updateBoundingSpheres(modelMatrix)`。
-该测试采用保守策略：即使某些候选项旋转后的准确覆盖区位于视图之外，也可能保留
-这些候选项。
+瓦片遍历接收**现代源参考系**的包围球。重建视图的包围球需先按板块矩阵逆旋转，再传入此方法。
+`updateBoundingSpheres(modelMatrix)` 更新的是板块域包围球，供前置的
+`intersectsCurrentBoundingSphere` 候选测试使用，不会变换瓦片节点。
+RTL 的 `refineTilesForView` 和 `querySourceRegions` 负责串联这两个步骤。
 
-当瓦片方案类或椭球发生变化时，`updateProvider(provider)` 会重新构建索引。如果
-自定义瓦片方案的其他布局属性发生变化，应创建新的索引。
+NONE 节点在细分前直接剪枝；指定层级只返回与包围球相交的 FULL / NEED_CLIP 节点。
+包围球相交仍是保守筛选，不是与板块裁剪轮廓的精确求交。
+
+每次调用 `updateProvider(provider)` 都会使用原始几何和 provider 的瓦片方案重建索引，
+包括覆盖范围、根网格布局，以及同类自定义瓦片方案的参数变化。
 
 ## 几何行为
 

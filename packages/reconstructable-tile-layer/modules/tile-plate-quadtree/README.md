@@ -7,9 +7,9 @@ stage. One `PlateDomainTileQuadtree` maps a polygonal plate-domain feature
 from the modern geographic frame to source tiles in the imagery provider's
 exact tiling scheme.
 
-The package retains MultiPolygon parts and interior rings through
-`TileClipArea`. Selected entries represent no coverage, complete coverage, or
-partial coverage that must be masked by the WebGL processor.
+The package retains MultiPolygon parts and interior rings through `TileClipArea`.
+Nodes distinguish NONE, FULL and NEED_CLIP coverage. Queries omit NONE nodes and
+return complete tiles or partially covered tiles for WebGL masking.
 
 ## Highlights
 
@@ -65,16 +65,23 @@ normally span `[0, 1]`.
 ## View-aware query
 
 ```ts
-const candidates = tilePlateIndex.queryTilesInBoundingSphere(level, reconstructedViewSphere);
+const candidates = tilePlateIndex.queryTilesInBoundingSphere(level, modernViewSphere);
 ```
 
-Call `updateBoundingSpheres(modelMatrix)` before a reconstructed-frame
-bounding-sphere query. The test is conservative: it can retain candidates whose
-exact rotated footprint lies outside the view.
+Tile traversal uses a sphere in the **modern source frame**. Inverse-rotate a
+reconstructed-view sphere with the plate's matrix before passing it here.
+`updateBoundingSpheres(modelMatrix)` updates the plate-domain bounds used by
+`intersectsCurrentBoundingSphere` for the preceding candidate test; it does not
+transform the tile nodes. RTL's `refineTilesForView` and `querySourceRegions`
+coordinate these two steps.
 
-`updateProvider(provider)` rebuilds the index when the tiling-scheme class or
-ellipsoid changes. Construct a new index when a custom tiling scheme changes
-other layout properties.
+NONE nodes are pruned before subdivision; only intersecting FULL and NEED_CLIP
+nodes contribute at the requested level. Bounding-sphere intersection remains
+conservative and is not an exact test against the clipped plate footprint.
+
+`updateProvider(provider)` rebuilds the index from its source geometry and the
+provider's tiling scheme on every call, including changes to coverage, root-grid
+layout or a custom tiling scheme of the same class.
 
 ## Geometry behavior
 

@@ -2,7 +2,7 @@
 
 English | [简体中文](README.zh-CN.md)
 
-[![Node.js >= 18](https://img.shields.io/badge/Node.js-%3E%3D18-339933?logo=node.js&logoColor=white)](package.json)
+[![Build: Node.js 22](https://img.shields.io/badge/Build-Node.js%2022-339933?logo=node.js&logoColor=white)](.github/workflows/deploy-pages.yml)
 [![pnpm 9.0.5](https://img.shields.io/badge/pnpm-9.0.5-F69220?logo=pnpm&logoColor=white)](package.json)
 [![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg)](LICENSE)
 
@@ -22,11 +22,14 @@ processed fragments in Cesium. The implementation reconstructs the published
 visual layer; it does not recover source attributes, topology, feature
 identities, or numerical raster values.
 
-Optional local-file packages retain numeric GeoTIFF/NetCDF sources separately
-from their display images, provide standard Cesium imagery, and export COG in a
-browser Worker. The source Demo exposes TIFF/GeoTIFF and ordinary GeoJSON uploads;
-NetCDF is available through the optional library API. See [local data instructions](apps/reconstructable-tile-layer-demo/README.md#local-scientific-rasters)
-and the [tested data matrix](scripts/raster/README.md#production-demo-and-scientific-meaning).
+Three optional raster packages read numeric sources, adapt them to standard
+Cesium imagery, and export numeric COG files in a browser Worker. The demo accepts
+TIFF/GeoTIFF rasters and GeoJSON as ordinary vector layers; vector reconstruction
+is not implemented. NetCDF is available only through the raster library's explicit
+`/netcdf` API, not the demo upload controls. See the
+[raster](apps/reconstructable-tile-layer-demo/README.md#local-scientific-rasters),
+[GeoJSON](apps/reconstructable-tile-layer-demo/README.md#local-geojson-vectors), and
+[reference-data validation](scripts/raster/README.md) guides.
 
 ## Demo
 
@@ -34,9 +37,14 @@ and the [tested data matrix](scripts/raster/README.md#production-demo-and-scient
 
 **Quick start:** The default data sources work without loading a case config.
 
-1. Select a **Plate model** and a **Tile map service**, then click **Add layer**.
-2. Select the reconstruction layer, choose **Specified level** under **Tile loading**, and click **Load tiles**.
-3. Use the age control under **Timeline & tiles** to view the reconstruction at different times.
+1. Choose the plate domains and ROT source under **Plate model**. Under **Layer data source**, choose **Tile map service**, retain **Reconstruct (0 Ma)**, and click **Add layer**.
+2. Select that layer in the right-hand **Layers** panel. Set **Tile loading** to **Specified level**, choose a level, and click **Load tiles**. The left-hand **Timeline & tiles → Load level** performs the same operation.
+3. Change **Age (Ma)** under **Timeline & tiles**. All reconstruction layers follow this global age; each retains its own plate model.
+
+For local refinement, use **Load view** on the left or **Current view → Load tiles**
+on the right. Leave **Lock view level** unchecked for automatic selection, or enable
+it for an exact source level. View loading adds coverage without clearing existing
+tiles. Ordinary imagery and GeoJSON load through Cesium and need no manual tile action.
 
 The application in [`apps/reconstructable-tile-layer-demo`](apps/reconstructable-tile-layer-demo)
 is the project demo started by `pnpm dev`. It:
@@ -44,11 +52,16 @@ is the project demo started by `pnpm dev`. It:
 - is powered by React, Vite, Cesium, the unified RTL package and three optional raster libraries;
 - starts core-library Rollup watch builds through Turbo;
 - supports interchangeable imagery services, plate-domain data, and ROT models;
+- manages multiple reconstruction layers, ordinary imagery and GeoJSON in a
+  collapsible, independently scrolling **Layers** panel, with age ranges for fixed layers;
+- queries Macrostrat legends by area or point, maps reconstructed selections back
+  to modern source regions, and groups results by colour;
 - reproduces the paper workflow for age changes, source-level loading,
-  view-aware refinement, reference overlays, and result export.
+  view-aware refinement, reference overlays, 2D/perspective/orthographic views,
+  and experiment JSON and screenshot export.
 
-With workspace dependencies already installed, launch the demo from the
-repository root:
+With workspace dependencies installed and libraries already built, launch the
+demo from the repository root:
 
 ```sh
 pnpm dev
@@ -85,7 +98,11 @@ Routine benchmark runs are written to the git-ignored `output/` directory. The
 three reviewed evidence runs used by the paper are preserved separately under
 `benchmark_records/`.
 
-Requirements: Node.js 18 or newer, pnpm 9.0.5, and a browser with WebGL support.
+For repository development, use **Node.js 22** (the version used by the Pages build)
+and **pnpm 9.0.5**. Package manifests declare Node.js 18+, but the repository's
+locked build tools, including `rimraf@6`, require Node.js 20 or 22+.
+The demo needs a browser with WebGL, Canvas, File/Blob and Worker support;
+optional COG conversion also uses WASM.
 
 ## Features
 
@@ -96,7 +113,13 @@ Requirements: Node.js 18 or newer, pnpm 9.0.5, and a browser with WebGL support.
 - Indexes plate-domain coverage with lazy tile--plate quadtrees.
 - Masks boundary tiles in WebGL while retaining MultiPolygon parts and holes.
 - Reuses processed imagery across age changes and refines source tiles for the
-  current Cesium view.
+  current Cesium view, using an automatic or explicitly locked source level.
+- Queries modern source regions through inverse rotations and quadtree filtering
+  without loading imagery; small queries can retain their footprint with `clipToView`.
+
+Layer lists, static-layer age ranges, local-file controls and the Macrostrat legend
+client belong to the demo. RTL supplies the reusable reconstruction and spatial-query
+APIs; ordinary layers continue to use Cesium's native imagery and vector components.
 
 ## Workspaces
 
@@ -143,10 +166,15 @@ retained-resource lifecycle.
 | [rtl-raster-imagery-provider](packages/rtl-raster-imagery-provider) | Numeric sources → styled standard Cesium imagery; single band/RGB/NoData, bounded cache | Cesium peer; works with a standalone viewer or the existing RTL `provider` option  |
 | [rtl-raster-converter](packages/rtl-raster-converter)               | TIFF or selected numeric slice → COG + provenance JSON in an on-demand GDAL Worker      | No Cesium/React; host supplies GDAL static assets; conversion optional for display |
 
-The main RTL package has no dependency on these optional engines. A modern-coordinate
-source requires a compatible plate model. Already-paleo snapshots use ordinary
+The main RTL package has no dependency on these optional engines. Local TIFF data flow
+through `rtl-raster-source` → `rtl-raster-imagery-provider` → either Cesium's native
+`ImageryLayer` or RTL's `provider` input. `rtl-raster-converter` is a separate, optional
+export step; display does not require conversion.
+
+A modern-coordinate source requires a compatible plate model for reconstruction.
+Already-paleo snapshots use ordinary
 age-selected imagery, without another rotation. Numeric point queries remain outside
-this implementation.
+this integration; Macrostrat point legends query service metadata, not raster values.
 
 ## Method-to-code map
 
@@ -163,6 +191,7 @@ this implementation.
 | WebGL processor              | `WebGLTileProcessor`                            | `reconstructable-tile-layer/processor`                                        |
 | Age-aware update             | `setReconstructionAge`                          | `reconstructable-tile-layer`                                                  |
 | View-aware refinement        | `refineTilesForView`                            | `reconstructable-tile-layer`                                                  |
+| Modern source-region query   | `querySourceRegions`                            | `reconstructable-tile-layer`                                                  |
 
 These names follow the Methodology section of the manuscript: service
 registration; plate-domain and rotation preparation; tile--plate indexing and
@@ -188,26 +217,32 @@ const rtl = await ReconstructableTileLayer.create({
   rotationSources: ["/models/rotations.rot"],
   initialAge: 0,
   anchorPlateId: "0",
+  referenceEllipsoid: viewer.scene.globe.ellipsoid,
 });
 
 rtl.bindSceneModeSync(viewer);
 await rtl.loadSourceTilesAtLevel(viewer, 4);
 await rtl.setReconstructionAge(120);
-await rtl.refineTilesForView(viewer);
+await rtl.refineTilesForView(viewer); // automatic source level
+// Use rtl.refineTilesForView(viewer, { level: 4 }) to lock the view query to L4.
 
 rtl.destroy(viewer);
 webglProcessor.destroy();
 ```
 
 The imagery provider, WebGL processor, and Cesium viewer are caller-owned.
-Destroy the RTL before destroying those dependencies.
+Configure the provider with the same ellipsoid as the viewer, and destroy RTL before
+destroying those dependencies. Loading retains processed tiles until cleared;
+see the [layer API](packages/reconstructable-tile-layer/README.md#loading-and-executable-age-state)
+for level selection, source-region queries and lifecycle details.
 
 ## Inputs and method scope
 
 RTL accepts Cesium imagery providers using geographic EPSG:4326 or WebMercator
 tiling schemes. Plate-domain sources may be GPML, GPMLZ, XML, the repository's
-custom JSON feature-array format, or uploaded browser URLs. Finite rotations are read from
-GPlates ROT text.
+custom JSON feature-array format, or uploaded browser URLs. This model JSON is not
+GeoJSON. Finite rotations are read from GPlates ROT text. The demo's GeoJSON upload
+path displays ordinary vectors and does not supply plate domains or reconstruct vectors.
 
 The implementation preserves MultiPolygon parts and interior rings in
 `TileClipArea`. General antimeridian-crossing rings must already be encoded as
@@ -218,11 +253,11 @@ described in the manuscript.
 
 | Command               | Purpose                                                      |
 | --------------------- | ------------------------------------------------------------ |
-| `pnpm dev`            | Start all library watch builds and the Vite demo.            |
+| `pnpm dev`            | Start RTL/core-module watch builds and the Vite demo.        |
 | `pnpm build`          | Build all libraries, then create the demo production bundle. |
 | `pnpm build:packages` | Build only the publishable workspace libraries.              |
 | `pnpm check`          | Run formatting, linting, builds, type checks, and tests.     |
-| `pnpm test`           | Run all workspace library tests.                             |
+| `pnpm test`           | Run workspace library and demo tests.                        |
 | `pnpm clean`          | Remove workspace build outputs and the Turbo cache.          |
 
 The shared Rollup configuration emits ESM, CommonJS and TypeScript declarations
@@ -250,7 +285,8 @@ pnpm check
 ```
 
 This runs formatting, linting, package and demo builds, TypeScript checks, and
-the library regression tests. After building, `pnpm test:distribution` packs the
+library and demo regression tests, including paper-configuration import/export checks.
+After building, `pnpm test:distribution` packs the
 libraries and checks them in temporary consumers outside the repository: RTL-only
 installation, ESM/CJS entries, declaration closure, standalone processor injection,
 optional raster imports, and a Cesium-free standalone GPlates reader. It starts no

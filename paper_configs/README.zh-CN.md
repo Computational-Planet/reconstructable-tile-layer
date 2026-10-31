@@ -16,6 +16,13 @@
 
 ## 在Demo中使用
 
-通过 **Experiment → Import** 导入JSON，选择恢复的图层，再按对应说明点击 **Load tiles**。模型与内置地图资源使用Demo的相对资源地址，Macrostrat图像从其在线服务获取。
+通过 **Experiment → Import** 导入JSON，在右侧 **Layers** 选择恢复的图层，再按对应说明点击 **Load tiles**。无需再次 **Add layer** 或单独初始化。模型与内置地图资源使用Demo的相对资源地址，Macrostrat图像从其在线服务获取。
 
 导入恢复设置，并替换现有图层，不恢复已加载图像或操作历史。图6(b)需在同一图层先加载L4，再追加局部L8；图6(c)需使用 `case/steps/Figure_6c_Load_Local_First.json` 先加载小视域，再缩小视野。
+
+全部文件采用 `schemaVersion: 3` 和显式 `layerStack`。**Specified level** 使用 `level`；
+**Current view** 在提供 `viewLevel` 时固定层级，否则自动选级。按视域加载保留已有瓦片；
+需要保留累积覆盖的连续操作之间不要重新导入配置。
+
+**Experiment → Screenshot** 下载地图 PNG 和配套运行 JSON，不包含控制面板、图例列表或工作区标注。
+图6(d)等操作界面图需使用浏览器／系统截图。Macrostrat 图例的选择与结果不写入配置，需另行查询。

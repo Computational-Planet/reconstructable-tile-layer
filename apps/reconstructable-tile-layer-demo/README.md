@@ -5,12 +5,13 @@
 This Cesium application demonstrates the browser-side Reconstructable Tile
 Layer (RTL) described in the accompanying manuscript. It uses the
 paper-aligned `ReconstructableTileLayer` and `WebGLTileProcessor` APIs while
-supporting tile services, local scientific rasters, plate models, reference polygon
-overlays, export schema, and rendering behavior.
+supporting tile services, local TIFF rasters, ordinary GeoJSON vectors, multiple
+layers, plate models, GPlates reference outlines, Macrostrat legends and experiment export.
 
 ## Quick start
 
-From the repository root, with dependencies already installed:
+Use Node.js 22 and pnpm 9.0.5, matching the repository build. From the repository
+root, with dependencies installed and workspace libraries already built:
 
 ```sh
 pnpm dev
@@ -36,7 +37,9 @@ entry. RTL bundles its core modules from `packages/reconstructable-tile-layer/mo
 the demo accesses them through RTL's public entries.
 
 `src/layers`, local-file controls, object-URL ownership, timeline coordination and
-ordinary GeoJSON are demo responsibilities. Numeric TIFF input, its Cesium
+ordinary GeoJSON are demo responsibilities. `src/legend` owns map selection and
+Macrostrat requests; RTL supplies the generic `querySourceRegions` API.
+Numeric TIFF input, its Cesium
 provider and optional COG conversion use the three separate raster extensions.
 Ordinary imagery and vectors use Cesium's native display components.
 
@@ -46,7 +49,7 @@ Ordinary imagery and vectors use Cesium's native display components.
 2. **Layer data source**: choose **Tile map service**, **Local TIFF / GeoTIFF** or **Local GeoJSON**. Services have a visible connection
    form; local files use **Source settings**. **Add layer** preserves existing layers.
    Services can reconstruct or use fixed coordinates. **Selected** identifies the selection in the right panel.
-3. **Timeline & tiles**: tile actions apply to the selected reconstruction layer; the age control updates every reconstruction layer.
+3. **Timeline & tiles**: **Load level**, **Load view** and **Clear** apply to the selected reconstruction layer; **Age (Ma)** updates every reconstruction layer. Fixed layers use the age only to determine visibility.
 
 Local settings collapse after successful application; the online connection form stays visible. Spatial metadata, citations, display style and optional COG export
 expand on demand. Reference overlays, view/render controls, experiment import/export and statistics follow the main workflow.
@@ -62,10 +65,15 @@ The header, global age and **Add layer** stay visible while the layer list scrol
 Scrolling stops at the list's edges, so long layer stacks do not scroll the page.
 Small **?** buttons explain layer ordering, source details, model replacement, age ranges and tile loading.
 Escape closes an open explanation first; pressing it again closes the panel. Layer status and errors remain visible.
-Layers are grouped into reconstruction, ordinary imagery and ordinary vectors. Vector list order does not set draw order. Higher entries within a group draw on top;
-reconstruction layers draw above native imagery. Move layers within their group using the arrows.
+Layers are grouped into reconstruction, ordinary imagery and ordinary vectors.
+Higher entries within the reconstruction or ordinary-imagery group draw on top;
+use the arrows to reorder within either group. Reconstruction layers draw above
+native imagery, with no cross-group ordering. Vector list order does not set draw order.
 Each layer has visibility, a name, opacity and removal. Only reconstruction layers have manual tile controls.
 Narrow windows use a floating right panel.
+
+The grid workspace shows a small **Powered by CesiumJS** label at the bottom right.
+It moves with the Layers panel and remains outside the map canvas.
 
 Fixed-coordinate layers support **All ages** or an inclusive **Youngest / Oldest (Ma)** interval.
 For example, 100–150 Ma includes both endpoints. Timeline changes never override a user's hidden state.
@@ -206,8 +214,12 @@ and **3D (orthographic)** (default). Orthographic mode keeps the 3D globe and re
 and uses parallel projection. **Quick view** centers the prime meridian/equator intersection (0°, 0°),
 antimeridian (±180°), South Pole, or North Pole and fits the entire globe to the viewport.
 Presets retain the current 3D projection;
-from 2D they restore the last selected 3D projection. **Detailed** still provides manual target,
-range, orientation, and output controls.
+from 2D they restore the last selected 3D projection. **Detailed** provides manual target,
+range, orientation, extent, and output controls. Use **Apply extent**, **Apply pose**
+or **Apply output size** after editing the corresponding fields. Output width and
+height are CSS pixels; **Pixel ratio** controls Cesium's resolution scale. The
+exported JSON records actual `output.canvasWidth` and `output.canvasHeight` as well
+as configured values, so use those actual dimensions when preparing figures.
 
 Experiment JSON uses `viewMode: "3D_ORTHOGRAPHIC"` and `projection: "OrthographicGlobe"`
 for orthographic views. Perspective views keep `viewMode: "3D_GLOBE"` and use
@@ -276,7 +288,7 @@ pnpm --filter reconstructable-tile-layer-demo dev
 
 **Timeline & tiles** also provides **Lock view level** beside **Load view**.
 Both panels edit the same setting for the selected layer. The fixed view level is independent of
-the full-extent **Tile level** input. Inputs use the source's available level range, including
+the full-extent **Level** input. Inputs use the source's available level range, including
 local TIFF limits after preparation. Fixed view loading retains spatial filtering and never
 automatically lowers the requested level; completion reports the actual level used.
 
@@ -291,6 +303,9 @@ reference polygon settings are restored alongside the layers.
 
 Import validates the configuration before replacing the layer list, then activates ordinary online
 imagery automatically. **Load tiles** runs the saved loading choice for a reconstruction layer.
+Import replaces the existing stack and releases its loaded results. JSON stores
+settings, not tile images, accumulated coverage or loading history; see the
+[paper figure guide](../../paper_configs/README.md) for sequences that combine levels.
 Local layers require **Prepare local file**, TIFF/GeoJSON reselection and **Restore selected layer**.
 Reselect local plate-model files and use **Use current** on the affected layer.
 File contents and session `blob:` URLs are not persisted.
@@ -299,8 +314,13 @@ Case files contain inputs only. Runtime exports additionally include `geoTileSta
 reconstruction layer and `tileProcesserStats` for the shared processor, plus camera/device measurements.
 Runtime statistics do not control subsequent imports.
 
-A screenshot is taken directly from the Cesium canvas and excludes the control
-panel. Cross-origin imagery must permit canvas reading.
+**Export info** downloads the configuration and runtime measurements as JSON.
+**Screenshot** downloads both the map PNG and a JSON file with the same base name.
+The PNG is taken directly from the Cesium canvas: it includes rendered overlays
+such as the graticule and GPlates outlines, but excludes both panels, legend entries,
+the grid background and the **Powered by CesiumJS** label. Use a browser or system
+screenshot to document UI controls or a displayed legend. Cross-origin imagery must
+permit canvas reading.
 
 ## Optional benchmark controller
 

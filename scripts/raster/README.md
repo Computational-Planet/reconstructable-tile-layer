@@ -1,5 +1,12 @@
 # Public geoscience reference data
 
+This guide covers optional raster-library validation and recorded integration
+evidence. The [current Demo](../../apps/reconstructable-tile-layer-demo/README.md)
+accepts TIFF/GeoTIFF and ordinary GeoJSON, with no NetCDF upload or slice controls.
+NetCDF examples here exercise `rtl-raster-source/netcdf` and the provider/converter
+APIs. The Demo UI runners identified below still target removed controls and need
+adaptation before they can validate the current application.
+
 `node scripts/raster/download-reference-data.mjs` downloads the pinned files in
 `reference-datasets.json` to the ignored `tmp/raster-reference-data` cache. It checks
 file signatures, size limits and SHA-256 hashes. No binary reference files are
@@ -50,14 +57,14 @@ independently generated with
 `python packages/rtl-raster-source/test/generate-netcdf-fixtures.py` and committed
 for deterministic regression tests; public scientific files remain separate.
 
-| Dataset                         | Tested through public APIs                                                                                           | Remaining work                     |
-| ------------------------------- | -------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
-| NCEP/NCAR air climatology (NC4) | Raw samples including time 6, descending pole-centered latitude, cyclic longitude, provider image                    | Demo selection and COG export      |
-| PCMDI/IPSL SST (NC3)            | Unlimited time records including time 12, CF bounds/NoData, 360_day retained, provider image                         | Demo selection and COG export      |
-| CCSM atmosphere (NC3)           | tas and pressure-level ua, Gaussian latitude, noleap/year-zero metadata, provider images                             | Demo selection and COG export      |
-| ETOPO NetCDF4 + TIFF            | Samples match Python, same-position elevation equals across opposite row orders, vertical EPSG retained in TIFF      | COG export through product package |
-| Independent CDF-2 fixture       | Unpadded single record variable, transposed spatial axes, unsigned packed values/NoData/scaling                      | —                                  |
-| Independent NC4 group fixture   | Group-qualified dimensions, time between spatial dimensions, custom coordinate names, descending nonuniform latitude | —                                  |
+| Dataset                         | Tested through public APIs                                                                                           | Scope                                      |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| NCEP/NCAR air climatology (NC4) | Raw samples including time 6, descending pole-centered latitude, cyclic longitude, provider image                    | Library API; conversion covered below      |
+| PCMDI/IPSL SST (NC3)            | Unlimited time records including time 12, CF bounds/NoData, 360_day retained, provider image                         | Library API; conversion covered below      |
+| CCSM atmosphere (NC3)           | tas and pressure-level ua, Gaussian latitude, noleap/year-zero metadata, provider images                             | Library API; conversion covered below      |
+| ETOPO NetCDF4 + TIFF            | Samples match Python, same-position elevation equals across opposite row orders, vertical EPSG retained in TIFF      | TIFF in Demo; both formats in library APIs |
+| Independent CDF-2 fixture       | Unpadded single record variable, transposed spatial axes, unsigned packed values/NoData/scaling                      | —                                          |
+| Independent NC4 group fixture   | Group-qualified dimensions, time between spatial dimensions, custom coordinate names, descending nonuniform latitude | —                                          |
 
 All NetCDF cases additionally exercise cancelled reads followed by successful
 reads and provider output. The grouped fixtures check dataset-close invalidation.
@@ -100,9 +107,10 @@ grid. One working atmospheric variable does not establish compatibility with all
 variables, ocean grids, models or PMIP datasets. Native curvilinear grid support
 requires a separately validated browser implementation.
 
-These source tests establish reading and imagery generation. The separate production
-Demo tests below exercise full Cesium scene integration and modern-coordinate plate
-reconstruction. Transporting present-day elevation does not predict past topography.
+These source tests establish reading and imagery generation. The recorded production
+Demo evidence below covers Cesium scene integration and modern-coordinate plate
+reconstruction; its UI harness is not compatible with the current controls.
+Transporting present-day elevation does not predict past topography.
 PMIP `lgm` / `midHolocene` remain untested.
 
 Scientific sources: [PaleoDEM release](https://www.earthbyte.org/paleodem-resource-scotese-and-wright-2018/),
@@ -141,8 +149,8 @@ acceptance items, not proved by these converter tests.
 After building all packages, run
 `node scripts/raster/run-packed-consumer.mjs <absolute-path-to-pnpm.cjs>`.
 Alternatively set the task-specific `RTL_PNPM_CLI` environment variable to that
-path. The runner invokes Node with structured arguments, packs all seven library
-packages, and installs the tarballs in a fresh OS temporary directory outside the
+path. The runner invokes Node with structured arguments, packs RTL and the three
+raster extension packages, and installs the tarballs in a fresh OS temporary directory outside the
 repository. It leaves that directory available for inspection; no packages are
 published and no existing directories are deleted.
 
@@ -161,10 +169,12 @@ published library. Evidence goes to `tmp/raster-packed-consumer-evidence.json`.
 
 ## Production Demo and scientific meaning
 
-Run `pnpm build`, then `node scripts/raster/run-demo-browser.mjs`. The runner opens
-the production Demo in headless Edge, uploads real local files through its controls,
-uses a temporary loopback static server and closes both browser and server. No dev
-or HMR server is used. The API tests and Demo tests serve different purposes:
+The following table records the integration coverage of `run-demo-browser.mjs`.
+That runner still expects NetCDF selection, **Apply source**, and single-source
+controls. It cannot be used unchanged as an acceptance test for the current Demo.
+Its recorded runs used a production build, headless Edge and a temporary loopback
+static server, not a dev/HMR server. API coverage and recorded UI evidence are
+listed separately from the current TIFF/GeoJSON workflow:
 
 | Data / native format                               | Browser evidence                                                                                                             | Scientific use / limits                                                                                                                                  |
 | -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -177,7 +187,7 @@ or HMR server is used. The API tests and Demo tests serve different purposes:
 | CCSM SRES A1B `tas` / `ua`, NetCDF3                | Gaussian 1D latitude, time/pressure indices, raw values/units; explicit-grid `tas` COG API                                   | Future scenario; format regression, not a paleo experiment                                                                                               |
 | Owned tiny TIFF/NC3/NC4 fixtures                   | Packed/unsigned/missing/grouped axes, RGB, EPSG:3857 on 6371009 m sphere, georeference errors, cancel/close                  | Edge-case regression, supplementary to downloaded scientific files                                                                                       |
 
-The Demo additionally checks style replacement, extra **display-only** NoData
+The recorded suite additionally checked style replacement, extra **display-only** NoData
 without numeric mutation, source/model changes releasing primitives/caches, and
 experiment JSON that requires raster and uploaded model-file reselection. It checks that HDF5/GDAL do not
 load on startup and scientific Workers terminate after removal. All requests in
@@ -190,8 +200,8 @@ JS heap snapshots. The latter exclude Worker/WASM/GPU allocations and are not pe
 memory measurements. These are single headless functional runs, including automation
 and paint waits, not controlled throughput benchmarks. Direct ETOPO NetCDF4 tile
 generation took about 90 seconds in the measured run; the same region's converted
-COG was much faster. This is a current performance limitation of direct compressed
-NetCDF sampling, even though the numerical and reconstruction checks pass.
+COG was much faster. These observations describe that measured run, not a current
+Demo NetCDF capability or a fresh performance comparison.
 
 Tested on Edge 154.0.4258.53, Cesium 1.119.0, geotiff 3.0.5, netcdfjs 4.0.0,
 h5wasm 0.10.3 and gdal3.js 2.8.1, using Vite 5.3.3 and TypeScript 5.5.3. Results
@@ -210,9 +220,9 @@ No private upstream provider internals are imported.
 
 ## Raster map levels and reconstruction
 
-After `pnpm build` and downloading the two corpora above, run
-`node scripts/raster/run-raster-levels-browser.mjs`. It uses the production Demo
-and an ephemeral static server, never a dev/HMR server. Seven cases verify:
+`run-raster-levels-browser.mjs` also depends on NetCDF slice controls and
+**Apply source**, and needs adaptation for the current Demo. Its seven recorded
+cases used a production build and an ephemeral static server, never a dev/HMR server:
 
 - PaleoDEM raw values and nearest-sampled images at default L2 and explicitly
   enabled L3; the default provider rejects L3.
@@ -235,21 +245,23 @@ map-level policy; see the [provider documentation](../../packages/rtl-raster-ima
 
 `run-demo-browser.mjs` explicitly retains L0 for its earlier format/lifecycle
 baseline. Its L0 timings are not the recommended interactive workflow. The
-targeted level runner validates the current L2/L3 defaults; neither runner's
+targeted level runner recorded the L2/L3 defaults; neither runner's
 single-run timings are a controlled performance comparison.
 
 ## Unified Demo source panel
 
-After building the Demo and downloading PaleoDEM, run `node scripts/raster/run-source-panel-browser.mjs`.
-It checks the shared Apply source action, tile-service/local-file switching, NetCDF readiness,
-actual L2 reconstruction, model changes, custom services, reference/snapshot behavior, experiment import,
-and a 390-pixel-wide layout. Screenshots and results are saved to `tmp/source-panel-browser/`.
-The test uses a temporary static server for the production build and closes it on exit.
+`run-source-panel-browser.mjs` targets **Apply source** and NetCDF slice readiness,
+so it requires adaptation for the current **Add layer** workflow. Its recorded
+coverage includes source switching, L2 reconstruction, model changes, custom services,
+reference/snapshot display, experiment import and a 390-pixel layout. Evidence paths
+are under `tmp/source-panel-browser/`. For current controls and file support, use the
+[Demo guide](../../apps/reconstructable-tile-layer-demo/README.md#panel-workflow).
 
 ## Editable online service connections
 
-Build the Demo, then run `node scripts/raster/run-service-connections-browser.mjs`.
-Its 20 browser cases exercise all 11 example configurations through the visible form and real Cesium
+`run-service-connections-browser.mjs` still locates **Apply source** and needs
+the same UI update before running against the current Demo. Its 20 recorded browser
+cases exercise all 11 example configurations through the visible form and real Cesium
 providers, XYZ/TMS indexing, custom root grids/subdomains, WMS axis order and standard Mercator metre
 bounds, parameter precedence, WMTS REST/KVP matrix labels/dimensions, coverage, image decode/readback,
 failed requests, validation, active-vs-pending state, complete experiment export/import and narrow layout.
@@ -257,15 +269,17 @@ Image responses are deterministic PNG fixtures; this suite tests request assembl
 not availability or CORS policy of public endpoints. It closes its temporary production static server
 and saves screenshots and request evidence in `tmp/service-connections-browser/`.
 
-Pure configuration and legacy-import tests run with
-`pnpm exec vitest run apps/reconstructable-tile-layer-demo/src/cesium/tileServiceConfig.spec.ts --pool=forks --maxWorkers=1 --minWorkers=1`.
-The unified panel suite above additionally loads a real PaleoDEM NetCDF into RTL at L2.
+Current service-configuration, layer, GeoJSON, legend and experiment tests run with
+`pnpm --filter reconstructable-tile-layer-demo test`. These tests do not start a server
+and do not establish live service availability or browser rendering performance.
 
 ## Texture direction and spatial alignment
 
-After building the packages, downloading PaleoDEM and running the production
-Demo conversion test above (which creates `tmp/raster-demo-browser/paleodem-ui.cog.tif`),
-run `node scripts/raster/run-raster-orientation-browser.mjs`. It builds a static
+`run-raster-orientation-browser.mjs` requires built packages, downloaded PaleoDEM,
+and `tmp/raster-demo-browser/paleodem-ui.cog.tif`, a fixture produced by the Demo
+conversion harness above. That harness needs adaptation; the orientation runner
+does not create the missing COG itself. With the matching fixture available, run
+`node scripts/raster/run-raster-orientation-browser.mjs`. It builds a static
 fixture page and closes its loopback server and Edge process when finished.
 No dev/HMR server is started.
 

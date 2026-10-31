@@ -154,7 +154,7 @@ provider、slice、dataset。可选 `rtl-raster-converter` 配合应用托管的
 
 PaleoDEM 等已经位于古坐标的快照，使用普通 Cesium 图层按显式年龄显示，不再旋转。
 模型日历时间不作为地质年龄。现代地形的刚性板块搬移也不等于古地形预测。
-此接入不实现点查询或逆向数值采样。
+此接入不实现数值点查询或逆向栅格采样；来源范围查询返回地理四至，不返回数值。
 
 换源会清除相关瓦片覆盖缓存并使旧年代/图元任务与旧图像交付失效；`clear()` 保留
 manager 的可复用性，`destroy()` 同时阻止尚未完成的初始化重新变为就绪。调用方再
@@ -204,6 +204,10 @@ await rtl.refineTilesForView(viewer, level);
 `minLevel`、`maxLevel`、`targetTileScreenSize` 和 `maxRawViewTileCount` 仅用于自动选级；
 固定层级不会因瓦片数量预算而降级。`loadFineTilesInView` 和 `loadFineTilesInViewAtLevel`
 采用相同规则。
+
+加载会累积已处理瓦片，并跳过已经加载或正在处理的任务；`refineTilesForView` 不清空已有覆盖，
+层级变化时也保留。需要重新开始时显式调用 `clear(viewer)`。
+Demo 另行规定：切换为不同的全域指定层级加载时清理旧覆盖。
 
 ## 反查现代来源范围
 
@@ -262,7 +266,8 @@ if (!result.skippedReason) {
 这些设置在年代更新、清空和重新加载后保持。调用方拥有父容器，RTL 只销毁自己的子集合。
 `createTileSurfaceAppearance(image, { ordered: true, opacity })` 为其他固定坐标表面提供相同的混合规则。
 有序模式用于同一椭球面上的栅格叠放，不是通用三维透明体渲染。
-透明度按表面应用；应用切换瓦片层级时应替换旧 LOD 覆盖，避免重叠层级重复混合。
+透明度按表面应用，保留多个层级时重叠覆盖可能重复混合；只需一套覆盖的应用可在重新加载前
+显式清空。RTL 不会自动淘汰旧层级。
 
 共享模式下，清空某个 RTL 不会清空其他来源缓存。删除来源时，先销毁所有引用它的图层，
 再调用 `processor.clearProvider(provider)`，最后关闭 provider；整个共享运行时结束时销毁处理器。

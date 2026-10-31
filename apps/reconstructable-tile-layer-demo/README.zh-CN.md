@@ -4,12 +4,13 @@
 
 这个 Cesium 应用演示了配套论文所述的浏览器端可重建瓦片图层（Reconstructable
 Tile Layer，RTL）。它使用与论文一致的 `ReconstructableTileLayer` 和
-`WebGLTileProcessor` API，支持在线瓦片与本地科学栅格、板块模型、参考多边形叠加层、
-导出模式和渲染行为。
+`WebGLTileProcessor` API，支持在线瓦片、本地 TIFF 栅格、普通 GeoJSON 矢量、多图层、
+板块模型、GPlates 参考轮廓、Macrostrat 图例和实验导出。
 
 ## 快速开始
 
-工作区依赖已经安装时，在仓库根目录执行：
+使用与仓库构建一致的 Node.js 22 和 pnpm 9.0.5。依赖已经安装、工作区库已经构建时，
+在仓库根目录执行：
 
 ```sh
 pnpm dev
@@ -33,7 +34,8 @@ Demo 从 `reconstructable-tile-layer` 导入 `ReconstructableTileLayer` 和
 `packages/reconstructable-tile-layer/modules` 统一打包，Demo 通过 RTL 的公共入口使用它们。
 
 `src/layers`、本地文件控件、object URL 生命周期、时间轴协调及普通 GeoJSON 属于
-Demo。数值 TIFF、对应 Cesium provider 和可选 COG 转换使用三个独立 Raster 扩展。
+Demo。`src/legend` 管理地图选择和 Macrostrat 请求，RTL 提供通用的 `querySourceRegions` API。
+数值 TIFF、对应 Cesium provider 和可选 COG 转换使用三个独立 Raster 扩展。
 普通影像和矢量使用Cesium原生显示组件。
 
 ## 面板操作顺序
@@ -42,7 +44,7 @@ Demo。数值 TIFF、对应 Cesium provider 和可选 COG 转换使用三个独�
 2. **Layer data source**：在 **Source type** 选择 **Tile map service**、**Local TIFF / GeoTIFF** 或 **Local GeoJSON**，
    在线服务使用常驻连接表单，本地文件展开 **Source settings** 配置，共用 **Add layer** 按钮。
    每次添加保留已有图层。在线服务可选择重建或固定坐标；**Selected** 显示右侧当前选中的图层。
-3. **Timeline & tiles**：瓦片加载和清空作用于选中的重建图层，年代轴统一更新全部重建图层。
+3. **Timeline & tiles**：**Load level**、**Load view** 和 **Clear** 作用于选中的重建图层，**Age (Ma)** 统一更新全部重建图层；固定图层只根据年代决定是否显示。
 
 本地文件应用成功后自动收起配置；在线连接表单保持可见。空间属性、数据引用、配色和数值 COG 导出按需展开；
 GPlates 参考叠加层、视图与渲染设置、实验导入导出和统计位于三个主步骤之后。
@@ -98,9 +100,13 @@ demo 的 `src/legend` 管理框选、请求、取消和五分钟缓存（最多 
 **Layers** 面板可以收起，再通过右上角的按钮打开。标题、全局年代和 **Add layer** 保持可见，图层列表在面板内部独立滚动；
 滚动到列表边缘不会继续滚动外层页面。小 **?** 提供图层顺序、来源、模型替换、年代范围和瓦片加载说明。
 Escape 优先关闭已打开的说明，再次按下才关闭面板；图层状态和错误保持可见。
-面板分为重建图层、普通影像与普通矢量三组。矢量列表不表示几何绘制顺序；影像
-组内越靠上越晚绘制，使用箭头在同组内换位；重建图层绘制在原生影像之上。
+面板分为重建图层、普通影像与普通矢量三组。重建组与普通影像组内越靠上越晚绘制，
+使用箭头在各自组内换位；重建图层绘制在原生影像之上，不提供跨组排序。
+矢量列表不表示几何绘制顺序。
 每层支持显隐、名称、透明度和删除；仅重建图层提供手动瓦片加载。较窄窗口使用右侧浮动面板。
+
+格子工作区右下角显示小型 **Powered by CesiumJS** 标注，随 Layers 面板展开／收起移动，
+位于地图 canvas 之外。
 
 固定坐标图层可选择 **All ages** 或闭区间 **Youngest / Oldest (Ma)**。
 例如 100–150 Ma 包含两个端点；超出范围自动隐藏，手动关闭的图层不会被时间轴重新开启。
@@ -133,7 +139,10 @@ RTL 包仅提供通用图层容器、显隐、透明度和有序表面材质；�
 **Quick view** 可将本初子午线与赤道交点（经度 0°、纬度 0°）、反经线（±180°）、南极或北极置于画面中心，
 并按窗口比例完整显示球体。
 快捷视角保留当前三维投影；在二维模式使用时恢复上次选择的三维投影。
-**Detailed** 中仍可手动设置目标经纬度、距离、姿态和输出尺寸。
+**Detailed** 中可手动设置目标经纬度、距离、姿态、四至和输出尺寸，分别点击
+**Apply extent**、**Apply pose** 或 **Apply output size** 应用相应设置。
+输出宽高使用 CSS 像素，**Pixel ratio** 控制 Cesium 的分辨率缩放；导出 JSON 同时记录
+配置值和实际的 `output.canvasWidth`、`output.canvasHeight`，制作图件时以实际像素尺寸为准。
 
 实验 JSON 区分透视与正射：正射使用 `viewMode: "3D_ORTHOGRAPHIC"` 和
 `projection: "OrthographicGlobe"`，透视保留 `viewMode: "3D_GLOBE"` 并使用
@@ -234,7 +243,7 @@ pnpm --filter reconstructable-tile-layer-demo dev
 4. 按需导出运行信息或截图。
 
 左侧 **Timeline & tiles** 的 **Load view** 旁也提供 **Lock view level**。
-两侧编辑当前图层的同一份设置，与全域加载的 **Tile level** 独立。输入范围来自数据源，
+两侧编辑当前图层的同一份设置，与全域加载的 **Level** 独立。输入范围来自数据源，
 包括本地 TIFF 准备后的实际范围。固定层级仍按当前视图筛选瓦片，但不会自动降低层级；完成后显示实际使用的层级。
 
 ## 实验配置
@@ -245,13 +254,18 @@ pnpm --filter reconstructable-tile-layer-demo dev
 全局年代、视图、输出和参考多边形设置与图层一起恢复。
 
 导入先校验配置，再替换图层列表，并自动激活普通在线影像。重建层点击 **Load tiles** 执行保存的加载方式。
+导入会释放原图层的已加载结果；JSON 保存设置，不保存瓦片图像、累积覆盖或加载历史。
+需要组合多个层级的操作顺序见[论文图件说明](../../paper_configs/README.zh-CN.md)。
 本地 TIFF 或 GeoJSON 点击 **Prepare local file** 重选文件，再 **Restore selected layer**。
 本地模型需重选后对对应图层使用 **Use current**。文件内容和会话 `blob:` URL 不持久化。
 
 案例文件只保存输入参数。运行导出另附当前选中重建层的 `geoTileStats`、共享处理器的 `tileProcesserStats`，
 以及相机和设备测量信息；运行统计不参与之后的配置恢复。
 
-截图直接从 Cesium canvas 获取，不包含控制面板。跨源影像必须允许读取 canvas。
+**Export info** 下载配置及运行测量 JSON；**Screenshot** 同时下载地图 PNG 和同名 JSON。
+PNG 直接从 Cesium canvas 获取，包含已渲染的经纬网、GPlates 轮廓等叠加内容，
+不包含左右面板、图例条目、格子背景或 **Powered by CesiumJS** 标注。
+记录控件或图例界面时需使用浏览器或系统截图。跨源影像必须允许读取 canvas。
 
 ## 可选基准测试控制器
 
