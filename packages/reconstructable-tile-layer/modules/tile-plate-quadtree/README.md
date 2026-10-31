@@ -60,8 +60,7 @@ const entries = tilePlateIndex.queryTilesAtLevel(5);
 Input coordinates are longitude/latitude degrees. Rings should repeat their
 first coordinate pair at the end. A returned `TilePlateIndexEntry` contains
 `tileXYL` and, for partial coverage, a tile-local `clipArea` whose axes
-normally span `[0, 1]`. A null legacy `polygon` value denotes complete tile
-coverage.
+normally span `[0, 1]`.
 
 ## View-aware query
 
@@ -89,10 +88,3 @@ other layout properties.
 
 These rules correspond to the Methodology subsection “Tile-plate quadtree
 indexing and reconstruction task generation.”
-
-## Compatibility
-
-`QuadTreeTileProcessor` and the historical `QuadTreeTileProcesser` remain
-aliases of `PlateDomainTileQuadtree`. Existing traversal methods
-(`getTilesByLevel`, `getTilesInBoundingSphere`, `getRootTiles`, and the
-accumulator-style `find*` methods) remain unchanged.

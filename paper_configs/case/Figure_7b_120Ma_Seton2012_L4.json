@@ -1,34 +1,36 @@
 {
   "schemaVersion": 3,
-  "caseId": "Case3_L3_Low_Res",
-  "modelName": "Matthews static polygons",
+  "caseId": "Figure_7b_120Ma_Seton2012_L4",
+  "modelName": "Seton et al. (2012)",
   "timeMa": 120,
   "viewMode": "2D_RECTANGULAR",
   "extent": {
-    "west": -31.1619,
-    "south": -21.380576,
-    "east": -2.101397,
-    "north": -11.73689
+    "west": -81.389933,
+    "south": -72.768463,
+    "east": 55.931516,
+    "north": 18.663286
   },
   "output": {
     "width": 900,
-    "height": 300,
+    "height": 600,
     "pixelRatio": 2
   },
   "layers": {
-    "graticule": false,
-    "backgroundColor": "#b8cdff"
+    "graticule": true,
+    "backgroundColor": "#2f343b"
   },
   "sources": {
-    "featurePresetKey": "earthbyte-static-polygons-gpmlz",
-    "featureUrl": "/features/Global_EarthByte_GPlates_PresentDay_StaticPlatePolygons.gpmlz",
-    "gplatesReferencePolygonColor": "#19862e",
+    "featurePresetKey": "seton-2012-static-polygons-gpmlz",
+    "featureUrl": "/features/Seton_etal_ESR2012_StaticPolygons.1.gpmlz",
+    "gplatesReferencePolygonColor": "#E6E6E6",
     "gplatesReferencePolygonKey": "off",
     "gplatesReferencePolygonUrl": null,
     "rotationAnchorMode": "default",
     "anchorPlateId": "0",
-    "rotationPresetKey": "zahirovic-2022-optimised-mantle-rot",
-    "rotUrls": ["/rotations/Zahirovic_etal_2022_OptimisedMantleRef_and_NNRMantleRef.rot"],
+    "rotationPresetKey": "seton-2012-rot",
+    "rotUrls": [
+      "/rotations/Seton_etal_ESR2012_2012.1.rot"
+    ],
     "providerKey": "macrostrat-carto",
     "providerLabel": "Macrostrat Carto (3857)",
     "serviceConfig": {
@@ -65,15 +67,15 @@
     }
   },
   "render": {
-    "level": 3,
+    "level": 4,
     "polygonRenderIntent": "all-polygons-area",
-    "primitiveTransformMode": "bakedInstance",
+    "primitiveTransformMode": "dynamic3D",
     "debugEnabled": false
   },
   "layerStack": [
     {
-      "id": "case3/Case3_120Ma_L3_Low_Res",
-      "name": "Macrostrat Carto (3857)",
+      "id": "7303a4d1-9e55-4234-9706-e64d628de35b",
+      "name": "Macrostrat Carto — Zahirovic et al. (2022)",
       "mode": "reconstructable",
       "source": {
         "kind": "service",
@@ -112,20 +114,84 @@
         "exampleKey": "macrostrat-carto"
       },
       "model": {
-        "name": "Matthews static polygons",
+        "name": "Zahirovic et al. (2022)",
         "featureUrl": "/features/Global_EarthByte_GPlates_PresentDay_StaticPlatePolygons.gpmlz",
         "featureLabel": "Global_EarthByte_GPlates_PresentDay_StaticPlatePolygons.gpmlz",
-        "rotationUrls": ["/rotations/Zahirovic_etal_2022_OptimisedMantleRef_and_NNRMantleRef.rot"],
-        "rotationLabels": ["Zahirovic_etal_2022_OptimisedMantleRef_and_NNRMantleRef.rot"],
+        "rotationUrls": [
+          "/rotations/Zahirovic_etal_2022_OptimisedMantleRef_and_NNRMantleRef.rot"
+        ],
+        "rotationLabels": [
+          "Zahirovic_etal_2022_OptimisedMantleRef_and_NNRMantleRef.rot"
+        ],
         "anchorPlateId": "0",
         "polygonRenderIntent": "all-polygons-area"
       },
       "modelRequiresReselect": false,
+      "visible": false,
+      "opacity": 1,
+      "ageRange": null,
+      "loadMode": "level",
+      "level": 4
+    },
+    {
+      "name": "Macrostrat Carto — Seton et al. (2012)",
+      "source": {
+        "kind": "service",
+        "config": {
+          "protocol": "url-template",
+          "name": "Macrostrat Carto (3857)",
+          "url": "https://tiles.macrostrat.org/carto/{z}/{x}/{y}.png",
+          "tilingSchemeKey": "web-mercator",
+          "minimumLevel": 0,
+          "maximumLevel": 12,
+          "tileWidth": 256,
+          "tileHeight": 256,
+          "levelZeroTilesX": 1,
+          "levelZeroTilesY": 1,
+          "bounds": null,
+          "subdomains": "a,b,c",
+          "credit": "Macrostrat",
+          "parameters": "",
+          "wms": {
+            "layers": "",
+            "styles": "",
+            "version": "1.3.0",
+            "crs": "EPSG:3857",
+            "format": "image/png",
+            "transparent": true
+          },
+          "wmts": {
+            "layer": "",
+            "style": "default",
+            "format": "image/png",
+            "tileMatrixSetID": "",
+            "tileMatrixLabels": "",
+            "dimensions": ""
+          }
+        },
+        "exampleKey": "macrostrat-carto"
+      },
+      "mode": "reconstructable",
+      "model": {
+        "name": "Seton et al. (2012)",
+        "featureUrl": "/features/Seton_etal_ESR2012_StaticPolygons.1.gpmlz",
+        "featureLabel": "Seton_etal_ESR2012_StaticPolygons.1.gpmlz",
+        "rotationUrls": [
+          "/rotations/Seton_etal_ESR2012_2012.1.rot"
+        ],
+        "rotationLabels": [
+          "Seton_etal_ESR2012_2012.1.rot"
+        ],
+        "anchorPlateId": "0",
+        "polygonRenderIntent": "all-polygons-area"
+      },
       "visible": true,
       "opacity": 1,
       "ageRange": null,
       "loadMode": "level",
-      "level": 3
+      "level": 4,
+      "id": "4b1fbd3e-46d8-4cfc-9a99-5f6995362d3c",
+      "modelRequiresReselect": false
     }
   ]
 }

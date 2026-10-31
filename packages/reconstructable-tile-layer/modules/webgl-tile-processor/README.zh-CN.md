@@ -6,9 +6,7 @@
 WebMercator 纹理坐标，对瓦片局部的 `TileClipArea` 掩膜进行三角剖分，并为
 Cesium 材质导出具有透明区域的已处理瓦片图像。
 
-推荐使用与论文一致的类名 `WebGLTileProcessor`。现有名称
-`CesiumTileProcessor` 和历史名称 `CesiumTileProcesser` 仍作为同一实现的
-别名保留。
+公共类为 `WebGLTileProcessor`。
 
 ## 功能特性
 
@@ -104,8 +102,3 @@ const processedImage = await webglProcessor.processMaskedSourceTileImage(
 完整瓦片会绕过裁剪掩膜。边界瓦片使用其瓦片局部板块域区域的并集作为模板掩膜，
 然后仅在模板生效的位置绘制源纹理。这对应论文方法部分“GPU 瓦片掩膜、渲染和
 年代感知复用”小节中描述的实现。
-
-## 兼容性
-
-之前的所有 `reproject*` 方法、`getPoolStats()`、`clearBuffer()` 以及现有类名和
-类型名继续可用。与论文一致的方法只是轻量别名，不会改变缓存、掩膜或输出行为。

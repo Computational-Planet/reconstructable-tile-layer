@@ -87,17 +87,17 @@ const matrix = await interpolator.getPlateRotationMatrix("101", 100);
 
 ## APIs and format coverage
 
-| API                                                       | Result                                                                        |
-| --------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| `readGplatesText(source, options?)`                       | Decoded text; compression is detected from bytes.                             |
-| `decodeGplatesArrayBuffer(bytes, sourceName?)`            | Synchronous UTF-8, gzip or ZIP decoding.                                      |
-| `parseFiniteRotationText(text)`                           | ROT records grouped by moving plate ID.                                       |
-| `loadFiniteRotationRecords(sources, options?)`            | Read sources in supplied order, then parse their combined text.               |
-| `parseGpmlText(text, options?)`                           | GPML feature members with metadata and polygon geometry.                      |
-| `parsedGpmlFeaturesToPaleoData(features, options?)`       | RTL-compatible polygon records and diagnostics.                               |
-| `loadFeaturePolygonDataWithDiagnostics(source, options?)` | Decode, parse and adapt GPML/GPMLZ/XML or the historical custom polygon JSON. |
-| `loadFeaturePolygonData(source, options?)`                | Only the normalized polygon records.                                          |
-| `readGplatesXmlFromUrl(url, options?)`                    | Compatibility URL reader.                                                     |
+| API                                                       | Result                                                          |
+| --------------------------------------------------------- | --------------------------------------------------------------- |
+| `readGplatesText(source, options?)`                       | Decoded text; compression is detected from bytes.               |
+| `decodeGplatesArrayBuffer(bytes, sourceName?)`            | Synchronous UTF-8, gzip or ZIP decoding.                        |
+| `parseFiniteRotationText(text)`                           | ROT records grouped by moving plate ID.                         |
+| `loadFiniteRotationRecords(sources, options?)`            | Read sources in supplied order, then parse their combined text. |
+| `parseGpmlText(text, options?)`                           | GPML feature members with metadata and polygon geometry.        |
+| `parsedGpmlFeaturesToPaleoData(features, options?)`       | RTL-compatible polygon records and diagnostics.                 |
+| `loadFeaturePolygonDataWithDiagnostics(source, options?)` | Decode, parse and adapt GPML/GPMLZ/XML or custom polygon JSON.  |
+| `loadFeaturePolygonData(source, options?)`                | Only the normalized polygon records.                            |
+| `readGplatesXmlFromUrl(url, options?)`                    | Read GPML/XML from a URL.                                       |
 
 GPML parsing needs `DOMParser` and DOM node types. Imports, byte readers and ROT
 parsing also work in Node.js 18+; parsing GPML in Node requires a DOM implementation.
@@ -105,13 +105,10 @@ No DOM access or network request occurs on import.
 
 ZIP decoding selects the first GPML/XML entry, otherwise a ROT entry, otherwise the
 first non-directory entry. It does not merge an archive of multiple model files.
-GPML geometry coverage remains polygons, including holes and multiple polygon parts;
-this extraction does not implement point/line parsing, dynamic topology resolution
-or vector reconstruction. The legacy custom JSON format is not GeoJSON, and retains
-its first-polygon-per-feature behavior.
+GPML geometry support covers polygons, including holes and multiple polygon parts.
+Point/line parsing, dynamic topology resolution and vector reconstruction are not supported.
+The custom JSON format is not GeoJSON and uses the first polygon of each feature.
 
 ROT parsing retains input order, ignores `!` comments and malformed lines, drops
 consecutive equal-age/equal-reference duplicates, and subtracts 0.01 Ma from the
-previous record on an equal-age reference change. These existing semantics remain
-unchanged by the extraction. Existing reader exports from RTL and parser exports
-from `rtl-finite-rotation` remain available as compatibility re-exports.
+previous record on an equal-age reference change.

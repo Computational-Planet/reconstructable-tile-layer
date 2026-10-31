@@ -1,34 +1,36 @@
 {
   "schemaVersion": 3,
-  "caseId": "Case2B_RTL_Merdith2021",
-  "modelName": "Merdith et al. (2021) static polygons GPML",
-  "timeMa": 750,
+  "caseId": "Figure_9b_RTL_Overlap2D_120Ma",
+  "modelName": "Matthews static polygons",
+  "timeMa": 120,
   "viewMode": "2D_RECTANGULAR",
   "extent": {
-    "west": -180,
-    "south": -90,
-    "east": 180,
-    "north": 90
+    "west": -4.012552,
+    "south": 9.5,
+    "east": 14.012552,
+    "north": 21.5
   },
   "output": {
-    "width": 1800,
-    "height": 900,
-    "pixelRatio": 1
+    "width": 900,
+    "height": 600,
+    "pixelRatio": 2
   },
   "layers": {
-    "graticule": false,
+    "graticule": true,
     "backgroundColor": "#2f343b"
   },
   "sources": {
-    "featurePresetKey": "merdith-2021-static-polygons-gpml",
-    "featureUrl": "/features/shapes_static_polygons_Merdith_etal.gpml",
-    "gplatesReferencePolygonColor": "#ff4d8d",
-    "gplatesReferencePolygonKey": "merdith-2021-750",
-    "gplatesReferencePolygonUrl": "/gplates_ref/geojson/Merdith2021_750.00Ma.geojson",
+    "featurePresetKey": "earthbyte-static-polygons-gpmlz",
+    "featureUrl": "/features/Global_EarthByte_GPlates_PresentDay_StaticPlatePolygons.gpmlz",
+    "gplatesReferencePolygonColor": "#E6E6E6",
+    "gplatesReferencePolygonKey": "off",
+    "gplatesReferencePolygonUrl": null,
     "rotationAnchorMode": "default",
     "anchorPlateId": "0",
-    "rotationPresetKey": "merdith-2021-rot",
-    "rotUrls": ["/rotations/1000_0_rotfile_Merdith_etal.rot"],
+    "rotationPresetKey": "zahirovic-2022-optimised-mantle-rot",
+    "rotUrls": [
+      "/rotations/Zahirovic_etal_2022_OptimisedMantleRef_and_NNRMantleRef.rot"
+    ],
     "providerKey": "gplates-topography-4326",
     "providerLabel": "GPlates Topography (4326)",
     "serviceConfig": {
@@ -67,12 +69,12 @@
   "render": {
     "level": 4,
     "polygonRenderIntent": "all-polygons-area",
-    "primitiveTransformMode": "bakedInstance",
+    "primitiveTransformMode": "dynamic3D",
     "debugEnabled": false
   },
   "layerStack": [
     {
-      "id": "case2B/Case2B_RTL_Merdith2021_750Ma",
+      "id": "c9fffac4-be6b-48e6-b273-557e2ba650eb",
       "name": "GPlates Topography (4326)",
       "mode": "reconstructable",
       "source": {
@@ -112,11 +114,13 @@
         "exampleKey": "gplates-topography-4326"
       },
       "model": {
-        "name": "Merdith et al. (2021) static polygons GPML",
-        "featureUrl": "/features/shapes_static_polygons_Merdith_etal.gpml",
-        "featureLabel": "shapes_static_polygons_Merdith_etal.gpml",
-        "rotationUrls": ["/rotations/1000_0_rotfile_Merdith_etal.rot"],
-        "rotationLabels": ["1000_0_rotfile_Merdith_etal.rot"],
+        "name": "Matthews static polygons",
+        "featureUrl": "/features/Global_EarthByte_GPlates_PresentDay_StaticPlatePolygons.gpmlz",
+        "featureLabel": "",
+        "rotationUrls": [
+          "/rotations/Zahirovic_etal_2022_OptimisedMantleRef_and_NNRMantleRef.rot"
+        ],
+        "rotationLabels": [],
         "anchorPlateId": "0",
         "polygonRenderIntent": "all-polygons-area"
       },

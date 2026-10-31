@@ -1,14 +1,14 @@
 {
   "schemaVersion": 3,
-  "caseId": "Case3_Load_by_View",
-  "modelName": "Matthews static polygons",
-  "timeMa": 120,
+  "caseId": "Figure_5a_0Ma_L4",
+  "modelName": "Zahirovic et al. (2022)",
+  "timeMa": 0,
   "viewMode": "2D_RECTANGULAR",
   "extent": {
-    "west": -31.906211,
-    "south": -26.137696,
-    "east": -2.845708,
-    "north": -6.785601
+    "west": -81.379468,
+    "south": -72.768463,
+    "east": 55.921051,
+    "north": 18.663286
   },
   "output": {
     "width": 900,
@@ -16,19 +16,21 @@
     "pixelRatio": 2
   },
   "layers": {
-    "graticule": false,
-    "backgroundColor": "#b8cdff"
+    "graticule": true,
+    "backgroundColor": "#2f343b"
   },
   "sources": {
     "featurePresetKey": "earthbyte-static-polygons-gpmlz",
     "featureUrl": "/features/Global_EarthByte_GPlates_PresentDay_StaticPlatePolygons.gpmlz",
-    "gplatesReferencePolygonColor": "#19862e",
+    "gplatesReferencePolygonColor": "#E6E6E6",
     "gplatesReferencePolygonKey": "off",
     "gplatesReferencePolygonUrl": null,
     "rotationAnchorMode": "default",
     "anchorPlateId": "0",
     "rotationPresetKey": "zahirovic-2022-optimised-mantle-rot",
-    "rotUrls": ["/rotations/Zahirovic_etal_2022_OptimisedMantleRef_and_NNRMantleRef.rot"],
+    "rotUrls": [
+      "/rotations/Zahirovic_etal_2022_OptimisedMantleRef_and_NNRMantleRef.rot"
+    ],
     "providerKey": "macrostrat-carto",
     "providerLabel": "Macrostrat Carto (3857)",
     "serviceConfig": {
@@ -65,16 +67,14 @@
     }
   },
   "render": {
-    "level": 3,
+    "level": 4,
     "polygonRenderIntent": "all-polygons-area",
-    "primitiveTransformMode": "bakedInstance",
+    "primitiveTransformMode": "dynamic3D",
     "debugEnabled": false
   },
   "layerStack": [
     {
-      "id": "case3/Case3_120Ma_Load_by_View",
-      "name": "Macrostrat Carto (3857)",
-      "mode": "reconstructable",
+      "name": "Macrostrat Carto — Zahirovic et al. (2022)",
       "source": {
         "kind": "service",
         "config": {
@@ -111,21 +111,27 @@
         },
         "exampleKey": "macrostrat-carto"
       },
+      "mode": "reconstructable",
       "model": {
-        "name": "Matthews static polygons",
+        "name": "Zahirovic et al. (2022)",
         "featureUrl": "/features/Global_EarthByte_GPlates_PresentDay_StaticPlatePolygons.gpmlz",
         "featureLabel": "Global_EarthByte_GPlates_PresentDay_StaticPlatePolygons.gpmlz",
-        "rotationUrls": ["/rotations/Zahirovic_etal_2022_OptimisedMantleRef_and_NNRMantleRef.rot"],
-        "rotationLabels": ["Zahirovic_etal_2022_OptimisedMantleRef_and_NNRMantleRef.rot"],
+        "rotationUrls": [
+          "/rotations/Zahirovic_etal_2022_OptimisedMantleRef_and_NNRMantleRef.rot"
+        ],
+        "rotationLabels": [
+          "Zahirovic_etal_2022_OptimisedMantleRef_and_NNRMantleRef.rot"
+        ],
         "anchorPlateId": "0",
         "polygonRenderIntent": "all-polygons-area"
       },
-      "modelRequiresReselect": false,
       "visible": true,
       "opacity": 1,
       "ageRange": null,
-      "loadMode": "view",
-      "level": 3
+      "loadMode": "level",
+      "level": 4,
+      "id": "7303a4d1-9e55-4234-9706-e64d628de35b",
+      "modelRequiresReselect": false
     }
   ]
 }

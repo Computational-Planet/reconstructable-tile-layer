@@ -32,9 +32,9 @@ Demo 从 `reconstructable-tile-layer` 导入 `ReconstructableTileLayer` 和
 `WebGLTileProcessor`；处理器专用类型使用 `/processor` 公共入口。核心模块由 RTL 从
 `packages/reconstructable-tile-layer/modules` 统一打包，Demo 通过 RTL 的公共入口使用它们。
 
-`src/layers`、本地文件控件、object URL 生命周期、时间轴协调及普通 GeoJSON 仍属于
-Demo。数值 TIFF、对应 Cesium provider 和可选 COG 转换继续使用三个独立 Raster 扩展。
-此次发行结构调整保持普通影像/矢量的 Cesium 原生行为和现有重建链路。
+`src/layers`、本地文件控件、object URL 生命周期、时间轴协调及普通 GeoJSON 属于
+Demo。数值 TIFF、对应 Cesium provider 和可选 COG 转换使用三个独立 Raster 扩展。
+普通影像和矢量使用Cesium原生显示组件。
 
 ## 面板操作顺序
 
@@ -53,7 +53,7 @@ GPlates 参考叠加层、视图与渲染设置、实验导入导出和统计位
 ## Reference & Legend
 
 **Reference & Legend**、其中的 **GPlates reference** 和 **Macrostrat legend** 默认全部折叠。
-GPlates 参考线保留来源和颜色选项。
+GPlates 参考线提供来源和颜色选项。
 
 在 **Macrostrat legend** 设置 **Zoom (z)**（默认 **4**，应与源瓦片层级一致），
 通过并列的 **Select area** / **Select point** 选择区域或点。**Select area** 在球面上拖动框选，
@@ -142,7 +142,7 @@ RTL 包仅提供通用图层容器、显隐、透明度和有序表面材质；�
 ## 连接在线影像数据
 
 **Tile map service** 是连接用户服务的工具。**Fill from example** 只把示例的全部连接参数填入表单，
-原有引用按钮保留；也可选择 **Your connection (blank form)** 从空表单开始。修改后显示
+引用按钮可查看来源文献；也可选择 **Your connection (blank form)** 从空表单开始。修改后显示
 **Example settings edited**，**Reset example** 可恢复原示例。正式使用的 Provider 完全由表单构造。
 
 - **XYZ / TMS URL template**：填写 URL；`{z}` 是层级，`{x}` 是列，`{y}` 从北向南计数，
@@ -226,7 +226,7 @@ pnpm --filter reconstructable-tile-layer-demo dev
 
 ## 基本操作顺序
 
-1. 从 [case_configs](../../case_configs/README.zh-CN.md) 导入配置，或选择板块模型和数据源后点击 **Add layer** 创建图层。
+1. 从 [paper_configs](../../paper_configs/README.zh-CN.md) 导入配置，或选择板块模型和数据源后点击 **Add layer** 创建图层。
 2. 在 **Layers** 选中重建层，将 **Tile loading** 设为 **Specified level**（指定层级）或
    **Current view**（当前视图），点击 **Load tiles**。当前视图模式下，不勾选 **Lock view level** 时自动选级；
    勾选后输入固定层级，支持 L0。
@@ -262,5 +262,5 @@ const result = await window.__rtlPerformanceBenchmark.run();
 window.__rtlPerformanceBenchmark.downloadLastResult();
 ```
 
-保留该控制器是为了复现论文中的浏览器测量，正常使用演示程序时不需要它。执行一次
+该控制器用于复现论文中的浏览器测量，正常使用演示程序时不需要它。执行一次
 独占基准测试后，应刷新页面再返回交互式工作流。

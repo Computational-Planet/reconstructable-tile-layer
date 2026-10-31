@@ -9,7 +9,7 @@ apps/reconstructable-tile-layer-demo/index.html
 apps/reconstructable-tile-layer-demo/src/
 packages/reconstructable-tile-layer/modules/tile-plate-quadtree/src/AreaQuadTreeTileNode.spec.ts
 coverage/
-case_configs/**/*.json
+paper_configs/**/*.json
 benchmark_records/r2/**
 output/
 tmp/

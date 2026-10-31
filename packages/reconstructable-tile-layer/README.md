@@ -7,13 +7,12 @@ Layer (RTL)** object. It joins a published imagery provider with polygonal
 plate-domain features, ROT finite rotations, tile--plate indexes, composite
 task scheduling, WebGL-processed images, and Cesium primitives.
 
-The recommended public class is `ReconstructableTileLayer`. The existing
-`SimpleGeoReconstructManager` name remains an alias of the same class.
+The public layer class is `ReconstructableTileLayer`.
 
 GPlates reading, rotation mathematics, tile indexing and WebGL processing live
 in four source modules under `modules/`. RTL bundles their implementation and
 declarations; consumers do not need to install the four standalone module packages.
-The demo continues to own file selection and object-URL lifetimes.
+The demo owns file selection and object-URL lifetimes.
 
 ## Highlights
 
@@ -39,13 +38,13 @@ still requires `DOMParser`, and URL readers require `fetch`.
 
 ## Public entries and module boundaries
 
-| Entry                                  | Responsibility                                                           | Optional standalone distribution                                   |
-| -------------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------ |
-| `reconstructable-tile-layer`           | Layer, scheduling, retained records, processor and compatibility exports | Main installation                                                  |
-| `reconstructable-tile-layer/gplates`   | ROT/GPML/GPMLZ reading, feature records and diagnostics                  | [rtl-gplates-source](modules/gplates-source/README.md)             |
-| `reconstructable-tile-layer/rotation`  | Finite rotations and reference-plate chains                              | [rtl-finite-rotation](modules/finite-rotation/README.md)           |
-| `reconstructable-tile-layer/quadtree`  | Tile–plate indexes and clip areas                                        | [rtl-tile-plate-quadtree](modules/tile-plate-quadtree/README.md)   |
-| `reconstructable-tile-layer/processor` | Source image requests, reprojection and WebGL masking                    | [rtl-webgl-tile-processor](modules/webgl-tile-processor/README.md) |
+| Entry                                  | Responsibility                                          | Optional standalone distribution                                   |
+| -------------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------ |
+| `reconstructable-tile-layer`           | Layer, scheduling, retained records and processor       | Main installation                                                  |
+| `reconstructable-tile-layer/gplates`   | ROT/GPML/GPMLZ reading, feature records and diagnostics | [rtl-gplates-source](modules/gplates-source/README.md)             |
+| `reconstructable-tile-layer/rotation`  | Finite rotations and reference-plate chains             | [rtl-finite-rotation](modules/finite-rotation/README.md)           |
+| `reconstructable-tile-layer/quadtree`  | Tile–plate indexes and clip areas                       | [rtl-tile-plate-quadtree](modules/tile-plate-quadtree/README.md)   |
+| `reconstructable-tile-layer/processor` | Source image requests, reprojection and WebGL masking   | [rtl-webgl-tile-processor](modules/webgl-tile-processor/README.md) |
 
 Every entry has ESM, CommonJS and TypeScript declarations. Root and subpath entries
 share implementations within the same module format, so `WebGLTileProcessor` from
@@ -69,9 +68,8 @@ quadtree owns indexing, and processor owns image processing; none imports the RT
 manager. The standalone rotation build includes the reader code it uses and does not
 require a separate `rtl-gplates-source` installation.
 
-Raster source, imagery-provider and converter packages remain optional extensions.
-Future vector reconstruction belongs to an extension using these public contracts;
-this package change does not add a GeoJSON reconstruction path.
+Raster source, imagery-provider and converter packages are optional extensions.
+GeoJSON reconstruction is not part of RTL; a vector extension can use these public contracts.
 
 ## Usage
 
@@ -191,8 +189,8 @@ loaded again.
 
 ### Plate-domain features
 
-`featureSource` accepts GPML, GPMLZ, XML, the repository's legacy JSON
-feature array, or an uploaded `blob:` URL. Area features provide the plate
+`featureSource` accepts GPML, GPMLZ, XML, the custom JSON
+feature-array format, or an uploaded `blob:` URL. Area features provide the plate
 identifier, validity interval, and `TileClipArea`. Parsed line-like and
 unclassified features remain available in import diagnostics but do not create
 reconstruction units.
@@ -333,19 +331,3 @@ attributes, topology, feature identity, or numerical raster values. General
 antimeridian-crossing rings must be supplied as dateline-separated polygon
 components. Service access, CORS, licensing, supported tile organization, model
 coverage, and browser resources remain application constraints.
-
-## Compatibility
-
-Replace standalone processor imports with `reconstructable-tile-layer` or
-`reconstructable-tile-layer/processor` when migrating an RTL application, then
-remove the unused standalone dependency. `processor`/`processer` properties and
-options now expose the structural `TileProcessor` type. Code that explicitly
-annotates those values with a concrete processor class should use `TileProcessor`
-instead. Public processor members and resource ownership are unchanged.
-
-The original `SimpleGeoReconstructManager`, `provider`, `processor`,
-`featureSource`, `rotationSources`, `initialAge`, `setAge`,
-`setProvider`, `loadTilesOnLevel`, `loadFineTilesInView`,
-`loadTilesAtRoot`, `getStats`, and `getLastGenerationReport` interfaces
-remain available. Historical `processer` and `PaleoData.time.begine`
-spellings are retained for existing consumers.

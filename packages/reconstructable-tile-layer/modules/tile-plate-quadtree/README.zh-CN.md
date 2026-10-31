@@ -56,8 +56,7 @@ const entries = tilePlateIndex.queryTilesAtLevel(5);
 
 输入坐标为经纬度，单位是度。每个环都应在末尾重复第一个坐标对。返回的
 `TilePlateIndexEntry` 包含 `tileXYL`；对于部分覆盖的情况，还包含一个瓦片局部
-`clipArea`，其坐标轴范围通常是 `[0, 1]`。旧版 `polygon` 值为 null 表示完整
-瓦片覆盖。
+`clipArea`，其坐标轴范围通常是 `[0, 1]`。
 
 ## 视图感知查询
 
@@ -80,10 +79,3 @@ const candidates = tilePlateIndex.queryTilesInBoundingSphere(level, reconstructe
 - 一般的跨反子午线环必须以在日期变更线处分离的多边形分量提供。
 
 这些规则对应论文方法部分的“瓦片-板块四叉树索引与重建任务生成”小节。
-
-## 兼容性
-
-`QuadTreeTileProcessor` 和历史名称 `QuadTreeTileProcesser` 仍是
-`PlateDomainTileQuadtree` 的别名。现有遍历方法（`getTilesByLevel`、
-`getTilesInBoundingSphere`、`getRootTiles` 以及累加器形式的 `find*` 方法）
-保持不变。

@@ -6,14 +6,13 @@
 RTL）**对象。它将已发布的影像提供器与多边形板块域要素、ROT 有限旋转、
 瓦片-板块索引、复合任务调度、WebGL 处理图像和 Cesium 图元连接起来。
 
-推荐使用的公共类是 `ReconstructableTileLayer`。现有名称
-`SimpleGeoReconstructManager` 仍作为同一类的别名保留。
+公共图层类为 `ReconstructableTileLayer`。
 
 ## 功能特性
 
 GPlates 读取、旋转计算、瓦片索引和 WebGL 处理由 `modules/` 下的四个源码模块负责。
 RTL 构建时包含这些实现及类型声明，使用者无需额外安装四个独立模块包。
-原有读取方法继续作为兼容导出提供。文件选择和 object URL 生命周期仍由 Demo 管理。
+文件选择和 object URL 生命周期由 Demo 管理。
 
 - 注册已发布的影像服务，无需重新发布其瓦片。
 - 在一个可执行的年代感知图层中组合板块域要素、有限旋转和瓦片处理。
@@ -33,13 +32,13 @@ GPML 解析仍需要 `DOMParser`，URL 读取需要 `fetch`。
 
 ## 公共入口与模块边界
 
-| 入口                                   | 职责                                   | 可选独立发行包                                                           |
-| -------------------------------------- | -------------------------------------- | ------------------------------------------------------------------------ |
-| `reconstructable-tile-layer`           | 图层、调度、保留记录、处理器及兼容导出 | 默认安装入口                                                             |
-| `reconstructable-tile-layer/gplates`   | ROT/GPML/GPMLZ 读取、要素记录与诊断    | [rtl-gplates-source](modules/gplates-source/README.zh-CN.md)             |
-| `reconstructable-tile-layer/rotation`  | 有限旋转与参考板块链                   | [rtl-finite-rotation](modules/finite-rotation/README.zh-CN.md)           |
-| `reconstructable-tile-layer/quadtree`  | 瓦片–板块索引和裁剪区域                | [rtl-tile-plate-quadtree](modules/tile-plate-quadtree/README.zh-CN.md)   |
-| `reconstructable-tile-layer/processor` | 源影像请求、重投影和 WebGL 掩膜        | [rtl-webgl-tile-processor](modules/webgl-tile-processor/README.zh-CN.md) |
+| 入口                                   | 职责                                | 可选独立发行包                                                           |
+| -------------------------------------- | ----------------------------------- | ------------------------------------------------------------------------ |
+| `reconstructable-tile-layer`           | 图层、调度、保留记录、处理器        | 默认安装入口                                                             |
+| `reconstructable-tile-layer/gplates`   | ROT/GPML/GPMLZ 读取、要素记录与诊断 | [rtl-gplates-source](modules/gplates-source/README.zh-CN.md)             |
+| `reconstructable-tile-layer/rotation`  | 有限旋转与参考板块链                | [rtl-finite-rotation](modules/finite-rotation/README.zh-CN.md)           |
+| `reconstructable-tile-layer/quadtree`  | 瓦片–板块索引和裁剪区域             | [rtl-tile-plate-quadtree](modules/tile-plate-quadtree/README.zh-CN.md)   |
+| `reconstructable-tile-layer/processor` | 源影像请求、重投影和 WebGL 掩膜     | [rtl-webgl-tile-processor](modules/webgl-tile-processor/README.zh-CN.md) |
 
 各入口均提供 ESM、CommonJS 与 TypeScript 声明。同一模块格式下，根入口与子入口
 共享实现：从根入口和 `/processor` 导入的 `WebGLTileProcessor` 是同一个构造函数。
@@ -58,8 +57,8 @@ GPlates 模块以普通数据结构传递记录；旋转模块负责数学计算
 处理器负责影像处理，均不反向依赖 RTL manager。旋转模块独立构建时会包含所需的
 读取代码，无需再安装 `rtl-gplates-source`。
 
-Raster source、imagery-provider 和 converter 继续作为可选扩展。后续矢量重建应通过
-公共契约接入扩展；此次包结构调整不增加 GeoJSON 重建链路。
+Raster source、imagery-provider 和 converter 是可选扩展。RTL不包含GeoJSON重建；
+矢量重建扩展可通过这些公共契约接入。
 
 ## 用法
 
@@ -169,7 +168,7 @@ EPSG:4326 和 WebMercator 瓦片方案。使用 `setImageryProvider(viewer, prov
 
 ### 板块域要素
 
-`featureSource` 接受 GPML、GPMLZ、XML、仓库的旧版 JSON 要素数组或上传的
+`featureSource` 接受 GPML、GPMLZ、XML、自定义 JSON 要素数组或上传的
 `blob:` URL。面要素提供板块标识、有效时间区间和 `TileClipArea`。解析得到的
 线状和未分类要素仍会出现在导入诊断中，但不会创建重建单元。
 
@@ -282,17 +281,3 @@ if (!result.skippedReason) {
 RTL 重建服务交付的可视图层，不会恢复源属性、拓扑、要素标识或数值栅格值。
 一般的跨反子午线环必须以在日期变更线处分离的多边形分量提供。服务访问、CORS、
 许可、支持的瓦片组织方式、模型覆盖范围和浏览器资源仍然是应用层面的约束。
-
-## 兼容性
-
-迁移 RTL 应用时，将独立处理器导入改为 `reconstructable-tile-layer` 或
-`reconstructable-tile-layer/processor`，然后移除不再使用的独立包依赖。
-`processor`/`processer` 属性和选项现在使用结构类型 `TileProcessor`；若调用代码
-显式将这些值标注为具体处理器类，请改用 `TileProcessor`。公共处理器成员和资源
-所有权保持不变。
-
-原有的 `SimpleGeoReconstructManager`、`provider`、`processor`、
-`featureSource`、`rotationSources`、`initialAge`、`setAge`、`setProvider`、
-`loadTilesOnLevel`、`loadFineTilesInView`、`loadTilesAtRoot`、`getStats` 和
-`getLastGenerationReport` 接口继续可用。历史拼写 `processer` 和
-`PaleoData.time.begine` 也会为现有使用方保留。

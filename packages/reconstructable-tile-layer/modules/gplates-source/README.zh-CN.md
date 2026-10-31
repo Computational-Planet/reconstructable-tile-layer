@@ -81,25 +81,24 @@ const matrix = await interpolator.getPlateRotationMatrix("101", 100);
 
 ## 主要接口与支持范围
 
-| 接口                                                      | 输出                                                      |
-| --------------------------------------------------------- | --------------------------------------------------------- |
-| `readGplatesText(source, options?)`                       | 按字节识别压缩格式并解码文本。                            |
-| `decodeGplatesArrayBuffer(bytes, sourceName?)`            | 同步解码 UTF-8、gzip 或 ZIP。                             |
-| `parseFiniteRotationText(text)`                           | 按移动板块 ID 分组的 ROT 记录。                           |
-| `loadFiniteRotationRecords(sources, options?)`            | 按输入顺序读取多个源，合并文本后解析。                    |
-| `parseGpmlText(text, options?)`                           | 带元数据和多边形几何的 GPML 要素。                        |
-| `parsedGpmlFeaturesToPaleoData(features, options?)`       | RTL 可用的板块域记录和诊断。                              |
-| `loadFeaturePolygonDataWithDiagnostics(source, options?)` | 解码、解析并适配 GPML/GPMLZ/XML 或历史自定义多边形 JSON。 |
-| `loadFeaturePolygonData(source, options?)`                | 仅返回板块域记录。                                        |
-| `readGplatesXmlFromUrl(url, options?)`                    | 兼容原有 URL 读取入口。                                   |
+| 接口                                                      | 输出                                                  |
+| --------------------------------------------------------- | ----------------------------------------------------- |
+| `readGplatesText(source, options?)`                       | 按字节识别压缩格式并解码文本。                        |
+| `decodeGplatesArrayBuffer(bytes, sourceName?)`            | 同步解码 UTF-8、gzip 或 ZIP。                         |
+| `parseFiniteRotationText(text)`                           | 按移动板块 ID 分组的 ROT 记录。                       |
+| `loadFiniteRotationRecords(sources, options?)`            | 按输入顺序读取多个源，合并文本后解析。                |
+| `parseGpmlText(text, options?)`                           | 带元数据和多边形几何的 GPML 要素。                    |
+| `parsedGpmlFeaturesToPaleoData(features, options?)`       | RTL 可用的板块域记录和诊断。                          |
+| `loadFeaturePolygonDataWithDiagnostics(source, options?)` | 解码、解析并适配 GPML/GPMLZ/XML 或自定义多边形 JSON。 |
+| `loadFeaturePolygonData(source, options?)`                | 仅返回板块域记录。                                    |
+| `readGplatesXmlFromUrl(url, options?)`                    | 从 URL 读取 GPML/XML。                                |
 
 GPML 解析需要 `DOMParser` 和 DOM 节点类型。包导入、字节读取和 ROT 解析也可用于
 Node.js 18+；在 Node 中解析 GPML 需要提供 DOM 实现。仅导入包不会访问 DOM 或发起请求。
 
 ZIP 优先选择首个 GPML/XML 文件，其次 ROT 文件，最后为首个非目录文件；不合并压缩包
-内的多个模型文件。GPML 的几何支持仍为多边形，包含孔洞和多个部件，本次未实现点线解析、
-动态拓扑求解或矢量重建。历史自定义 JSON 不是 GeoJSON，仍仅使用每个要素的首个多边形。
+内的多个模型文件。GPML 的几何支持多边形，包含孔洞和多个部件，不支持点线解析、
+动态拓扑求解或矢量重建。自定义 JSON 不是 GeoJSON，仅使用每个要素的首个多边形。
 
 ROT 保留文件顺序，忽略 `!` 注释和不完整记录；连续同龄且参考板块相同的记录去重，
-同龄但参考板块变化时，将前一条记录年龄减去 0.01 Ma。这些既有语义在迁移中保持不变。
-RTL 原有读取方法和 `rtl-finite-rotation` 原有解析方法继续作为兼容导出提供。
+同龄但参考板块变化时，将前一条记录年龄减去 0.01 Ma。

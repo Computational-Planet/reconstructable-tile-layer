@@ -36,10 +36,9 @@ entry. RTL bundles its core modules from `packages/reconstructable-tile-layer/mo
 the demo accesses them through RTL's public entries.
 
 `src/layers`, local-file controls, object-URL ownership, timeline coordination and
-ordinary GeoJSON remain demo responsibilities. Numeric TIFF input, its Cesium
-provider and optional COG conversion still use the three separate raster extensions.
-This distribution change preserves native ordinary imagery/vector behavior and the
-existing reconstruction path.
+ordinary GeoJSON are demo responsibilities. Numeric TIFF input, its Cesium
+provider and optional COG conversion use the three separate raster extensions.
+Ordinary imagery and vectors use Cesium's native display components.
 
 ## Panel workflow
 
@@ -92,12 +91,12 @@ the processor supports provider-scoped cache invalidation. Sources keep independ
 **Rendering → Show graticule** toggles a 30° latitude/longitude grid with coordinate
 labels (on by default), independently of imagery and reconstruction age. The grid
 uses the demo's sphere in 2D and 3D, appears in screenshots, and is saved/restored
-through the existing experiment JSON field `layers.graticule`.
+through the experiment JSON field `layers.graticule`.
 
 ## Reference & Legend
 
 **Reference & Legend**, **GPlates reference**, and **Macrostrat legend** are collapsed
-by default. GPlates outlines keep their existing source and colour controls.
+by default. GPlates outlines provide source and colour controls.
 
 In **Macrostrat legend**, set **Zoom (z)** (default **4**) to match the source tiles,
 then use the adjacent **Select area** or **Select point** buttons. **Select area**
@@ -157,7 +156,7 @@ are not included in experiment JSON.
 ## Connect online imagery
 
 **Tile map service** connects user-supplied services. **Fill from example** populates the editable form;
-the existing citation button remains available. **Your connection (blank form)** starts an empty connection.
+use the citation button to view the source reference. **Your connection (blank form)** starts an empty connection.
 Changes show **Example settings edited**, with **Reset example** to restore the original values.
 The provider is constructed entirely from form values, independently of the example selection.
 
@@ -266,7 +265,7 @@ pnpm --filter reconstructable-tile-layer-demo dev
 
 ## Basic sequence
 
-1. Import a configuration from [case_configs](../../case_configs/README.md), or choose a plate model
+1. Import a configuration from [paper_configs](../../paper_configs/README.md), or choose a plate model
    and data source and click **Add layer** to create a layer.
 2. In **Layers**, select a reconstruction layer. Set **Tile loading** to **Specified level** or
    **Current view**, then click **Load tiles**. For the current view, leave **Lock view level**
@@ -305,7 +304,7 @@ panel. Cross-origin imagery must permit canvas reading.
 
 ## Optional benchmark controller
 
-Before initializing the interactive layer, the existing browser benchmark can
+Before initializing the interactive layer, the browser benchmark can
 be invoked from the console:
 
 ```js
@@ -313,6 +312,6 @@ const result = await window.__rtlPerformanceBenchmark.run();
 window.__rtlPerformanceBenchmark.downloadLastResult();
 ```
 
-This controller is retained to reproduce the manuscript's browser measurements;
+This controller reproduces the manuscript's browser measurements;
 it is not required for normal demo use. Refresh the page after an exclusive
 benchmark run before returning to the interactive workflow.

@@ -19,7 +19,7 @@ Web 瓦片服务作为影像源，将瓦片内容分配给多边形板块域，�
 
 可选本地文件扩展会独立保留 GeoTIFF/NetCDF 原始数值，提供标准 Cesium 影像，并在
 浏览器 Worker 中导出 COG。源码 Demo 提供 TIFF/GeoTIFF 和普通 GeoJSON 上传；
-NetCDF 仅保留在可选库 API 中。在线演示可能仍为较早版本。
+NetCDF 通过可选库 API 提供。
 详见[本地数据操作说明](apps/reconstructable-tile-layer-demo/README.zh-CN.md#本地科学栅格)
 及[逐数据集验证范围](scripts/raster/README.md#production-demo-and-scientific-meaning)。
 
@@ -29,9 +29,9 @@ NetCDF 仅保留在可选库 API 中。在线演示可能仍为较早版本。
 
 **最简操作：** Demo 已提供默认数据源，无需加载案例配置即可使用。
 
-1. 点击 **Init Reconstruction Manager**。
-2. 点击 **Load Tiles By Level**，等待瓦片加载完成。
-3. 拖动 **Reconstruction Age** 时间轴，查看不同时刻的重建结果。
+1. 选择 **Plate model** 和 **Tile map service**，点击 **Add layer**。
+2. 选中重建图层，在 **Tile loading** 中选择 **Specified level**，点击 **Load tiles**。
+3. 使用 **Timeline & tiles** 中的年代控件查看不同时刻的重建结果。
 
 [`apps/reconstructable-tile-layer-demo`](apps/reconstructable-tile-layer-demo)
 中的应用就是 `pnpm dev` 启动的项目 Demo。它：
@@ -67,8 +67,8 @@ Vite 会在终端输出本地地址。命令运行期间，核心库的代码变
 
 ## 研究材料
 
-- 可直接加载的案例配置：[English](case_configs/README.md) ·
-  [简体中文](case_configs/README.zh-CN.md)。
+- 论文图件配置：[English](paper_configs/README.md) ·
+  [简体中文](paper_configs/README.zh-CN.md)。
 - 正文及补充材料使用的浏览器基准测试记录：
   [English](benchmark_records/README.md) ·
   [简体中文](benchmark_records/README.zh-CN.md)。
@@ -81,12 +81,11 @@ Vite 会在终端输出本地地址。命令运行期间，核心库的代码变
 ## 功能特性
 
 - 在不重新发布源服务的情况下，重建兼容的 WMS、WMTS、XYZ 和 URL 模板影像。
-- 导入 GPML、GPMLZ、XML、旧版 JSON 板块域和 GPlates ROT 模型。
+- 导入 GPML、GPMLZ、XML、自定义 JSON 板块域和 GPlates ROT 模型。
 - 插值有限旋转并组合参考板块链。
 - 使用惰性瓦片-板块四叉树索引板块域覆盖范围。
 - 在 WebGL 中对边界瓦片进行掩膜，同时保留 MultiPolygon 分量和内环。
 - 在年代变化时复用已处理影像，并根据当前 Cesium 视图细化源瓦片。
-- 在提供与论文一致的名称时，继续兼容历史 API。
 
 ## 工作区
 
@@ -132,7 +131,7 @@ packages/
 | [rtl-raster-converter](packages/rtl-raster-converter)               | TIFF 或已选二维切片 → COG 与溯源 JSON；GDAL Worker 按需启动   | 无 Cesium/React；由宿主提供引擎静态资源；直接显示无需转换   |
 
 主包不强依赖这些引擎。现代坐标源需要匹配的板块模型；已有古坐标快照使用普通
-影像图层按年龄显示，不再旋转。本轮不实现数值点查询。
+影像图层按年龄显示，不再旋转。Demo不提供数值点查询。
 
 ## 方法与代码映射
 
@@ -190,7 +189,7 @@ webglProcessor.destroy();
 ## 输入与方法范围
 
 RTL 接受使用地理坐标 EPSG:4326 或 WebMercator 瓦片方案的 Cesium 影像提供器。
-板块域数据源可以是 GPML、GPMLZ、XML、仓库的旧版 JSON 结构或浏览器上传 URL。
+板块域数据源可以是 GPML、GPMLZ、XML、自定义 JSON 要素数组或浏览器上传 URL。
 有限旋转从 GPlates ROT 文本中读取。
 
 本实现在 `TileClipArea` 中保留 MultiPolygon 的各个部分和内环。一般的跨反子午线
@@ -208,7 +207,7 @@ RTL 接受使用地理坐标 EPSG:4326 或 WebMercator 瓦片方案的 Cesium �
 | `pnpm clean`          | 删除工作区构建输出和 Turbo 缓存。      |
 
 共享 Rollup 配置为 RTL 和核心模块生成 ESM、CommonJS 和 TypeScript 声明输出；
-Raster 扩展保留原有 ESM/Worker 构建。Cesium 保持为对等依赖，不会打包进这些软件包。
+Raster 扩展使用 ESM/Worker 构建。Cesium 保持为对等依赖，不会打包进这些软件包。
 
 `pnpm --filter reconstructable-tile-layer build` 可单独构建 RTL，直接读取内嵌模块源码。
 例如 `pnpm --filter rtl-finite-rotation build` 可独立构建旋转包。开发依赖中的 workspace
@@ -220,14 +219,6 @@ Raster 扩展保留原有 ESM/Worker 构建。Cesium 保持为对等依赖，不
 ```sh
 pnpm --filter reconstructable-tile-layer-demo dev
 ```
-
-## 兼容性
-
-推荐使用与论文一致的 API 名称。拉取软件包名称迁移后，需要重新安装工作区依赖。
-历史符号导出仍然可用，包括 `RotationOperator`、`QuadTreeTileProcesser`、
-`QuadTreeTileProcessor`、`CesiumTileProcesser`、`CesiumTileProcessor`、
-`SimpleGeoReconstructManager` 及其现有方法和选项名称。这些别名不会改变任何重建
-算法或运行结果。
 
 ## 验证
 

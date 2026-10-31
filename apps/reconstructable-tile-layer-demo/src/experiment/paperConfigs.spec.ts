@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import { existsSync } from "node:fs";
 import {
+  Cartesian3,
   Ellipsoid,
+  Math as CesiumMath,
+  OrthographicFrustum,
   GeographicProjection,
   ImageryLayerCollection,
   PrimitiveCollection,
@@ -18,13 +21,14 @@ import { createExperimentExportInfo } from "./exportConfig";
 import { parseImportedExperimentConfig } from "./importConfig";
 import type { ExperimentExportInfo } from "./types";
 
-type CaseConfig = Pick<
+type PaperConfig = Pick<
   ExperimentExportInfo,
   | "schemaVersion"
   | "caseId"
   | "modelName"
   | "timeMa"
   | "viewMode"
+  | "camera3D"
   | "extent"
   | "sources"
   | "layerStack"
@@ -36,8 +40,8 @@ type CaseConfig = Pick<
     "level" | "polygonRenderIntent" | "primitiveTransformMode" | "debugEnabled"
   >;
 };
-const cases = Object.entries(
-  import.meta.glob<CaseConfig>("../../../../case_configs/**/*.json", {
+const configurations = Object.entries(
+  import.meta.glob<PaperConfig>("../../../../paper_configs/**/*.json", {
     eager: true,
     import: "default",
   }),
@@ -48,7 +52,11 @@ function setup() {
   const imageryLayers = new ImageryLayerCollection();
   const viewer = {
     imageryLayers,
-    scene: { primitives, globe: { ellipsoid: Ellipsoid.WGS84 }, requestRender: vi.fn() },
+    scene: {
+      primitives,
+      globe: { ellipsoid: Ellipsoid.WGS84 },
+      requestRender: vi.fn(),
+    },
     isDestroyed: () => false,
   } as unknown as Viewer;
   const controller = new LayerController(viewer, {} as WebGLTileProcessor);
@@ -90,15 +98,37 @@ function setup() {
   };
 }
 
-describe("repository case configurations", () => {
-  it("covers all case groups and records view loading explicitly", () => {
-    expect(cases).toHaveLength(25);
-    expect(
-      cases.filter(([, config]) => config.layerStack[0].loadMode === "view").map(([file]) => file),
-    ).toEqual(["../../../../case_configs/case3/Case3_120Ma_Load_by_View.json"]);
+describe("repository paper figure configurations", () => {
+  it("covers the current manuscript panels and their loading helper", () => {
+    expect(configurations.map(([file]) => file).sort()).toEqual([
+      "../../../../paper_configs/case/Figure_5a_0Ma_L4.json",
+      "../../../../paper_configs/case/Figure_5b_132Ma_L4.json",
+      "../../../../paper_configs/case/Figure_5c_120Ma_L4.json",
+      "../../../../paper_configs/case/Figure_5d_100Ma_L4.json",
+      "../../../../paper_configs/case/Figure_6a_120Ma_Local_L4.json",
+      "../../../../paper_configs/case/Figure_6b_120Ma_Local_View_L8.json",
+      "../../../../paper_configs/case/Figure_6c_120Ma_Coverage_Overview.json",
+      "../../../../paper_configs/case/Figure_7a_120Ma_Zahirovic2022_L4.json",
+      "../../../../paper_configs/case/Figure_7b_120Ma_Seton2012_L4.json",
+      "../../../../paper_configs/case/steps/Figure_6c_Load_Local_First.json",
+      "../../../../paper_configs/evaluation/Figure_8a_RTL_Global2D_120Ma.json",
+      "../../../../paper_configs/evaluation/Figure_8b_RTL_Orthographic_0_0_120Ma.json",
+      "../../../../paper_configs/evaluation/Figure_8c_RTL_Orthographic_180_0_120Ma.json",
+      "../../../../paper_configs/evaluation/Figure_8d_RTL_NorthPole_120Ma.json",
+      "../../../../paper_configs/evaluation/Figure_8e_RTL_SouthPole_120Ma.json",
+      "../../../../paper_configs/evaluation/Figure_9b_RTL_Overlap2D_120Ma.json",
+    ]);
+    for (const [file, config] of configurations) {
+      expect(config.caseId).toBe(
+        file
+          .split("/")
+          .pop()!
+          .replace(/\.json$/, ""),
+      );
+    }
   });
 
-  it.each(cases)(
+  it.each(configurations)(
     "imports and round trips %s without manual layer creation",
     async (_file, config) => {
       const { controller, options, io, dispose } = setup();
@@ -107,11 +137,18 @@ describe("repository case configurations", () => {
           name: _file,
           text: async () => JSON.stringify(config),
         } as File);
-        expect(options.setStatus.mock.lastCall?.[0]).toContain("1 layers restored");
+        expect(options.setStatus.mock.lastCall?.[0]).toContain(
+          `${config.layerStack.length} layers restored`,
+        );
         const saved = exportLayerDefinitions(controller.definitions);
         expect(saved).toEqual(config.layerStack);
-        expect(controller.snapshot.layers[0].status).toBe("unloaded");
-        expect(controller.snapshot.layers[0].mode).toBe("reconstructable");
+        // 本地栅格保留“重选文件”状态；导入不得误报已加载或丢失隐藏图层。
+        for (const [index, layer] of config.layerStack.entries()) {
+          expect(controller.snapshot.layers[index].status).toBe(
+            layer.source.kind === "service" ? "unloaded" : "needs-file",
+          );
+          expect(controller.snapshot.layers[index].mode).toBe(layer.mode);
+        }
         expect(options.setAge).toHaveBeenCalledWith(config.timeMa);
         expect(options.setLevel).toHaveBeenCalledWith(config.render.level);
         expect(options.setServiceConfig).toHaveBeenCalledWith(config.sources.serviceConfig);
@@ -131,12 +168,17 @@ describe("repository case configurations", () => {
           viewMode: config.viewMode,
           extent: config.extent,
           output: config.output,
+          ...(config.camera3D ? { camera3D: config.camera3D } : {}),
         });
 
         for (const url of [
           config.sources.featureUrl,
           ...config.sources.rotUrls,
           config.sources.gplatesReferencePolygonUrl,
+          ...config.layerStack.flatMap((layer) => [
+            layer.model?.featureUrl,
+            ...(layer.model?.rotationUrls ?? []),
+          ]),
         ]) {
           if (url?.startsWith("/"))
             expect(existsSync(new URL(`../../public${url}`, import.meta.url)), url).toBe(true);
@@ -147,19 +189,27 @@ describe("repository case configurations", () => {
         const imported = parseImportedExperimentConfig(config);
         // 导出使用真实配置构造器，仅替代本轮不运行的相机和 Canvas。
         const extent = config.extent!;
+        const camera3D = config.camera3D;
+        const is3D = config.viewMode !== "2D_RECTANGULAR";
         const viewer = {
           resolutionScale: config.output.pixelRatio,
           camera: {
             computeViewRectangle: () =>
               Rectangle.fromDegrees(extent.west, extent.south, extent.east, extent.north),
-            positionCartographic: { longitude: 0, latitude: 0, height: 10000000 },
-            heading: 0,
-            pitch: 0,
-            roll: 0,
-            frustum: {},
+            positionCartographic: {
+              longitude: 0,
+              latitude: 0,
+              height: 10000000,
+            },
+            pickEllipsoid: () =>
+              Cartesian3.fromDegrees(camera3D?.targetLon ?? 0, camera3D?.targetLat ?? 0),
+            heading: CesiumMath.toRadians(camera3D?.heading ?? 0),
+            pitch: CesiumMath.toRadians(camera3D?.pitch ?? 0),
+            roll: CesiumMath.toRadians(camera3D?.roll ?? 0),
+            frustum: is3D ? new OrthographicFrustum() : {},
           },
           scene: {
-            mode: SceneMode.SCENE2D,
+            mode: is3D ? SceneMode.SCENE3D : SceneMode.SCENE2D,
             globe: { ellipsoid: Ellipsoid.WGS84 },
             mapProjection: new GeographicProjection(),
             canvas: {
@@ -178,6 +228,10 @@ describe("repository case configurations", () => {
             experimentViewConfig: {
               ...createDefaultExperimentViewConfig(),
               ...imported.experimentViewConfig,
+              camera3D: {
+                ...createDefaultExperimentViewConfig().camera3D,
+                ...imported.experimentViewConfig?.camera3D,
+              },
               extent,
               output: config.output,
             },
@@ -203,7 +257,7 @@ describe("repository case configurations", () => {
             status: "",
             webglProcessor: null,
           },
-          new Date("2026-10-23T00:00:00Z"),
+          new Date("2026-10-31T00:00:00Z"),
           config.caseId,
         );
         const restored = parseImportedExperimentConfig(JSON.parse(JSON.stringify(exported)));
@@ -213,6 +267,8 @@ describe("repository case configurations", () => {
         expect(restored.referencePolygonKey).toBe(config.sources.gplatesReferencePolygonKey);
         expect(restored.experimentViewConfig?.extent).toEqual(config.extent);
         expect(restored.experimentViewConfig?.output).toEqual(config.output);
+        expect(restored.experimentViewConfig?.viewMode).toBe(config.viewMode);
+        if (camera3D) expect(restored.experimentViewConfig?.camera3D).toEqual(camera3D);
       } finally {
         dispose();
       }
@@ -223,15 +279,23 @@ describe("repository case configurations", () => {
     const { controller, options, io, dispose } = setup();
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
     try {
-      const config = cases[0][1];
+      const config = configurations[0][1];
       controller.restore(config.layerStack);
       const before = controller.definitions;
       for (const invalid of [
         { ...config, layerStack: undefined },
-        { ...config, layerStack: [{ ...config.layerStack[0], loadMode: "guess" }] },
         {
           ...config,
-          layerStack: [{ ...config.layerStack[0], source: { kind: "service", config: {} } }],
+          layerStack: [{ ...config.layerStack[0], loadMode: "guess" }],
+        },
+        {
+          ...config,
+          layerStack: [
+            {
+              ...config.layerStack[0],
+              source: { kind: "service", config: {} },
+            },
+          ],
         },
       ]) {
         await io.handleImportExperimentConfig({

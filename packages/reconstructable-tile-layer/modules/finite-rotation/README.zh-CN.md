@@ -6,14 +6,13 @@
 转换为单位四元数，使用 Cesium `QuaternionSpline` 对控制年代进行插值，并以递归
 方式将参考板块链组合到锚定板块。
 
-推荐使用与论文一致的类名 `FiniteRotationInterpolator`。现有名称
-`RotationOperator` 仍作为同一类保留。
+公共类为 `FiniteRotationInterpolator`。
 
 ## 功能特性
 
 文件读取、解压和 ROT 解析已委托给
-[`rtl-gplates-source`](../gplates-source/README.zh-CN.md)。本包负责旋转计算，
-原有解析方法继续作为兼容别名提供。`init(sources, options?)` 也接受本地文件和字节缓冲区，
+[`rtl-gplates-source`](../gplates-source/README.zh-CN.md)。本包负责旋转计算。
+`init(sources, options?)` 也接受本地文件和字节缓冲区，
 支持可选的 `signal`；已解析的记录可通过 `initializeFromRecords(records)` 初始化。
 
 - 从 URL 或内存解析标准 GPlates ROT 文本。
@@ -33,7 +32,7 @@ import { FiniteRotationInterpolator } from "reconstructable-tile-layer/rotation"
 `pnpm --filter rtl-finite-rotation build` 可生成独立的 ESM、CommonJS 和类型声明。
 两种发行方式共享源码，构建产物与类身份分别独立。
 
-独立构建包含所需的 GPlates 读取代码，不再将读取包作为运行时依赖。
+独立构建包含所需的 GPlates 读取代码，无需将读取包作为运行时依赖。
 
 ## 安装
 
@@ -87,10 +86,3 @@ movingPlateId age poleLatitude poleLongitude angle fixedPlateId
 
 本软件包不会创建浏览器资源或 Cesium 场景资源。如果欧拉极轴不应使用
 `Ellipsoid.default`，可以提供自定义的 `referenceEllipsoid`。
-
-## 兼容性
-
-`RotationOperator`、`RotItem`、`RotSplineItem`、
-`convertFileContentToJson`、`getQuaternionAtAge`、`getRotateMatrix` 以及之前的
-所有辅助函数导出继续受到支持。`getRotateMatirxAtAge` 和
-`rotateCartensianPoint` 等历史拼写也予以保留。

@@ -25,8 +25,7 @@ identities, or numerical raster values.
 Optional local-file packages retain numeric GeoTIFF/NetCDF sources separately
 from their display images, provide standard Cesium imagery, and export COG in a
 browser Worker. The source Demo exposes TIFF/GeoTIFF and ordinary GeoJSON uploads;
-NetCDF remains available only through the optional library API. The hosted Demo may reflect
-an earlier release. See [local data instructions](apps/reconstructable-tile-layer-demo/README.md#local-scientific-rasters)
+NetCDF is available through the optional library API. See [local data instructions](apps/reconstructable-tile-layer-demo/README.md#local-scientific-rasters)
 and the [tested data matrix](scripts/raster/README.md#production-demo-and-scientific-meaning).
 
 ## Demo
@@ -35,9 +34,9 @@ and the [tested data matrix](scripts/raster/README.md#production-demo-and-scient
 
 **Quick start:** The default data sources work without loading a case config.
 
-1. Click **Init Reconstruction Manager**.
-2. Click **Load Tiles By Level** and wait for the tiles to finish loading.
-3. Drag the **Reconstruction Age** slider to view the reconstruction at different times.
+1. Select a **Plate model** and a **Tile map service**, then click **Add layer**.
+2. Select the reconstruction layer, choose **Specified level** under **Tile loading**, and click **Load tiles**.
+3. Use the age control under **Timeline & tiles** to view the reconstruction at different times.
 
 The application in [`apps/reconstructable-tile-layer-demo`](apps/reconstructable-tile-layer-demo)
 is the project demo started by `pnpm dev`. It:
@@ -76,8 +75,8 @@ workflow, export behavior, and benchmark controller.
 
 ## Research materials
 
-- Ready-to-use case configurations: [English](case_configs/README.md) ·
-  [简体中文](case_configs/README.zh-CN.md).
+- Paper figure configurations: [English](paper_configs/README.md) ·
+  [简体中文](paper_configs/README.zh-CN.md).
 - Browser benchmark records used by the manuscript and supplementary material:
   [English](benchmark_records/README.md) ·
   [简体中文](benchmark_records/README.zh-CN.md).
@@ -92,13 +91,12 @@ Requirements: Node.js 18 or newer, pnpm 9.0.5, and a browser with WebGL support.
 
 - Reconstructs compatible published WMS, WMTS, XYZ, and URL-template imagery
   without republishing the source service.
-- Imports GPML, GPMLZ, XML, legacy JSON plate domains, and GPlates ROT models.
+- Imports GPML, GPMLZ, XML, custom JSON plate domains, and GPlates ROT models.
 - Interpolates finite rotations and composes reference-plate chains.
 - Indexes plate-domain coverage with lazy tile--plate quadtrees.
 - Masks boundary tiles in WebGL while retaining MultiPolygon parts and holes.
 - Reuses processed imagery across age changes and refines source tiles for the
   current Cesium view.
-- Preserves historical APIs while exposing paper-aligned names.
 
 ## Workspaces
 
@@ -208,7 +206,7 @@ Destroy the RTL before destroying those dependencies.
 
 RTL accepts Cesium imagery providers using geographic EPSG:4326 or WebMercator
 tiling schemes. Plate-domain sources may be GPML, GPMLZ, XML, the repository's
-legacy JSON shape, or uploaded browser URLs. Finite rotations are read from
+custom JSON feature-array format, or uploaded browser URLs. Finite rotations are read from
 GPlates ROT text.
 
 The implementation preserves MultiPolygon parts and interior rings in
@@ -244,15 +242,6 @@ then run:
 ```sh
 pnpm --filter reconstructable-tile-layer-demo dev
 ```
-
-## Compatibility
-
-Paper-aligned names are the recommended API. Reinstall workspace dependencies
-after pulling the package-name migration. Historical symbol exports remain
-available, including `RotationOperator`, `QuadTreeTileProcesser`,
-`QuadTreeTileProcessor`, `CesiumTileProcesser`, `CesiumTileProcessor`,
-`SimpleGeoReconstructManager`, and their existing methods and option names.
-No reconstruction algorithm or runtime result is changed by the aliases.
 
 ## Verification
 

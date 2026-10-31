@@ -7,9 +7,7 @@ service-delivered source tiles, remaps WebMercator texture coordinates when
 needed, triangulates tile-local `TileClipArea` masks, and exports transparent
 processed tile images for Cesium materials.
 
-The recommended paper-aligned class name is `WebGLTileProcessor`. The
-existing `CesiumTileProcessor` and historical `CesiumTileProcesser` names
-remain aliases of the same implementation.
+The public class is `WebGLTileProcessor`.
 
 ## Highlights
 
@@ -121,9 +119,3 @@ Complete tiles bypass the clipping mask. Boundary tiles use the union of their
 tile-local plate-domain areas as a stencil mask, then draw the source texture
 only where the stencil is active. This is the implementation described in the
 Methodology subsection “GPU tile masking, rendering, and age-aware reuse.”
-
-## Compatibility
-
-All previous `reproject*` methods, `getPoolStats()`, `clearBuffer()`, and
-the existing class and type names remain available. The paper-aligned methods
-are thin aliases and do not change caching, masking, or output behavior.

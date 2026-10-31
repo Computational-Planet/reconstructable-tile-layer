@@ -7,13 +7,11 @@ parses GPlates ROT records, converts finite Euler rotations to unit
 quaternions, interpolates control ages with Cesium `QuaternionSpline`, and
 recursively composes reference-plate chains to an anchor plate.
 
-The recommended paper-aligned class name is
-`FiniteRotationInterpolator`. The existing `RotationOperator` name remains
-available as the same class.
+The public class is `FiniteRotationInterpolator`.
 
 File reading, decompression and ROT parsing are delegated to
 [`rtl-gplates-source`](../gplates-source/README.md). This package owns
-rotation mathematics; its existing parser exports remain compatible aliases.
+rotation mathematics.
 `init(sources, options?)` also accepts local files and byte buffers, with an optional
 `signal`. Use `initializeFromRecords(records)` for already parsed source data.
 
@@ -97,10 +95,3 @@ Paper-aligned exported types and helpers include:
 The package does not create browser or Cesium scene resources. A custom
 `referenceEllipsoid` may be supplied when Euler-pole axes should not use
 `Ellipsoid.default`.
-
-## Compatibility
-
-`RotationOperator`, `RotItem`, `RotSplineItem`,
-`convertFileContentToJson`, `getQuaternionAtAge`, `getRotateMatrix`, and
-all previous helper exports remain supported. Historical misspellings such as
-`getRotateMatirxAtAge` and `rotateCartensianPoint` are also retained.
