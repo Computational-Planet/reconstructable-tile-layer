@@ -181,17 +181,27 @@
 .layer-opacity span {
   text-align: right;
 }
+.layer-model {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
 .layer-model-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 24px auto;
   align-items: center;
   gap: 4px;
 }
-.layer-model-row p {
+.layer-model-row p,
+.layer-rotation-files {
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   overflow: hidden;
+}
+.layer-model-files {
+  margin: 4px 0 0;
+  padding-left: 18px;
 }
 .layer-age-range {
   display: grid;

@@ -16,6 +16,16 @@ interface Props {
   onUseModel(id: string): void;
 }
 
+function rotationFileName(url: string | undefined) {
+  if (!url || url.startsWith("blob:")) return "Local ROT file";
+  const name = url.split(/[?#]/)[0].split("/").pop() || url;
+  try {
+    return decodeURIComponent(name);
+  } catch {
+    return name;
+  }
+}
+
 export function LayerItem({
   layer,
   controller,
@@ -37,6 +47,15 @@ export function LayerItem({
   const vector = layer.source.kind === "geojson";
   const minimumLevel = layer.tileLevelRange?.minimumLevel ?? 0;
   const maximumLevel = layer.tileLevelRange?.maximumLevel ?? 24;
+  // 本地 ROT 的 blob URL 不含文件名，导出后也会被移除；优先使用本层保存的文件标签。
+  const model = layer.model;
+  const rotationFiles = model
+    ? Array.from(
+        { length: Math.max(model.rotationLabels.length, model.rotationUrls.length) },
+        (_, index) =>
+          model.rotationLabels[index]?.trim() || rotationFileName(model.rotationUrls[index]),
+      )
+    : [];
   useEffect(() => {
     setName(layer.name);
   }, [layer.name]);
@@ -212,25 +231,43 @@ export function LayerItem({
               )}
             </fieldset>
           ) : (
-            <div className="layer-model-row">
-              <p className="field-hint" title={layer.model?.name}>
-                Model: {layer.model?.name || "Applied plate model"}
+            <div className="layer-model">
+              <div className="layer-model-row">
+                <p className="field-hint" title={model?.name}>
+                  Model: {model?.name || "Applied plate model"}
+                </p>
+                <HelpHint label="Layer plate model">
+                  <strong>{model?.name || "Applied plate model"}.</strong> This layer follows the
+                  global timeline using its applied model. Use current replaces it with the plate
+                  domains, ROT files and anchor selected on the left, clears its loaded tiles, and
+                  requires reloading.
+                  <div>
+                    <strong>ROT files</strong>
+                  </div>
+                  {rotationFiles.length ? (
+                    <ul className="layer-model-files">
+                      {rotationFiles.map((file, index) => (
+                        <li key={index}>{file}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <div>Not set</div>
+                  )}
+                </HelpHint>
+                <button
+                  type="button"
+                  className="secondary-button"
+                  aria-label="Use current plate model"
+                  disabled={busy}
+                  onClick={() => onUseModel(layer.id)}
+                >
+                  Use current
+                </button>
+              </div>
+              <p className="field-hint layer-rotation-files" title={rotationFiles.join("\n")}>
+                ROT{rotationFiles.length > 1 ? ` (${rotationFiles.length})` : ""}:{" "}
+                {rotationFiles.join(", ") || "Not set"}
               </p>
-              <HelpHint label="Layer plate model">
-                <strong>{layer.model?.name || "Applied plate model"}.</strong> This layer follows
-                the global timeline using its applied model. Use current replaces it with the plate
-                domains, ROT files and anchor selected on the left, clears its loaded tiles, and
-                requires reloading.
-              </HelpHint>
-              <button
-                type="button"
-                className="secondary-button"
-                aria-label="Use current plate model"
-                disabled={busy}
-                onClick={() => onUseModel(layer.id)}
-              >
-                Use current
-              </button>
             </div>
           )}
           <p className={`layer-status${layer.status === "error" ? " is-error" : ""}`} role="status">

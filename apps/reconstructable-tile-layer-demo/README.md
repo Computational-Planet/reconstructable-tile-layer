@@ -70,6 +70,8 @@ Higher entries within the reconstruction or ordinary-imagery group draw on top;
 use the arrows to reorder within either group. Reconstruction layers draw above
 native imagery, with no cross-group ordering. Vector list order does not set draw order.
 Each layer has visibility, a name, opacity and removal. Only reconstruction layers have manual tile controls.
+The selected reconstruction layer shows its bound model and ROT filenames. Multiple ROT
+files include a count; hover over the filenames or open the model's **?** to read the full list.
 Narrow windows use a floating right panel.
 
 The grid workspace shows a small **Powered by CesiumJS** label at the bottom right.
