@@ -111,8 +111,6 @@ export interface LocalRasterDescriptor {
   context: ScientificRasterContext;
   style: RasterStyle;
   applied: boolean;
-  /** A converted file keeps its original TIFF description for provenance. */
-  convertedFrom?: LocalRasterDescriptor;
 }
 
 export function describeLocalRaster(
@@ -121,7 +119,6 @@ export function describeLocalRaster(
   context: ScientificRasterContext,
   style: RasterStyle,
   applied: boolean,
-  convertedFrom?: LocalRasterDescriptor,
 ): LocalRasterDescriptor {
   return {
     schemaVersion: 1,
@@ -141,6 +138,5 @@ export function describeLocalRaster(
     context,
     style,
     applied,
-    convertedFrom,
   };
 }

@@ -18,7 +18,6 @@ export function LocalRasterSection({
     raster.setContext({ ...raster.context, ...patch });
   const editStyle = (patch: Partial<typeof raster.style>) =>
     raster.setStyle({ ...raster.style, ...patch });
-  const ready = !!metadata;
   return (
     <section className="local-raster-section" aria-label="Local raster">
       <label className="field-label">
@@ -83,13 +82,6 @@ export function LocalRasterSection({
                   {levels.recommendedReconstructionLevel}. Stored pixel scale corresponds to
                   approximately L{levels.nativeMaximumLevel}. L2 divides this file's coverage into 4
                   × 4 source tiles; L3 into 8 × 8. Finer subdivisions resample existing values.
-                </p>
-              )}
-              {raster.entry?.convertedFrom && (
-                <p className="field-hint">
-                  Before conversion: {raster.entry.convertedFrom.source.width} ×{" "}
-                  {raster.entry.convertedFrom.source.height}. Resampling the COG grid does not
-                  increase the original data's detail.
                 </p>
               )}
               {metadata.bands.map((band, index) => (
@@ -333,43 +325,12 @@ export function LocalRasterSection({
                   />
                 </label>
                 <p className="field-hint">
-                  Extra display exclusions do not change original missing-value metadata or numeric
-                  COG exports.
+                  Extra display exclusions do not change original missing-value metadata or stored
+                  numeric values.
                 </p>
               </fieldset>
             </details>
           )}
-          <details className="panel-disclosure">
-            <summary>Numeric COG export (optional)</summary>
-            {metadata && (
-              <fieldset disabled={disabled}>
-                <legend className="sr-only">Numeric COG export</legend>
-                <button type="button" disabled={!ready} onClick={() => void raster.convert()}>
-                  Create numeric COG
-                </button>
-                <p className="field-hint">
-                  GeoTIFF exports its stored numeric bands. Save the provenance JSON with the COG.
-                </p>
-              </fieldset>
-            )}
-            {raster.conversion && (
-              <div className="button-row">
-                <button type="button" onClick={raster.downloadCOG}>
-                  Download COG
-                </button>
-                <button type="button" onClick={raster.downloadProvenance}>
-                  Download provenance
-                </button>
-                <button
-                  type="button"
-                  disabled={disabled}
-                  onClick={() => void raster.loadConverted()}
-                >
-                  Load converted COG
-                </button>
-              </div>
-            )}
-          </details>
         </>
       )}
     </section>

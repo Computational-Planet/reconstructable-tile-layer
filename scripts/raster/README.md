@@ -3,7 +3,7 @@
 This guide covers optional raster-library validation and recorded integration
 evidence. The [current Demo](../../apps/reconstructable-tile-layer-demo/README.md)
 accepts TIFF/GeoTIFF and ordinary GeoJSON, with no NetCDF upload or slice controls.
-NetCDF examples here exercise `rtl-raster-source/netcdf` and the provider/converter
+NetCDF examples here exercise `rtl-raster-source/netcdf` and the provider
 APIs. The Demo UI runners identified below still target removed controls and need
 adaptation before they can validate the current application.
 
@@ -118,51 +118,25 @@ Scientific sources: [PaleoDEM release](https://www.earthbyte.org/paleodem-resour
 [DeepMIP-Eocene data descriptor](https://www.nature.com/articles/s41597-024-03773-4),
 [CEDA collection](https://catalogue.ceda.ac.uk/uuid/95aa41439d564756950f89921b6ef215/).
 
-## Browser COG conversion
-
-Build `rtl-raster-converter` and generate its small independent TIFF fixture with
-`python packages/rtl-raster-converter/test/generate-fixtures.py`, then run
-`node scripts/raster/run-reference-browser.mjs --converter`. Both public download
-corpora and the independent `reference-metadata.json` oracle must be present.
-The runner copies the pinned gdal3.js 2.8.1 static assets to the temporary test
-directory and exercises the public converter API in a real Worker.
-
-Tested cases include full ETOPO TIFF conversion (raw value, horizontal/vertical
-CRS, NoData, COG layout and overviews), cancellation followed by recovery,
-concurrent-job rejection, explicit georeferencing of an otherwise rejected TIFF,
-EPSG:4326 to EPSG:3857 nearest reprojection, packed-value scaling/NaN, and selected
-PaleoDEM/DeepMIP/NCEP/PCMDI/CCSM/ETOPO NetCDF slice exports. Rectilinear exports use
-explicit geographic target grids, including the CCSM Gaussian latitude case.
-Most numeric slice tests intentionally export a single known-position pixel;
-PaleoDEM tests a 720×360 resampled grid. They do not establish whole-model or
-arbitrary-size performance. The test also disposes an active GDAL Worker.
-
-Evidence is saved to `tmp/raster-reference-browser/converter-evidence.json`.
-Units, selected indices/native axes, explicit application age/experiment context
-and resampling choices are checked in the COG and its JSON provenance sidecar.
-Curvilinear `tos` remains rejected by the source and is not converted. Demo
-controls, complete RTL reconstruction and isolated package consumers are separate
-acceptance items, not proved by these converter tests.
-
 ## Isolated package consumer
 
 After building all packages, run
 `node scripts/raster/run-packed-consumer.mjs <absolute-path-to-pnpm.cjs>`.
 Alternatively set the task-specific `RTL_PNPM_CLI` environment variable to that
-path. The runner invokes Node with structured arguments, packs RTL and the three
+path. The runner invokes Node with structured arguments, packs RTL and the two
 raster extension packages, and installs the tarballs in a fresh OS temporary directory outside the
 repository. It leaves that directory available for inspection; no packages are
 published and no existing directories are deleted.
 
 The fixture uses only public package imports and asset URLs. It checks DOM-free
 imports, published TypeScript declarations, a single Cesium resolution, Vite
-production builds, actual TIFF/NC3/NC4/COG Worker operation, and ordinary RTL builds
+production builds, actual TIFF decoding and NC3/NC4 Worker operation, and ordinary RTL builds
 without the optional raster engines. It instantiates a Cesium ImageryLayer and
 checks the RTL provider parameter's type compatibility; complete Viewer/plate
 reconstruction is a separate integration test.
 
 For reproducibility the consumer pins Cesium 1.119.0, its repository baseline
-`@zip.js/zip.js` 2.7.45, GDAL 2.8.1, Vite 5.3.3 and TypeScript 5.5.3. This is a
+`@zip.js/zip.js` 2.7.45, Vite 5.3.3 and TypeScript 5.5.3. This is a
 specific tested dependency set, not a claim that every Cesium/transitive version
 works. The dependency override belongs only to the test consumer, not to any
 published library. Evidence goes to `tmp/raster-packed-consumer-evidence.json`.
@@ -176,20 +150,20 @@ Its recorded runs used a production build, headless Edge and a temporary loopbac
 static server, not a dev/HMR server. API coverage and recorded UI evidence are
 listed separately from the current TIFF/GeoJSON workflow:
 
-| Data / native format                               | Browser evidence                                                                                                             | Scientific use / limits                                                                                                                                  |
-| -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| PaleoDEM 0 / 100 Ma, NetCDF4, 181×361              | Original values −4920 / 480; ordinary Cesium imagery; age visibility; file replacement; 720×360 COG export/readback          | Already-paleo coordinates; zero RTL processor requests; age and its source explicitly supplied; missing `z.units` remains missing                        |
-| DeepMIP Eocene CESM1.2-CAM5 x3 v1.0 `tas`, NetCDF3 | Variable/time selector; `365_day` / 1950-origin time retained; K units; imagery; numeric COG API                             | Geological experiment kept separately; one native rectilinear atmospheric grid tested                                                                    |
-| Same DeepMIP `tos`, 2D TLAT/TLONG                  | API and UI explicitly reject curvilinear grid                                                                                | Negative fixture, not evidence of all-DeepMIP support                                                                                                    |
-| NOAA ETOPO 2022 N00E000 TIFF / NetCDF4, 3600×3600  | Cross-format independent numeric oracle; bounded imagery; full TIFF COG; UI cancellation/recovery; numeric CRS/NoData checks | Modern terrain. TIFF with matching Seton 2012 static polygons + ROT creates real RTL primitives; 701 at 100 Ma agrees with independent Rodrigues formula |
-| NOAA PSL NCEP/NCAR climatology, NetCDF4            | CF/COARDS, descending latitude, 0–360, monthly selector, units and selected numeric COG API                                  | Format regression; not NOAA Paleoclimatology                                                                                                             |
-| PCMDI/IPSL `tos_O1_2001-2002.nc`, NetCDF3          | Unlimited records, CF bounds, `360_day`, missing cells, units, numeric COG API                                               | Format regression; not paleogeographic reconstruction evidence                                                                                           |
-| CCSM SRES A1B `tas` / `ua`, NetCDF3                | Gaussian 1D latitude, time/pressure indices, raw values/units; explicit-grid `tas` COG API                                   | Future scenario; format regression, not a paleo experiment                                                                                               |
-| Owned tiny TIFF/NC3/NC4 fixtures                   | Packed/unsigned/missing/grouped axes, RGB, EPSG:3857 on 6371009 m sphere, georeference errors, cancel/close                  | Edge-case regression, supplementary to downloaded scientific files                                                                                       |
+| Data / native format                               | Browser evidence                                                                                            | Scientific use / limits                                                                                                                                  |
+| -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| PaleoDEM 0 / 100 Ma, NetCDF4, 181×361              | Original values −4920 / 480; ordinary Cesium imagery; age visibility; file replacement                      | Already-paleo coordinates; zero RTL processor requests; age and its source explicitly supplied; missing `z.units` remains missing                        |
+| DeepMIP Eocene CESM1.2-CAM5 x3 v1.0 `tas`, NetCDF3 | Variable/time selector; `365_day` / 1950-origin time retained; K units; imagery                             | Geological experiment kept separately; one native rectilinear atmospheric grid tested                                                                    |
+| Same DeepMIP `tos`, 2D TLAT/TLONG                  | API and UI explicitly reject curvilinear grid                                                               | Negative fixture, not evidence of all-DeepMIP support                                                                                                    |
+| NOAA ETOPO 2022 N00E000 TIFF / NetCDF4, 3600×3600  | Cross-format independent numeric oracle; bounded imagery; numeric CRS/NoData checks                         | Modern terrain. TIFF with matching Seton 2012 static polygons + ROT creates real RTL primitives; 701 at 100 Ma agrees with independent Rodrigues formula |
+| NOAA PSL NCEP/NCAR climatology, NetCDF4            | CF/COARDS, descending latitude, 0–360, monthly selector, units                                              | Format regression; not NOAA Paleoclimatology                                                                                                             |
+| PCMDI/IPSL `tos_O1_2001-2002.nc`, NetCDF3          | Unlimited records, CF bounds, `360_day`, missing cells, units                                               | Format regression; not paleogeographic reconstruction evidence                                                                                           |
+| CCSM SRES A1B `tas` / `ua`, NetCDF3                | Gaussian 1D latitude, time/pressure indices, raw values/units                                               | Future scenario; format regression, not a paleo experiment                                                                                               |
+| Owned tiny TIFF/NC3/NC4 fixtures                   | Packed/unsigned/missing/grouped axes, RGB, EPSG:3857 on 6371009 m sphere, georeference errors, cancel/close | Edge-case regression, supplementary to downloaded scientific files                                                                                       |
 
 The recorded suite additionally checked style replacement, extra **display-only** NoData
 without numeric mutation, source/model changes releasing primitives/caches, and
-experiment JSON that requires raster and uploaded model-file reselection. It checks that HDF5/GDAL do not
+experiment JSON that requires raster and uploaded model-file reselection. It checks that HDF5 does not
 load on startup and scientific Workers terminate after removal. All requests in
 this test stay on the temporary local origin; production processing requires no
 data-upload service. Output, screenshots and evidence are in
@@ -198,21 +172,17 @@ data-upload service. Output, screenshots and evidence are in
 Evidence includes file sizes, hardware, individual UI action timings, and main-page
 JS heap snapshots. The latter exclude Worker/WASM/GPU allocations and are not peak
 memory measurements. These are single headless functional runs, including automation
-and paint waits, not controlled throughput benchmarks. Direct ETOPO NetCDF4 tile
-generation took about 90 seconds in the measured run; the same region's converted
-COG was much faster. These observations describe that measured run, not a current
-Demo NetCDF capability or a fresh performance comparison.
+and paint waits, not controlled throughput benchmarks.
 
 Tested on Edge 154.0.4258.53, Cesium 1.119.0, geotiff 3.0.5, netcdfjs 4.0.0,
-h5wasm 0.10.3 and gdal3.js 2.8.1, using Vite 5.3.3 and TypeScript 5.5.3. Results
+h5wasm 0.10.3, using Vite 5.3.3 and TypeScript 5.5.3. Results
 do not establish other browsers, arbitrary file sizes, all NetCDF calendars/grids,
 PMIP compatibility, or prediction of paleo environmental fields. The default
-64 MiB source / 256 MiB conversion budgets estimate work buffers, not total browser
+64 MiB source budget estimates work buffers, not total browser
 memory. Source inspection/numeric oracles use independent Python readers only as
 development tools; they are not part of the browser product.
 
-The supplied COG engine has GTiff/COG but no NetCDF/HDF5 driver; the browser source
-reader selects a numeric slice first. TIFFImageryProvider 2.17.5 was evaluated;
+TIFFImageryProvider 2.17.5 was evaluated;
 its non-COG full-image tile and automatic range-scan behavior did not meet the
 bounded-read/ownership contract. The adapter therefore uses the public geotiff API
 through `RasterSource` and implements the standard Cesium provider contract.
@@ -231,7 +201,6 @@ cases used a production build and an ephemeral static server, never a dev/HMR se
 - Actual clipped primitive textures at 0 Ma match source samples across all 16
   L2 tiles; this catches orientation errors after the provider stage.
 - L2 source visibility and finite rotation at 100 Ma.
-- The same source converted to numeric COG, reopened and reconstructed at L2.
 - ETOPO TIFF starting at L3 with all 64 source tiles, including retries when the
   provider's eight-request limit is reached, without failed image requests.
 - View-based ETOPO refinement to L4 within a selected geographic view.
@@ -276,9 +245,7 @@ and do not establish live service availability or browser rendering performance.
 ## Texture direction and spatial alignment
 
 `run-raster-orientation-browser.mjs` requires built packages, downloaded PaleoDEM,
-and `tmp/raster-demo-browser/paleodem-ui.cog.tif`, a fixture produced by the Demo
-conversion harness above. That harness needs adaptation; the orientation runner
-does not create the missing COG itself. With the matching fixture available, run
+and the owned TIFF fixtures in `packages/rtl-raster-source/test/fixtures`. Run
 `node scripts/raster/run-raster-orientation-browser.mjs`. It builds a static
 fixture page and closes its loopback server and Edge process when finished.
 No dev/HMR server is started.
@@ -287,7 +254,7 @@ Its 19 cases exercise both renderer pools with a directional RGB gradient from
 Canvas, HTMLImageElement, a flipped ImageBitmap and Cesium's real `loadImage`
 decode path. Geographic and Mercator providers are checked at independently
 calculated positions, including a northern-half stencil mask. Downloaded PaleoDEM
-0 Ma NC4, the 100 Ma numeric COG from the Demo test, and the owned EPSG:3857 RGB TIFF are each checked across all
+0 Ma NC4, the owned EPSG:4326 strip-based TIFF, and the owned EPSG:3857 RGB TIFF are each checked across all
 16 L2 tiles (61,696 pixel comparisons per file). The original NC also has 64
 independent longitude/latitude-to-array checks. These catch per-tile north/south
 inversion even when tile counts, raw values and plate rotation matrices pass.

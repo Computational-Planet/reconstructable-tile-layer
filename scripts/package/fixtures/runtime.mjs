@@ -54,7 +54,7 @@ for (const load of [(name) => import(name), async (name) => require(name)]) {
 }
 if (process.argv.includes("--standalone")) {
   // 栅格扩展保持原有 ESM 入口，不要求它们增加 CommonJS 构建。
-  for (const name of ["rtl-raster-source", "rtl-raster-imagery-provider", "rtl-raster-converter"]) {
+  for (const name of ["rtl-raster-source", "rtl-raster-imagery-provider"]) {
     assert.ok(Object.keys(await import(name)).length, `Missing exports from ${name}`);
   }
 }

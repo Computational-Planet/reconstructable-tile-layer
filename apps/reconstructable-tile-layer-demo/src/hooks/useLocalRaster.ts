@@ -3,15 +3,12 @@ import { Rectangle, type Viewer } from "cesium";
 import { getGeographicBounds, openRasterSource, type RasterSource } from "rtl-raster-source";
 import { assertTiffSignature } from "../raster/tiffInput";
 import { RasterImageryProvider, type RasterStyle } from "rtl-raster-imagery-provider";
-import type { RasterConversionResult, RasterConverter } from "rtl-raster-converter";
 import { DEMO_ELLIPSOID_CONFIG } from "../cesium/createViewer";
-import { downloadBlob } from "../utils/downloads";
 import { retainResources } from "../layers/resourceLeases";
 import {
   describeLocalRaster,
   emptyRasterContext,
   makeScientificContext,
-  stringifyScientific,
   type LocalRasterDescriptor,
   type ModelSelection,
   type RasterContextDraft,
@@ -21,7 +18,6 @@ import {
 interface RasterEntry {
   file: File;
   source?: RasterSource;
-  convertedFrom?: LocalRasterDescriptor;
 }
 interface AppliedRaster {
   provider: RasterImageryProvider;
@@ -143,10 +139,7 @@ export function useLocalRaster(options: Options) {
   const [status, setStatus] = useState(
     "Choose a local GeoTIFF file. Processing stays in this browser.",
   );
-  const [conversion, setConversion] = useState<RasterConversionResult | null>(null);
-  const conversionOrigin = useRef<LocalRasterDescriptor>();
   const operation = useRef<AbortController | null>(null);
-  const converter = useRef<RasterConverter | null>(null);
   const alive = useRef(true);
   const modelKey = JSON.stringify(options.model);
   const restoreDraft = (descriptor: LocalRasterDescriptor) => {
@@ -191,8 +184,6 @@ export function useLocalRaster(options: Options) {
     setEntry(next);
     setStyle(initialStyle);
     restoredStyleRef.current = null;
-    setConversion(null);
-    conversionOrigin.current = undefined;
   };
 
   useEffect(() => {
@@ -200,7 +191,6 @@ export function useLocalRaster(options: Options) {
     return () => {
       alive.current = false;
       operation.current?.abort();
-      converter.current?.dispose();
       releaseApplied(false);
       releaseEntryRef.current?.();
       releaseEntryRef.current = null;
@@ -247,6 +237,7 @@ export function useLocalRaster(options: Options) {
       try {
         assertTiffSignature(new Uint8Array(await file.slice(0, 8).arrayBuffer()));
         signal.throwIfAborted();
+        // TIFF 由读取包直接解码，显示与重建共用同一数值源。
         next = { file, source: await openRasterSource(file, { signal }) };
         signal.throwIfAborted();
         replaceEntry(next);
@@ -295,7 +286,6 @@ export function useLocalRaster(options: Options) {
           scientificContext,
           resolvedStyle(provider),
           true,
-          current.convertedFrom,
         );
         const layerId = await callbacks.current.addLayer(
           provider,
@@ -330,81 +320,13 @@ export function useLocalRaster(options: Options) {
       }
     });
 
-  const convert = () =>
-    run(async (signal) => {
-      const current = entryRef.current;
-      if (!current?.source) throw new Error("Choose a TIFF file before converting it.");
-      const scientificContext = makeScientificContext(context, options.model);
-      const descriptor = describeLocalRaster(
-        current.file,
-        current.source.metadata,
-        scientificContext,
-        restoredStyleRef.current ?? makeStyle(style),
-        false,
-        current.convertedFrom,
-      );
-      setStatus("Loading conversion resources…");
-      const { createDemoConverter } = await import("../raster/conversion");
-      signal.throwIfAborted();
-      const engine = await createDemoConverter();
-      converter.current = engine;
-      try {
-        const result = await engine.toCOG(current.file, {
-          signal,
-          provenance: {
-            scientificContext,
-            inputDescription: JSON.parse(stringifyScientific(descriptor)),
-          },
-          onProgress: (progress) => {
-            if (!signal.aborted && alive.current)
-              setStatus(
-                `COG: ${progress.stage}${progress.total ? ` (${progress.completed}/${progress.total} rows)` : ""}`,
-              );
-          },
-        });
-        signal.throwIfAborted();
-        conversionOrigin.current = descriptor;
-        setConversion(result);
-        setStatus(
-          `COG ready: ${result.metadata.width} × ${result.metadata.height}. Download the numeric file and its provenance JSON.`,
-        );
-      } finally {
-        engine.dispose();
-        if (converter.current === engine) converter.current = null;
-      }
-    });
-
-  const loadConverted = () =>
-    run(async (signal) => {
-      if (!conversion) return;
-      const file = new File([conversion.blob], conversion.filename, {
-        type: "image/tiff",
-      });
-      const source = await openRasterSource(file, { signal });
-      if (signal.aborted) {
-        source.close();
-        signal.throwIfAborted();
-      }
-      const savedConversion = conversion;
-      const original = conversionOrigin.current;
-      replaceEntry({ file, source, convertedFrom: original });
-      setConversion(savedConversion);
-      conversionOrigin.current = original;
-      setStatus(
-        "Converted COG loaded. Apply the raster to use it in the selected display/reconstruction path.",
-      );
-    });
-
   const remove = () => {
     operation.current?.abort();
-    converter.current?.dispose();
     releaseApplied();
     releaseEntryRef.current?.();
     releaseEntryRef.current = null;
     entryRef.current = null;
     setEntry(null);
-    setConversion(null);
-    conversionOrigin.current = undefined;
     restoreDescriptorRef.current = null;
     restoredStyleRef.current = null;
     setContext({ ...emptyRasterContext });
@@ -437,11 +359,8 @@ export function useLocalRaster(options: Options) {
     },
     busy,
     status,
-    conversion,
     open,
     apply,
-    convert,
-    loadConverted,
     remove,
     prepareRestore: (descriptor: LocalRasterDescriptor) => {
       remove();
@@ -461,12 +380,6 @@ export function useLocalRaster(options: Options) {
         destination: Rectangle.fromDegrees(west, south, east > 180 ? east - 360 : east, north),
         duration: 0.5,
       });
-    },
-    downloadCOG: () => {
-      if (conversion) downloadBlob(conversion.blob, conversion.filename);
-    },
-    downloadProvenance: () => {
-      if (conversion) downloadBlob(conversion.provenanceBlob, conversion.provenanceFilename);
     },
     descriptor: applied?.descriptor,
   };

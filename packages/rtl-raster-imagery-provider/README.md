@@ -56,7 +56,7 @@ provider's lifetime, so cached tiles cannot silently retain an old color map.
 Both style kinds accept `additionalNoData: [-9999]` to make additional **raw**
 sample values transparent. This display-only exclusion is applied before scale/
 offset and preview-range estimation. It does not alter source metadata, numeric
-reads or COG exports. Keep the applied style with your visualization provenance.
+reads. Keep the applied style with your visualization provenance.
 
 The source coordinate age determines its use: present-day grids, including the
 0 Ma PaleoDEM file, can supply RTL reconstruction tiles; grids already expressed
@@ -64,7 +64,7 @@ in nonzero-age paleo coordinates can be displayed as age-specific Cesium snapsho
 Applications confirm compatibility with the plate domains and reference frame.
 For NetCDF, use `openNetCDFSource(file)` from `rtl-raster-source/netcdf`, select a
 2D slice, and pass it to `RasterImageryProvider.fromSource(source)`. Its provider
-uses the same RTL integration above; conversion to COG is optional. The provider
+uses the same RTL integration above. The provider
 continues serving present-day tiles as `setReconstructionAge` changes the target.
 Close the reconstruction layer, provider, slice and dataset in that order. NetCDF model
 calendar time is separate from geological experiment age; see the
@@ -93,9 +93,8 @@ provider, without reading pixels or starting a Worker.
 
 COG stored overviews, listed separately in `source.metadata.overviews`, reduce
 decoding work. Their count does not define the maximum map level. For example,
-361×181 PaleoDEM NetCDF and its 720×360 resampled COG both default to maximum L2;
-3600×3600 ETOPO defaults to maximum L4 and recommended start L3. Conversion remains
-available for tiled storage and overview optimization.
+361×181 PaleoDEM NetCDF defaults to maximum L2;
+3600×3600 ETOPO defaults to maximum L4 and recommended start L3.
 
 Default display cache is 16 MiB of RGBA canvases and pending work is limited to eight
 tiles. Saturated requests return `undefined` for Cesium or the RTL processor to retry. Source decode

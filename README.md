@@ -22,8 +22,8 @@ processed fragments in Cesium. The implementation reconstructs the published
 visual layer; it does not recover source attributes, topology, feature
 identities, or numerical raster values.
 
-Three optional raster packages read numeric sources, adapt them to standard
-Cesium imagery, and export numeric COG files in a browser Worker. The demo accepts
+Two optional raster packages read numeric sources and adapt them to standard
+Cesium imagery. The demo accepts
 TIFF/GeoTIFF rasters and GeoJSON as ordinary vector layers; vector reconstruction
 is not implemented. NetCDF is available only through the raster library's explicit
 `/netcdf` API, not the demo upload controls. See the
@@ -49,7 +49,7 @@ tiles. Ordinary imagery and GeoJSON load through Cesium and need no manual tile 
 The application in [`apps/reconstructable-tile-layer-demo`](apps/reconstructable-tile-layer-demo)
 is the project demo started by `pnpm dev`. It:
 
-- is powered by React, Vite, Cesium, the unified RTL package and three optional raster libraries;
+- is powered by React, Vite, Cesium, the unified RTL package and two optional raster libraries;
 - starts core-library Rollup watch builds through Turbo;
 - supports interchangeable imagery services, plate-domain data, and ROT models;
 - manages multiple reconstruction layers, ordinary imagery and GeoJSON in a
@@ -101,8 +101,7 @@ three reviewed evidence runs used by the paper are preserved separately under
 For repository development, use **Node.js 22** (the version used by the Pages build)
 and **pnpm 9.0.5**. Package manifests declare Node.js 18+, but the repository's
 locked build tools, including `rimraf@6`, require Node.js 20 or 22+.
-The demo needs a browser with WebGL, Canvas, File/Blob and Worker support;
-optional COG conversion also uses WASM.
+The demo needs a browser with WebGL, Canvas, File/Blob and Worker support.
 
 ## Features
 
@@ -145,7 +144,6 @@ packages/
       webgl-tile-processor/      GPU image processing
   rtl-raster-source/             optional numeric raster input
   rtl-raster-imagery-provider/   optional Cesium adapter
-  rtl-raster-converter/          optional COG export
 ```
 
 | Workspace                         | Source                                                                        | README                                                                                                                                                                               | Role in RTL                                                                                       |
@@ -160,16 +158,14 @@ packages/
 Each workspace README describes its method role, input contract, usage, and
 retained-resource lifecycle.
 
-| Optional package                                                    | Responsibility                                                                          | Coupling                                                                           |
-| ------------------------------------------------------------------- | --------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| [rtl-raster-source](packages/rtl-raster-source)                     | Local numeric windows, CRS/grid metadata, CF NetCDF slices via explicit `/netcdf` entry | No Cesium, React or reconstruction dependency                                      |
-| [rtl-raster-imagery-provider](packages/rtl-raster-imagery-provider) | Numeric sources → styled standard Cesium imagery; single band/RGB/NoData, bounded cache | Cesium peer; works with a standalone viewer or the existing RTL `provider` option  |
-| [rtl-raster-converter](packages/rtl-raster-converter)               | TIFF or selected numeric slice → COG + provenance JSON in an on-demand GDAL Worker      | No Cesium/React; host supplies GDAL static assets; conversion optional for display |
+| Optional package                                                    | Responsibility                                                                          | Coupling                                                                          |
+| ------------------------------------------------------------------- | --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| [rtl-raster-source](packages/rtl-raster-source)                     | Local numeric windows, CRS/grid metadata, CF NetCDF slices via explicit `/netcdf` entry | No Cesium, React or reconstruction dependency                                     |
+| [rtl-raster-imagery-provider](packages/rtl-raster-imagery-provider) | Numeric sources → styled standard Cesium imagery; single band/RGB/NoData, bounded cache | Cesium peer; works with a standalone viewer or the existing RTL `provider` option |
 
 The main RTL package has no dependency on these optional engines. Local TIFF data flow
 through `rtl-raster-source` → `rtl-raster-imagery-provider` → either Cesium's native
-`ImageryLayer` or RTL's `provider` input. `rtl-raster-converter` is a separate, optional
-export step; display does not require conversion.
+`ImageryLayer` or RTL's `provider` input.
 
 A modern-coordinate source requires a compatible plate model for reconstruction.
 Already-paleo snapshots use ordinary

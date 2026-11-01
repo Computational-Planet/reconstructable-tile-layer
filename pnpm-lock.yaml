@@ -68,9 +68,6 @@ importers:
       cesium:
         specifier: ^1.119.0
         version: 1.119.0
-      gdal3.js:
-        specifier: 2.8.1
-        version: 2.8.1
       react:
         specifier: ^18.3.1
         version: 18.3.1
@@ -80,9 +77,6 @@ importers:
       reconstructable-tile-layer:
         specifier: workspace:*
         version: link:../../packages/reconstructable-tile-layer
-      rtl-raster-converter:
-        specifier: workspace:*
-        version: link:../../packages/rtl-raster-converter
       rtl-raster-imagery-provider:
         specifier: workspace:*
         version: link:../../packages/rtl-raster-imagery-provider
@@ -195,16 +189,6 @@ importers:
       earcut:
         specifier: 3.0.1
         version: 3.0.1
-
-  packages/rtl-raster-converter:
-    dependencies:
-      rtl-raster-source:
-        specifier: workspace:^
-        version: link:../rtl-raster-source
-    devDependencies:
-      gdal3.js:
-        specifier: 2.8.1
-        version: 2.8.1
 
   packages/rtl-raster-imagery-provider:
     dependencies:
@@ -1017,9 +1001,6 @@ packages:
     resolution: {integrity: sha512-2sJGJTaXIIaR1w4iJSNoN0hnMY7Gpc/n8D4qSCJw8QqFWXf7cuAgnEHxBpweaVcPevC2l3KpjYCx3NypQQgaJg==}
     engines: {node: '>= 0.8', npm: 1.2.8000 || >= 1.4.16}
 
-  detect-node@2.1.0:
-    resolution: {integrity: sha512-T0NIuQpnTvFDATNuHN5roPwSBG83rFsuO+MXXH9/3N1eFbn4wcPjttvjMLEPWJ0RGUYgQE7cGgS3tNxbqCGM7g==}
-
   dir-glob@3.0.1:
     resolution: {integrity: sha512-WkrWp9GR4KXfKGYzOLmTuGVi1UWFfws377n9cc55/tb6DuqyF6pcQ5AbiHEshaDpY9v6oaSr2XCDidGmMwdzIA==}
     engines: {node: '>=8'}
@@ -1209,9 +1190,6 @@ packages:
 
   function-bind@1.1.2:
     resolution: {integrity: sha512-7XHNxH7qX9xG5mIwxkhumTox/MIRNcOgDrxWsMt2pAr23WHp6MrRlN7FBSFpCpr+oVO0F744iUgR82nJMfG2SA==}
-
-  gdal3.js@2.8.1:
-    resolution: {integrity: sha512-Zg3T0vyDAPJ7kyyhyjhmG2OvUg7Xpn+Uh9+hTMIKXj4JDrJPERTrA8Q9wpthtqX9yvaftg7aS9YIrot4p7cNLA==}
 
   gensync@1.0.0-beta.2:
     resolution: {integrity: sha512-3hN7NaskYvMDLQY55gnW3NQ+mesEAepTqlg+VEbj7zzqEMBVNhzcGYYeqFo/TlYz6eQiFcp1HcsCZO+nGgS8zg==}
@@ -1688,10 +1666,6 @@ packages:
   run-parallel@1.2.0:
     resolution: {integrity: sha512-5l4VyZR86LZ/lDxZTR6jqL8AFE2S0IFLMP26AbjsLVADxHdhB/c0GUsH+y39UfCi3dzz8OlQuPmnaJOMoDHQBA==}
 
-  sax@1.6.1:
-    resolution: {integrity: sha512-42tBVwLWnaQvW5zc4HbZrTuWccECCZfBi92FDuwtqxasH+JbPB3/FOKb1m222K42R4WxuxzzMsTswfzgtSu64Q==}
-    engines: {node: '>=11.0.0'}
-
   scheduler@0.23.2:
     resolution: {integrity: sha512-UOShsPwz7NrMUqhR6t0hWjFduvOzbtv7toDH1/hIrfRNIDBnnBWd0CwJTGvTpngVlmwGCdP9/Zl/tVrDqcuYzQ==}
 
@@ -1991,10 +1965,6 @@ packages:
 
   wrappy@1.0.2:
     resolution: {integrity: sha512-l4Sp/DRseor9wL6EvV2+TuQn63dMkPjZ/sp9XkghTEbV9KlPS1xUsZ3u7/IQO4wxtcFB4bgpQPRcR3QCvezPcQ==}
-
-  xml-js@1.6.11:
-    resolution: {integrity: sha512-7rVi2KMfwfWFl+GpPg6m80IVMWXLRjO+PxTq7V2CDhoGak0wzYzFgUY2m4XJ47OGdXd8eLE8EmwfAmdjw7lC1g==}
-    hasBin: true
 
   xml-utils@1.10.2:
     resolution: {integrity: sha512-RqM+2o1RYs6T8+3DzDSoTRAUfrvaejbVHcp3+thnAtDKo8LskR+HomLajEy5UjTz24rpka7AxVBRR3g2wTUkJA==}
@@ -2749,8 +2719,6 @@ snapshots:
 
   destroy@1.2.0: {}
 
-  detect-node@2.1.0: {}
-
   dir-glob@3.0.1:
     dependencies:
       path-type: 4.0.0
@@ -2976,11 +2944,6 @@ snapshots:
     optional: true
 
   function-bind@1.1.2: {}
-
-  gdal3.js@2.8.1:
-    dependencies:
-      detect-node: 2.1.0
-      xml-js: 1.6.11
 
   gensync@1.0.0-beta.2: {}
 
@@ -3445,8 +3408,6 @@ snapshots:
     dependencies:
       queue-microtask: 1.2.3
 
-  sax@1.6.1: {}
-
   scheduler@0.23.2:
     dependencies:
       loose-envify: 1.4.0
@@ -3728,10 +3689,6 @@ snapshots:
       strip-ansi: 7.1.0
 
   wrappy@1.0.2: {}
-
-  xml-js@1.6.11:
-    dependencies:
-      sax: 1.6.1
 
   xml-utils@1.10.2: {}
 

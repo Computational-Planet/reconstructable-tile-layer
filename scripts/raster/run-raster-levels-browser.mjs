@@ -293,20 +293,6 @@ try {
   await page.screenshot({ path: fileURLToPath(new URL("paleodem-l2-at-100ma.png", output)) });
   evidence.cases.push({ name: "L2 NetCDF source remains visible and rotates at 100 Ma" });
 
-  await page.getByLabel("COG width", { exact: true }).fill("720");
-  await page.getByLabel("COG height", { exact: true }).fill("360");
-  await page
-    .getByLabel("Resample the selected slice onto this regular grid", { exact: false })
-    .check();
-  await raster.getByRole("button", { name: "Create numeric COG", exact: true }).click();
-  await waitStatus("COG ready");
-  await raster.getByRole("button", { name: "Load converted COG", exact: true }).click();
-  await waitStatus("Converted COG loaded");
-  assert((await page.getByTestId("raster-levels").innerText()).includes("L0–L2"));
-  await page.getByLabel("Reconstruction age in Ma").fill("0");
-  await apply();
-  await load("Converted PaleoDEM COG at recommended L2", 2);
-
   await page
     .getByLabel("Local raster file", { exact: true })
     .setInputFiles(

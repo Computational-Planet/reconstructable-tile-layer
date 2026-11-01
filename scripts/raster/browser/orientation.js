@@ -192,9 +192,9 @@ window.runOrientationTests = async () => {
   }
   for (const [name, label, style] of [
     [
-      "paleodem.cog.tif",
-      "PaleoDEM COG EPSG:4326",
-      { kind: "single-band", band: 0, domain: [-8000, 6000] },
+      "stripped-preview.tif",
+      "Strip-based TIFF EPSG:4326",
+      { kind: "single-band", band: 0, domain: [0, 65535] },
     ],
     [
       "rgb-mercator.tif",
