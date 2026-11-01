@@ -17,7 +17,7 @@ Web 瓦片服务作为影像源，将瓦片内容分配给多边形板块域，�
 有限旋转，在 WebGL 中对边界瓦片进行掩膜，并在 Cesium 中渲染处理后的片段。
 本实现重建的是已发布的可视图层，不会恢复源属性、拓扑、要素标识或数值栅格值。
 
-三个可选栅格包分别读取数值源、适配标准 Cesium 影像，并在浏览器 Worker 中导出数值 COG。
+两个可选栅格包分别读取数值源、适配标准 Cesium 影像。
 Demo 接受 TIFF/GeoTIFF 栅格和作为普通矢量图层的 GeoJSON，尚未实现矢量重建。
 NetCDF 仅通过栅格库显式的 `/netcdf` API 提供，不在 Demo 上传范围内。
 详见[栅格操作](apps/reconstructable-tile-layer-demo/README.zh-CN.md#本地科学栅格)、
@@ -41,7 +41,7 @@ NetCDF 仅通过栅格库显式的 `/netcdf` API 提供，不在 Demo 上传范�
 [`apps/reconstructable-tile-layer-demo`](apps/reconstructable-tile-layer-demo)
 中的应用就是 `pnpm dev` 启动的项目 Demo。它：
 
-- 基于 React、Vite、Cesium、统一 RTL 主包及三个可选栅格库；
+- 基于 React、Vite、Cesium、统一 RTL 主包及两个可选栅格库；
 - 通过 Turbo 启动核心库的 Rollup 监听构建；
 - 支持替换影像服务、板块域数据和 ROT 模型；
 - 通过可收起、独立滚动的 **Layers** 面板管理多个重建层、普通影像和 GeoJSON，固定图层可设置显示年代范围；
@@ -85,7 +85,7 @@ Vite 会在终端输出本地地址。命令运行期间，核心库的代码变
 
 仓库开发使用 **Node.js 22**（与 Pages 构建一致）及 **pnpm 9.0.5**。
 包清单声明 Node.js 18+，但仓库锁定的构建工具（包括 `rimraf@6`）要求 Node.js 20 或 22+。
-Demo 运行需要支持 WebGL、Canvas、File/Blob 和 Worker 的浏览器；可选 COG 转换还使用 WASM。
+Demo 运行需要支持 WebGL、Canvas、File/Blob 和 Worker 的浏览器。
 
 ## 功能特性
 
@@ -123,7 +123,6 @@ packages/
       webgl-tile-processor/      GPU 影像处理
   rtl-raster-source/             可选数值栅格输入
   rtl-raster-imagery-provider/   可选 Cesium 适配器
-  rtl-raster-converter/          可选 COG 导出
 ```
 
 | 工作区                            | 源代码                                                                   | README                                                                                                                                                                               | 在 RTL 中的作用                                             |
@@ -141,11 +140,9 @@ packages/
 | ------------------------------------------------------------------- | ------------------------------------------------------------- | ----------------------------------------------------------- |
 | [rtl-raster-source](packages/rtl-raster-source)                     | 本地数值窗口、CRS/网格元数据、显式 `/netcdf` 子入口的 CF 选片 | 无 Cesium/React/重建依赖，可独立用于科学数据处理            |
 | [rtl-raster-imagery-provider](packages/rtl-raster-imagery-provider) | 将数值源变成单波段/RGB/NoData 影像，控制缓存                  | Cesium peer；独立 Viewer 或现有 RTL `provider` 接口均可使用 |
-| [rtl-raster-converter](packages/rtl-raster-converter)               | TIFF 或已选二维切片 → COG 与溯源 JSON；GDAL Worker 按需启动   | 无 Cesium/React；由宿主提供引擎静态资源；直接显示无需转换   |
 
 主包不强依赖这些引擎。本地 TIFF 的数据链路是 `rtl-raster-source` →
 `rtl-raster-imagery-provider` → Cesium 原生 `ImageryLayer` 或 RTL 的 `provider` 输入。
-`rtl-raster-converter` 是独立的可选导出步骤，显示不要求预先转换。
 
 现代坐标源参与重建时需要匹配的板块模型；已有古坐标快照使用普通影像图层按年代显示，不再旋转。
 此接入不提供数值点查询；Macrostrat 点选图例查询的是服务元数据，不是栅格数值。

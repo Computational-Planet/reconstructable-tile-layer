@@ -6,10 +6,8 @@ import {
 } from "../../../packages/rtl-raster-source/dist/index.js";
 import { RasterImageryProvider } from "../../../packages/rtl-raster-imagery-provider/dist/index.js";
 import { runDomainTests } from "./domain.js";
-import { runConverterTests } from "./converter.js";
 
 window.runDomainTests = runDomainTests;
-window.runConverterTests = runConverterTests;
 
 const assert = (condition, message) => {
   if (!condition) throw new Error(message);

@@ -24,7 +24,7 @@ pnpm build:packages
 pnpm dev
 ```
 
-Turbo 会同时启动 RTL、内嵌模块的监听构建和 Vite demo。三个可选栅格库由
+Turbo 会同时启动 RTL、内嵌模块的监听构建和 Vite demo。两个可选栅格库由
 `pnpm build:packages` 构建，修改源码或 Worker 后重新运行该命令。
 
 ## 包的接入方式
@@ -35,7 +35,7 @@ Demo 从 `reconstructable-tile-layer` 导入 `ReconstructableTileLayer` 和
 
 `src/layers`、本地文件控件、object URL 生命周期、时间轴协调及普通 GeoJSON 属于
 Demo。`src/legend` 管理地图选择和 Macrostrat 请求，RTL 提供通用的 `querySourceRegions` API。
-数值 TIFF、对应 Cesium provider 和可选 COG 转换使用三个独立 Raster 扩展。
+数值 TIFF 及对应 Cesium provider 使用两个独立 Raster 扩展。
 普通影像和矢量使用Cesium原生显示组件。
 
 ## 面板操作顺序
@@ -46,7 +46,7 @@ Demo。`src/legend` 管理地图选择和 Macrostrat 请求，RTL 提供通用�
    每次添加保留已有图层。在线服务可选择重建或固定坐标；**Selected** 显示右侧当前选中的图层。
 3. **Timeline & tiles**：**Load level**、**Load view** 和 **Clear** 作用于选中的重建图层，**Age (Ma)** 统一更新全部重建图层；固定图层只根据年代决定是否显示。
 
-本地文件应用成功后自动收起配置；在线连接表单保持可见。空间属性、数据引用、配色和数值 COG 导出按需展开；
+本地文件应用成功后自动收起配置；在线连接表单保持可见。空间属性、数据引用和配色按需展开；
 GPlates 参考叠加层、视图与渲染设置、实验导入导出和统计位于三个主步骤之后。
 点击字段旁的小 **?** 可阅读说明，点击外部或按 Escape 关闭。错误、加载进度和当前图层状态保持可见。
 较短的控件并排排列；**Experiment** 将 **Import**、**Export info** 和 **Screenshot** 集中在一行。
@@ -193,14 +193,13 @@ WMS 的 `TIME` 或 WMTS 时间维度保持固定，与地质年代轴分别管�
 
 1. 在 **Layer data source → Local TIFF / GeoTIFF → Source settings** 选择带地理配准的 TIFF、BigTIFF 或 COG，文件在浏览器内处理。NetCDF 数据请先在外部转换为 GeoTIFF。
 2. 现代数据需要随时间轴重建时，选择 **Reconstruct from 0 Ma (follows timeline)**，确认板块模型坐标框架，点击 **Add layer** 后加载瓦片。**Paleo snapshot** 初始仅在指定年代显示，**Reference / unknown** 按文件坐标显示；固定坐标图层的可见年代范围在 Layers 中修改。
-3. **Display style** 支持单波段/RGB、抽样或手动数值范围、色带与额外原始 NoData 排除值。配色不改存储数值或数值导出；再次添加生成独立图层。
-4. **Numeric COG export (optional) → Create numeric COG** 按需加载 GDAL，导出 TIFF 的原始数值波段，支持取消。请同时下载 COG 与溯源 JSON；**Load converted COG** 可重新读取结果，再添加为普通或重建图层。
+3. **Display style** 支持单波段/RGB、抽样或手动数值范围、色带与额外原始 NoData 排除值。配色不改存储数值；再次添加生成独立图层。
 
 面板分别列出存储尺寸/COG 概览和地图瓦片层级。L2 在文件覆盖范围内细分为 4×4 个源瓦片，L3 为 8×8；提高切分层级或重采样尺寸不会增加原始细节。支持的投影及库级覆盖参数见 [Provider 说明](../../packages/rtl-raster-imagery-provider/README.zh-CN.md)。TIFF 必须包含可用的地理配准，普通无配准图片不能直接加载。
 
 栅格配置保留文件名、实际样式、科学上下文和 `requiresReselect: true`，不嵌入文件内容或会话 blob URL。本地板块域与 ROT 同样需要在导入后重选。缺失单位不擅自补写，NaN 等非有限科学元数据以文本保留。将现代标量数据随板块搬移演示的是几何传输，不是古地形预测。
 
-运行需要 WebGL、Canvas、File/Blob、模块 Worker 与 WASM，GDAL 资源仅在可选转换时加载。公共栅格库保留其独立格式能力；demo 只调用 TIFF 路径。
+运行需要 WebGL、Canvas、File/Blob 和 Worker 支持。公共栅格库保留其独立格式能力；demo 只调用 TIFF 路径。
 
 ## 本地 GeoJSON 矢量
 

@@ -94,7 +94,7 @@ It shares `selectSlice`'s grid checks and rejects curvilinear grids explicitly.
 `slice.metadata.slice.selections` retains each selected non-spatial coordinate's
 index, raw scalar (for supported numeric axes), original units/calendar and other
 attributes. `datasetAttributes` retains the file's global provenance. These travel
-with the slice and its COG sidecar after the original dataset has been closed.
+with the slice metadata after the original dataset has been closed.
 
 For these grids, `metadata.transform` is `null`: `metadata.coordinates.x/y` retain
 the original physical coordinate centers and array order. `planGeographicRead`

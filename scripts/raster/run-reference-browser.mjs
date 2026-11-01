@@ -12,7 +12,6 @@ const { build } = await import(
 const { chromium } = requireDemo("playwright-core");
 const output = new URL("../../tmp/raster-reference-browser/", import.meta.url);
 const domainMode = process.argv.includes("--domain");
-const converterMode = process.argv.includes("--converter");
 // Only a production build and temporary loopback static fixture service; no dev/HMR server.
 await build({
   root: fileURLToPath(new URL("browser/", import.meta.url)),
@@ -37,31 +36,13 @@ const manifest = JSON.parse(
     "utf8",
   ),
 );
-if (converterMode) {
-  manifest.push(
-    ...JSON.parse(
-      await readFile(new URL("domain-reference-datasets.json", import.meta.url), "utf8"),
-    ),
-  );
-  const requireConverter = createRequire(
-    new URL("../../packages/rtl-raster-converter/package.json", import.meta.url),
-  );
-  const gdalDirectory = new URL("./", pathToFileURL(requireConverter.resolve("gdal3.js")));
-  await mkdir(new URL("gdal/", output), { recursive: true });
-  for (const name of ["gdal3.js", "gdal3WebAssembly.wasm", "gdal3WebAssembly.data"])
-    await copyFile(new URL(name, gdalDirectory), new URL(`gdal/${name}`, output));
-  await copyFile(
-    new URL("../../packages/rtl-raster-converter/test/fixtures/unreferenced.tif", import.meta.url),
-    new URL("reference/unreferenced.tif", output),
-  );
-}
 for (const name of [
   ...manifest.map((entry) => entry.filename),
   ...(domainMode ? [] : ["reference-metadata.json"]),
 ])
   await copyFile(
     new URL(
-      `../../tmp/${domainMode || (converterMode && manifest.find((entry) => entry.filename === name)?.purpose) ? "paleo-domain-review" : "raster-reference-data"}/${name}`,
+      `../../tmp/${domainMode ? "paleo-domain-review" : "raster-reference-data"}/${name}`,
       import.meta.url,
     ),
     new URL(`reference/${name}`, output),
@@ -82,42 +63,28 @@ try {
   page.on("pageerror", (error) => process.stderr.write(`${error.stack}\n`));
   await page.goto(server.baseUrl);
   await page.waitForFunction(() => typeof window.runReferenceTests === "function");
-  const result = await page.evaluate(
-    async ({ domain, converter }) => {
-      let timeout;
-      try {
-        return await Promise.race([
-          converter
-            ? window.runConverterTests()
-            : domain
-              ? window.runDomainTests()
-              : window.runReferenceTests(),
-          new Promise((_, reject) => {
-            timeout = setTimeout(
-              () => reject(new Error("Reference tests exceeded their time limit")),
-              converter ? 300000 : 180000,
-            );
-          }),
-        ]);
-      } finally {
-        clearTimeout(timeout);
-      }
-    },
-    { domain: domainMode, converter: converterMode },
-  );
+  const result = await page.evaluate(async (domain) => {
+    let timeout;
+    try {
+      return await Promise.race([
+        domain ? window.runDomainTests() : window.runReferenceTests(),
+        new Promise((_, reject) => {
+          timeout = setTimeout(
+            () => reject(new Error("Reference tests exceeded their time limit")),
+            180000,
+          );
+        }),
+      ]);
+    } finally {
+      clearTimeout(timeout);
+    }
+  }, domainMode);
   await writeFile(
-    new URL(
-      converterMode
-        ? "converter-evidence.json"
-        : domainMode
-          ? "domain-evidence.json"
-          : "evidence.json",
-      output,
-    ),
+    new URL(domainMode ? "domain-evidence.json" : "evidence.json", output),
     JSON.stringify({ browser: browser.version(), datasets: result }, null, 2),
   );
   process.stdout.write(
-    `Passed real-browser ${converterMode ? "converter" : domainMode ? "domain (including expected rejection)" : "reference"} tests for ${result.length} cases. Evidence: ${fileURLToPath(new URL(converterMode ? "converter-evidence.json" : domainMode ? "domain-evidence.json" : "evidence.json", output))}\n`,
+    `Passed real-browser ${domainMode ? "domain (including expected rejection)" : "reference"} tests for ${result.length} cases. Evidence: ${fileURLToPath(new URL(domainMode ? "domain-evidence.json" : "evidence.json", output))}\n`,
   );
 } finally {
   await browser?.close();

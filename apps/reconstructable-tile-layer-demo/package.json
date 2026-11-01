@@ -17,9 +17,7 @@
     "react-dom": "^18.3.1",
     "reconstructable-tile-layer": "workspace:*",
     "rtl-raster-source": "workspace:*",
-    "rtl-raster-imagery-provider": "workspace:*",
-    "rtl-raster-converter": "workspace:*",
-    "gdal3.js": "2.8.1"
+    "rtl-raster-imagery-provider": "workspace:*"
   },
   "devDependencies": {
     "@types/react": "^18.3.3",

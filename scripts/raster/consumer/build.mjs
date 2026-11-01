@@ -26,7 +26,7 @@ await build({
   },
   logLevel: "warn",
 });
-if (serviceModules.some((id) => /(?:rtl-raster-|gdal3|h5wasm|netcdfjs|geotiff)/.test(id)))
+if (serviceModules.some((id) => /(?:rtl-raster-|h5wasm|netcdfjs|geotiff)/.test(id)))
   throw new Error("Ordinary RTL imports pulled in optional raster engines");
 await writeFile(
   "build-evidence.json",

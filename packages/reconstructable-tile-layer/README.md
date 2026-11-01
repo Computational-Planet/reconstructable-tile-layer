@@ -68,7 +68,7 @@ quadtree owns indexing, and processor owns image processing; none imports the RT
 manager. The standalone rotation build includes the reader code it uses and does not
 require a separate `rtl-gplates-source` installation.
 
-Raster source, imagery-provider and converter packages are optional extensions.
+Raster source and imagery-provider packages are optional extensions.
 GeoJSON reconstruction is not part of RTL; a vector extension can use these public contracts.
 
 ## Usage
@@ -165,9 +165,8 @@ source.close();
 
 For NetCDF, open `rtl-raster-source/netcdf`, inspect `describeVariable`, select a
 2D slice, then pass that source to the adapter. A dataset owns its slices; close
-it after the providers and slices. Optional `rtl-raster-converter` exports numeric
-COG data with explicitly hosted GDAL assets; no conversion is required for direct
-display. See each package's README for worker hosting and ownership examples.
+it after the providers and slices. See each package's README for worker hosting
+and ownership examples.
 
 Already-paleo snapshots such as PaleoDEM use ordinary Cesium imagery at an explicit
 display age, without RTL rotation. Model-calendar time must not be interpreted as

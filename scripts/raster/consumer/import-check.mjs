@@ -13,7 +13,6 @@ for (const name of [
   "reconstructable-tile-layer/rotation",
   "rtl-raster-source",
   "rtl-raster-source/netcdf",
-  "rtl-raster-converter",
   "rtl-raster-imagery-provider",
   "reconstructable-tile-layer",
 ])

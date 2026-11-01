@@ -34,7 +34,7 @@ await build({
 await mkdir(new URL("reference/", output), { recursive: true });
 for (const [source, target] of [
   ["tmp/paleo-domain-review/Map01_PALEOMAP_1deg_Holocene_0Ma.nc", "paleodem.nc"],
-  ["tmp/raster-demo-browser/paleodem-ui.cog.tif", "paleodem.cog.tif"],
+  ["packages/rtl-raster-source/test/fixtures/stripped-preview.tif", "stripped-preview.tif"],
   ["packages/rtl-raster-source/test/fixtures/rgb-mercator.tif", "rgb-mercator.tif"],
 ])
   await copyFile(

@@ -10,10 +10,7 @@ function runtimeNotices(): Plugin {
   async function dependencyRoot(name: string) {
     let directory = dirname(
       require.resolve(name, {
-        paths: [
-          dirname(require.resolve("rtl-raster-source/package.json")),
-          dirname(require.resolve("gdal3.js")),
-        ],
+        paths: [dirname(require.resolve("rtl-raster-source/package.json"))],
       }),
     );
     for (;;) {
@@ -36,8 +33,6 @@ function runtimeNotices(): Plugin {
         "reconstructable-tile-layer",
         "rtl-raster-source",
         "rtl-raster-imagery-provider",
-        "rtl-raster-converter",
-        "gdal3.js",
         "geotiff",
       ]) {
         const packageRoot =

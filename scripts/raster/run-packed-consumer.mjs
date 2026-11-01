@@ -37,12 +37,7 @@ const run = (args, cwd = directory) =>
         : reject(new Error(`${args.join(" ")} failed (${code})\n${output.slice(-12000)}`)),
     );
   });
-const names = [
-  "reconstructable-tile-layer",
-  "rtl-raster-source",
-  "rtl-raster-imagery-provider",
-  "rtl-raster-converter",
-];
+const names = ["reconstructable-tile-layer", "rtl-raster-source", "rtl-raster-imagery-provider"];
 const packs = path.join(directory, "packs");
 await mkdir(packs);
 for (const name of names) {
@@ -64,7 +59,7 @@ await writeFile(
       private: true,
       type: "module",
       packageManager: "pnpm@9.0.5",
-      dependencies: { ...dependencies, cesium: "1.119.0", "gdal3.js": "2.8.1" },
+      dependencies: { ...dependencies, cesium: "1.119.0" },
       devDependencies: { typescript: "5.5.3", vite: "5.3.3", "playwright-core": "1.55.0" },
       pnpm: { overrides: { ...dependencies, "@zip.js/zip.js": "2.7.45" } },
     },
@@ -161,7 +156,7 @@ try {
     browser: browser.version(),
     packages: await readdir(packs),
     cesiumSingleInstance: true,
-    versions: { cesium: "1.119.0", zipJs: "2.7.45", gdal3: "2.8.1", vite: "5.3.3" },
+    versions: { cesium: "1.119.0", zipJs: "2.7.45", vite: "5.3.3" },
     build: JSON.parse(await readFile(path.join(directory, "build-evidence.json"), "utf8")),
     results,
   };

@@ -26,7 +26,7 @@ pnpm dev
 ```
 
 Turbo starts the RTL and nested module watch builds with the Vite demo.
-The three optional raster packages are built by `pnpm build:packages`; rerun that
+The two optional raster packages are built by `pnpm build:packages`; rerun that
 command after editing their code or worker assets. Use the local URL printed by Vite.
 
 ## Package integration
@@ -40,7 +40,7 @@ the demo accesses them through RTL's public entries.
 ordinary GeoJSON are demo responsibilities. `src/legend` owns map selection and
 Macrostrat requests; RTL supplies the generic `querySourceRegions` API.
 Numeric TIFF input, its Cesium
-provider and optional COG conversion use the three separate raster extensions.
+provider use the two separate raster extensions.
 Ordinary imagery and vectors use Cesium's native display components.
 
 ## Panel workflow
@@ -51,7 +51,7 @@ Ordinary imagery and vectors use Cesium's native display components.
    Services can reconstruct or use fixed coordinates. **Selected** identifies the selection in the right panel.
 3. **Timeline & tiles**: **Load level**, **Load view** and **Clear** apply to the selected reconstruction layer; **Age (Ma)** updates every reconstruction layer. Fixed layers use the age only to determine visibility.
 
-Local settings collapse after successful application; the online connection form stays visible. Spatial metadata, citations, display style and optional COG export
+Local settings collapse after successful application; the online connection form stays visible. Spatial metadata, citations and display style
 expand on demand. Reference overlays, view/render controls, experiment import/export and statistics follow the main workflow.
 Click the small **?** beside a field to read its instructions; click outside or press Escape to close them.
 Errors, loading progress and the selected layer's state remain visible. Short controls share rows;
@@ -231,14 +231,13 @@ for orthographic views. Perspective views keep `viewMode: "3D_GLOBE"` and use
 
 1. Choose **Layer data source → Local TIFF / GeoTIFF → Source settings**, then select a georeferenced TIFF, BigTIFF or COG. Files stay in the browser. For NetCDF data, convert it to GeoTIFF beforehand.
 2. For present-day data that should follow reconstruction, select **Reconstruct from 0 Ma (follows timeline)**, confirm the plate-model frame, click **Add layer**, then load tiles. **Paleo snapshot** starts with a single-age visibility interval; **Reference / unknown** displays the stored coordinates. Edit fixed layers' age ranges in Layers.
-3. **Display style** supports single-band/RGB, sampled or manual numeric ranges, color ramps and additional raw NoData exclusions. Display styles do not alter stored numbers or numeric exports. Adding again creates another independent layer.
-4. **Numeric COG export (optional) → Create numeric COG** loads GDAL only when requested and exports the TIFF's stored numeric bands. Conversion supports cancellation. Download the COG together with its provenance JSON; **Load converted COG** reopens it for display or reconstruction.
+3. **Display style** supports single-band/RGB, sampled or manual numeric ranges, color ramps and additional raw NoData exclusions. Display styles do not alter stored numbers. Adding again creates another independent layer.
 
 The panel distinguishes stored dimensions/COG overviews from map tile levels. L2 subdivides the file's coverage into 4×4 source tiles; L3 into 8×8. More subdivisions or resampling do not add source detail. See the [provider policy](../../packages/rtl-raster-imagery-provider/README.md) for supported projections and library-level overrides. TIFF needs usable georeferencing; a plain unreferenced image is insufficient.
 
 Local raster descriptions preserve filename, applied style and scientific context, with `requiresReselect: true`. Files and session blob URLs are not embedded in experiment JSON. Imported local plate domains and ROT files also require reselection. Original missing units are not inferred; non-finite scientific metadata is serialized as text. Moving modern scalar data with plates illustrates geometric transport, not a prediction of paleo topography.
 
-Production/browser requirements include WebGL, Canvas, File/Blob, module Workers and WASM. GDAL assets load only for optional conversion. Public raster libraries retain their separate format capabilities; the demo imports only their TIFF path.
+Production/browser requirements include WebGL, Canvas, File/Blob and Worker support. Public raster libraries retain their separate format capabilities; the demo imports only their TIFF path.
 
 ## Local GeoJSON vectors
 

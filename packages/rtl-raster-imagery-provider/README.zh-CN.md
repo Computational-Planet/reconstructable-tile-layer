@@ -1,8 +1,8 @@
 # rtl-raster-imagery-provider
 
 两种样式均可传入 `additionalNoData: [-9999]`，将额外的**原始存储值**仅在显示时
-设为透明；它先于 scale/offset 和预览色标估计生效，不改变源元数据、数值读取或
-COG 导出。保存图像时应同时保存实际样式。
+设为透明；它先于 scale/offset 和预览色标估计生效，不改变源元数据或数值读取。
+保存图像时应同时保存实际样式。
 
 数据用途由坐标参考年代决定：0 Ma 栅格（包括 PaleoDEM 的 0 Ma 文件）可作为 RTL
 瓦片源随板块重建；已处于非零古年代坐标的数据可作为对应年龄的普通 Cesium 快照显示。
@@ -56,7 +56,7 @@ await layer.setReconstructionAge(100);
 ```
 
 结束使用时依次调用 `layer.destroy(viewer)`、`provider.destroy()`、`source.close()`、
-`dataset.close()`。COG 转换是可选优化，不是 NetCDF 参与重建的前置步骤。
+`dataset.close()`。
 
 `fromFile` 拥有新建的数据源，销毁 Provider 时一起关闭。`fromSource(source)` 默认借用数据源，需要显式 `ownsSource: true` 才转移所有权。样式在 Provider 生命周期内固定；共享数据换色带时，应用自己持有 source，创建借用它的新 Provider，完成换源后销毁旧 Provider，最后再关闭 source。
 
@@ -74,8 +74,8 @@ await layer.setReconstructionAge(100);
 超出声明范围的请求会报错。`getRasterLevelInfo(metadata, options)` 可在创建 Provider 前取得同样的层级信息。
 
 COG 内部概览由 `source.metadata.overviews` 单独描述，用于降低解码成本；其数量不等于地图最高层级。
-例如 361×181 的 PaleoDEM NC 默认可请求到 L2，从它重采样得到的 720×360 COG 也默认到 L2；
-3600×3600 的 ETOPO 默认到 L4、建议从 L3 加载。COG 转换继续用于分块读取和概览优化。
+例如 361×181 的 PaleoDEM NC 默认可请求到 L2；
+3600×3600 的 ETOPO 默认到 L4、建议从 L3 加载。
 
 默认显示缓存 16 MiB、最多 8 个待处理瓦片。达到并发上限时返回 `undefined`，由 Cesium 或 RTL processor 稍后重试。源解码预算另行控制。先移除影像层或销毁重建层，再调用 `provider.destroy()`；它可以重复调用。地图点查询尚未实现，公开 `source` 保留原始数值入口。
 

@@ -41,7 +41,7 @@ const modules = {
   "rtl-tile-plate-quadtree": "tile-plate-quadtree",
   "rtl-webgl-tile-processor": "webgl-tile-processor",
 };
-const extensions = ["rtl-raster-source", "rtl-raster-imagery-provider", "rtl-raster-converter"];
+const extensions = ["rtl-raster-source", "rtl-raster-imagery-provider"];
 const packs = path.join(directory, "packs");
 await mkdir(packs);
 const dependencies = {};

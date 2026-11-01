@@ -13,7 +13,6 @@ export async function showLocalRasterSettings(page, allDetails = false) {
       "Spatial metadata and file attributes",
       "Source and citation",
       "Display style",
-      "Numeric COG export",
     ]) {
       if (await page.locator("summary").filter({ hasText: label }).count())
         await openDisclosure(page, label);

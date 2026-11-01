@@ -39,8 +39,8 @@ try {
 `describeVariable(name)` 返回 CF 经纬度轴及非空间维度的名称、长度和坐标变量，界面
 可直接据此创建选择器。它与 `selectSlice` 共用网格识别规则，无需猜测维度名。
 `slice.metadata.slice.selections` 保存所选非空间坐标的下标、原始标量（支持的数值轴）、
-单位/日历等原属性；`datasetAttributes` 保留全局来源属性。这些信息随切片和 COG
-伴随描述保留，不因关闭原 dataset 而丢失。
+单位/日历等原属性；`datasetAttributes` 保留全局来源属性。这些信息随切片元数据
+保留，不因关闭原 dataset 而丢失。
 
 ```ts
 import { openNetCDFSource } from "rtl-raster-source/netcdf";

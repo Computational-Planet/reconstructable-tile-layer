@@ -57,7 +57,7 @@ GPlates 模块以普通数据结构传递记录；旋转模块负责数学计算
 处理器负责影像处理，均不反向依赖 RTL manager。旋转模块独立构建时会包含所需的
 读取代码，无需再安装 `rtl-gplates-source`。
 
-Raster source、imagery-provider 和 converter 是可选扩展。RTL不包含GeoJSON重建；
+Raster source 和 imagery-provider 是可选扩展。RTL不包含GeoJSON重建；
 矢量重建扩展可通过这些公共契约接入。
 
 ## 用法
@@ -149,8 +149,7 @@ source.close();
 
 NetCDF 使用显式子入口 `rtl-raster-source/netcdf`；通过 `describeVariable` 查看 CF
 空间轴与选片维度，选出二维切片后交给同一适配器。dataset 拥有切片，其关闭顺序为
-provider、slice、dataset。可选 `rtl-raster-converter` 配合应用托管的 GDAL 资源导出
-数值 COG；直接显示不要求先转换。各包 README 提供独立使用与 Worker 托管示例。
+provider、slice、dataset。各包 README 提供独立使用与 Worker 托管示例。
 
 PaleoDEM 等已经位于古坐标的快照，使用普通 Cesium 图层按显式年龄显示，不再旋转。
 模型日历时间不作为地质年龄。现代地形的刚性板块搬移也不等于古地形预测。

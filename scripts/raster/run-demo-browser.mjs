@@ -132,11 +132,6 @@ try {
         { timeout: 120000 },
       );
     });
-  const createCOG = () =>
-    timed("Convert selected numeric input to COG", async () => {
-      await raster.getByRole("button", { name: "Create numeric COG", exact: true }).click();
-      await waitStatus("COG ready");
-    });
   const heapSnapshot = () =>
     page.evaluate(() => {
       const memory = performance.memory;
@@ -177,7 +172,7 @@ try {
     performance.getEntriesByType("resource").map((entry) => entry.name),
   );
   assert(
-    !baselineRequests.some((url) => /gdal3|hdf5_hl|netcdf-/.test(url)),
+    !baselineRequests.some((url) => /hdf5_hl|netcdf-/.test(url)),
     "Optional engines must not load at startup",
   );
 
@@ -291,34 +286,6 @@ try {
   assert.deepEqual(exported.sources.localRaster.source.bands[0].noData, ["NaN"]);
   assert(!JSON.stringify(exported.sources.localRaster).includes("blob:"));
   assert.equal(exported.layers.rtlLayer, "off");
-
-  await page.getByLabel("COG width", { exact: true }).fill("720");
-  await page.getByLabel("COG height", { exact: true }).fill("360");
-  await page
-    .getByLabel("Resample the selected slice onto this regular grid", { exact: false })
-    .check();
-  await createCOG();
-  const provenancePath = await download("Download provenance", "paleodem-cog-provenance.json");
-  const provenance = JSON.parse(await readFile(provenancePath, "utf8"));
-  assert(JSON.stringify(provenance).includes('"displayAgeMa":100'));
-  await download("Download COG", "paleodem-ui.cog.tif");
-  await page.getByRole("button", { name: "Load converted COG", exact: true }).click();
-  await waitStatus("Converted COG loaded");
-  await applyRasterAndReopenSettings(page);
-  await waitStatus("Snapshot displayed");
-  const cog = await page.evaluate(async () => {
-    const source = window.__rasterTestScene.globe.imageryLayers.get(0).imageryProvider.source;
-    return {
-      value: (await source.readWindow({ window: [360, 180, 361, 181] })).bands[0][0],
-      format: source.metadata.format,
-    };
-  });
-  assert.equal(cog.value, 480);
-  assert.equal(cog.format, "geotiff");
-  evidence.cases.push({
-    case: "UI NetCDF slice → COG → downloaded provenance → reloaded imagery",
-    ...cog,
-  });
 
   await upload(
     file("tmp/paleo-domain-review", "tas_CESM1.2-CAM5_deepmip-eocene-p1-x3_v1.0.mean.nc"),
@@ -510,21 +477,6 @@ try {
     maxMatrixError: matrixError,
     scientificMeaning:
       "Transport of present-day scalar values; not a prediction of paleo topography",
-  });
-
-  await raster.getByRole("button", { name: "Create numeric COG", exact: true }).click();
-  await raster.getByRole("button", { name: "Cancel raster operation", exact: true }).click();
-  await waitStatus("Operation cancelled");
-  await createCOG();
-  await page.getByRole("button", { name: "Load converted COG", exact: true }).click();
-  await waitStatus("Converted COG loaded");
-  assert.equal((await primitives()).length, 0);
-  await applyRasterAndReopenSettings(page);
-  await waitStatus("Modern source bound");
-  await loadTiles();
-  evidence.cases.push({
-    case: "TIFF UI conversion cancellation → recovery → converted COG applied to RTL",
-    primitiveCount: (await state()).manager.primitiveCount,
   });
 
   await upload(file("tmp/raster-reference-data", "ETOPO_2022_v1_15s_N00E000_surface.nc"));
