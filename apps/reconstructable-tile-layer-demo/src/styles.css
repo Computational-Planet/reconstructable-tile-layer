@@ -1,0 +1,9 @@
+/* Imports modular styles for the simple geo reconstruct demo. */
+@import "./styles/base.css";
+@import "./styles/layout.css";
+@import "./styles/control-panel.css";
+@import "./styles/forms.css";
+@import "./styles/modal.css";
+@import "./styles/layers.css";
+@import "./styles/help-hint.css";
+@import "./styles/legend.css";

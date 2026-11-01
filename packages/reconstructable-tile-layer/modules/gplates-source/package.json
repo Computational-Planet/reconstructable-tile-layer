@@ -1,0 +1,60 @@
+{
+  "name": "rtl-gplates-source",
+  "version": "0.1.0",
+  "description": "GPlates ROT, GPML and GPMLZ readers and normalized reconstruction source records.",
+  "type": "module",
+  "main": "./dist/cjs/index.cjs",
+  "module": "./dist/es/index.js",
+  "types": "./dist/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/es/index.js",
+      "require": "./dist/cjs/index.cjs",
+      "default": "./dist/es/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "README.zh-CN.md",
+    "LICENSE"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "pnpm run clean && rollup --config",
+    "clean": "rimraf dist",
+    "dev": "rollup --config --watch",
+    "lint": "eslint src --ext .ts --report-unused-disable-directives --max-warnings 0",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "keywords": [
+    "gplates",
+    "gpml",
+    "gpmlz",
+    "rotation",
+    "plate-tectonics"
+  ],
+  "author": "Qiuhan Wang",
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Computational-Planet/reconstructable-tile-layer.git",
+    "directory": "packages/reconstructable-tile-layer/modules/gplates-source"
+  },
+  "bugs": {
+    "url": "https://github.com/Computational-Planet/reconstructable-tile-layer/issues"
+  },
+  "homepage": "https://github.com/Computational-Planet/reconstructable-tile-layer#readme",
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "fflate": "^0.8.3"
+  }
+}

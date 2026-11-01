@@ -1,0 +1,16 @@
+.git/
+.pnpm-store/
+.turbo/
+**/dist/
+**/node_modules/
+**/public/
+apps/reconstructable-tile-layer-demo/benchmark/
+apps/reconstructable-tile-layer-demo/index.html
+apps/reconstructable-tile-layer-demo/src/
+packages/reconstructable-tile-layer/modules/tile-plate-quadtree/src/AreaQuadTreeTileNode.spec.ts
+coverage/
+paper_configs/**/*.json
+benchmark_records/r2/**
+output/
+tmp/
+pnpm-lock.yaml

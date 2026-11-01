@@ -1,0 +1,42 @@
+[
+  {
+    "id": "paleodem-holocene",
+    "filename": "Map01_PALEOMAP_1deg_Holocene_0Ma.nc",
+    "source": "https://zenodo.org/records/5460860",
+    "archiveUrl": "https://www.earthbyte.org/webdav/ftp/Data_Collections/Scotese_Wright_2018_PaleoDEM/Scotese_Wright_2018_Maps_1-88_1degX1deg_PaleoDEMS_nc.zip",
+    "archiveSha256": "7014767a168c28d3762f55117ebafcd0f6b6b90029a495e2d14fd23f94abc16d",
+    "archiveEntry": "Scotese_Wright_2018_Maps_1-88_1degX1deg_PaleoDEMS_nc_v2/Map01_PALEOMAP_1deg_Holocene_0Ma.nc",
+    "sha256": "b370925aac31e8330f5730aabba1a32580295b2bd57ae93697aa2a59f56a4822",
+    "maximumBytes": 20971520,
+    "purpose": "Pre-reconstructed PaleoDEM file sequence; coordinates include duplicate antimeridian endpoint and both poles. Nominal age 0 Ma; no internal time axis or z units."
+  },
+  {
+    "id": "paleodem-cretaceous",
+    "filename": "Map23_PALEOMAP_1deg_Early_Cretaceous_100Ma.nc",
+    "source": "https://zenodo.org/records/5460860",
+    "archiveUrl": "https://www.earthbyte.org/webdav/ftp/Data_Collections/Scotese_Wright_2018_PaleoDEM/Scotese_Wright_2018_Maps_1-88_1degX1deg_PaleoDEMS_nc.zip",
+    "archiveSha256": "7014767a168c28d3762f55117ebafcd0f6b6b90029a495e2d14fd23f94abc16d",
+    "archiveEntry": "Scotese_Wright_2018_Maps_1-88_1degX1deg_PaleoDEMS_nc_v2/Map23_PALEOMAP_1deg_Early_Cretaceous_100Ma.nc",
+    "sha256": "1e75b507a90cff19cb452952ab75c907626f1b0223e84a6f7c8d5ad1c1bff0e3",
+    "maximumBytes": 20971520,
+    "purpose": "Pre-reconstructed PaleoDEM at nominal 100 Ma. Companion All_Maps.gpml selects this file over 102.5 to 97.5 Ma; processing history mentions 102.6 Ma. Preserve each age declaration and its origin."
+  },
+  {
+    "id": "deepmip-eocene-tas",
+    "filename": "tas_CESM1.2-CAM5_deepmip-eocene-p1-x3_v1.0.mean.nc",
+    "url": "https://dap.ceda.ac.uk/badc/cmip6/data/CMIP6Plus/DeepMIP/deepmip-eocene-p1/CESM/CESM1.2-CAM5/deepmip-eocene-p1-x3/v1.0/climatology/tas_CESM1.2-CAM5_deepmip-eocene-p1-x3_v1.0.mean.nc?download=1",
+    "source": "https://catalogue.ceda.ac.uk/uuid/95aa41439d564756950f89921b6ef215/",
+    "sha256": "8063093816f5bc4e5009661bc6262044ff5ceb0955f0744619ff44b9c7ac5b9b",
+    "maximumBytes": 20971520,
+    "purpose": "Actual Eocene model climatology on a rectilinear grid; retain project/model/experiment/version. Its 365_day time axis referenced to 1950 describes climatological months, not the geological age."
+  },
+  {
+    "id": "deepmip-eocene-tos-curvilinear",
+    "filename": "tos_CESM1.2-CAM5_deepmip-eocene-p1-x3_v1.0.mean.nc",
+    "url": "https://dap.ceda.ac.uk/badc/cmip6/data/CMIP6Plus/DeepMIP/deepmip-eocene-p1/CESM/CESM1.2-CAM5/deepmip-eocene-p1-x3/v1.0/climatology/tos_CESM1.2-CAM5_deepmip-eocene-p1-x3_v1.0.mean.nc?download=1",
+    "source": "https://catalogue.ceda.ac.uk/uuid/95aa41439d564756950f89921b6ef215/",
+    "sha256": "15eecab0df5a57ad97c5841021289c6c39cd7c127c546424b54e575ab27f76cd",
+    "maximumBytes": 20971520,
+    "purpose": "Real negative fixture: TLAT/TLONG are two-dimensional ocean coordinates. Expect unsupported-grid until a separately validated browser regridding path exists."
+  }
+]

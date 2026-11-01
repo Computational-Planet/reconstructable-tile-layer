@@ -1,0 +1,202 @@
+{
+  "schemaVersion": 3,
+  "caseId": "Figure_8e_RTL_SouthPole_120Ma",
+  "modelName": "Zahirovic et al. (2022)",
+  "timeMa": 120,
+  "viewMode": "3D_ORTHOGRAPHIC",
+  "extent": {
+    "west": -180,
+    "south": -90,
+    "east": 180,
+    "north": 90
+  },
+  "camera3D": {
+    "targetLon": 0,
+    "targetLat": -90,
+    "range": 14016219.8,
+    "heading": 180,
+    "pitch": -90,
+    "roll": 0,
+    "orthographic": true
+  },
+  "output": {
+    "width": 1000,
+    "height": 1000,
+    "pixelRatio": 2
+  },
+  "layers": {
+    "graticule": true,
+    "backgroundColor": "#2f343b"
+  },
+  "sources": {
+    "featurePresetKey": "earthbyte-static-polygons-gpmlz",
+    "featureUrl": "/features/Global_EarthByte_GPlates_PresentDay_StaticPlatePolygons.gpmlz",
+    "gplatesReferencePolygonColor": "#E6E6E6",
+    "gplatesReferencePolygonKey": "off",
+    "gplatesReferencePolygonUrl": null,
+    "rotationAnchorMode": "default",
+    "anchorPlateId": "0",
+    "rotationPresetKey": "zahirovic-2022-optimised-mantle-rot",
+    "rotUrls": [
+      "/rotations/Zahirovic_etal_2022_OptimisedMantleRef_and_NNRMantleRef.rot"
+    ],
+    "providerKey": "gplates-topography-4326",
+    "providerLabel": "GPlates Topography (4326)",
+    "serviceConfig": {
+      "protocol": "url-template",
+      "name": "GPlates Topography (4326)",
+      "url": "/tiles/Gplates_Topography/{z}/{x}/{y}.png",
+      "tilingSchemeKey": "geographic",
+      "minimumLevel": 0,
+      "maximumLevel": 4,
+      "tileWidth": 256,
+      "tileHeight": 256,
+      "levelZeroTilesX": 2,
+      "levelZeroTilesY": 1,
+      "bounds": null,
+      "subdomains": "a,b,c",
+      "credit": "",
+      "parameters": "",
+      "wms": {
+        "layers": "",
+        "styles": "",
+        "version": "1.3.0",
+        "crs": "EPSG:4326",
+        "format": "image/png",
+        "transparent": true
+      },
+      "wmts": {
+        "layer": "",
+        "style": "default",
+        "format": "image/png",
+        "tileMatrixSetID": "",
+        "tileMatrixLabels": "",
+        "dimensions": ""
+      }
+    }
+  },
+  "render": {
+    "level": 4,
+    "polygonRenderIntent": "all-polygons-area",
+    "primitiveTransformMode": "dynamic3D",
+    "debugEnabled": false
+  },
+  "layerStack": [
+    {
+      "name": "GPlates Topography (4326)",
+      "source": {
+        "kind": "service",
+        "config": {
+          "protocol": "url-template",
+          "name": "GPlates Topography (4326)",
+          "url": "/tiles/Gplates_Topography/{z}/{x}/{y}.png",
+          "tilingSchemeKey": "geographic",
+          "minimumLevel": 0,
+          "maximumLevel": 4,
+          "tileWidth": 256,
+          "tileHeight": 256,
+          "levelZeroTilesX": 2,
+          "levelZeroTilesY": 1,
+          "bounds": null,
+          "subdomains": "a,b,c",
+          "credit": "",
+          "parameters": "",
+          "wms": {
+            "layers": "",
+            "styles": "",
+            "version": "1.3.0",
+            "crs": "EPSG:4326",
+            "format": "image/png",
+            "transparent": true
+          },
+          "wmts": {
+            "layer": "",
+            "style": "default",
+            "format": "image/png",
+            "tileMatrixSetID": "",
+            "tileMatrixLabels": "",
+            "dimensions": ""
+          }
+        },
+        "exampleKey": "gplates-topography-4326"
+      },
+      "mode": "reconstructable",
+      "model": {
+        "name": "Zahirovic et al. (2022)",
+        "featureUrl": "/features/Global_EarthByte_GPlates_PresentDay_StaticPlatePolygons.gpmlz",
+        "featureLabel": "",
+        "rotationUrls": [
+          "/rotations/Zahirovic_etal_2022_OptimisedMantleRef_and_NNRMantleRef.rot"
+        ],
+        "rotationLabels": [],
+        "anchorPlateId": "0",
+        "polygonRenderIntent": "all-polygons-area"
+      },
+      "visible": true,
+      "opacity": 1,
+      "ageRange": null,
+      "loadMode": "level",
+      "level": 4,
+      "id": "478ae3c8-72ea-4af2-adfe-803a323413d4",
+      "modelRequiresReselect": false
+    },
+    {
+      "name": "GPlates Topography (4326)",
+      "source": {
+        "kind": "service",
+        "config": {
+          "protocol": "url-template",
+          "name": "GPlates Topography (4326)",
+          "url": "/tiles/Gplates_Topography/{z}/{x}/{y}.png",
+          "tilingSchemeKey": "geographic",
+          "minimumLevel": 0,
+          "maximumLevel": 4,
+          "tileWidth": 256,
+          "tileHeight": 256,
+          "levelZeroTilesX": 2,
+          "levelZeroTilesY": 1,
+          "bounds": null,
+          "subdomains": "a,b,c",
+          "credit": "",
+          "parameters": "",
+          "wms": {
+            "layers": "",
+            "styles": "",
+            "version": "1.3.0",
+            "crs": "EPSG:4326",
+            "format": "image/png",
+            "transparent": true
+          },
+          "wmts": {
+            "layer": "",
+            "style": "default",
+            "format": "image/png",
+            "tileMatrixSetID": "",
+            "tileMatrixLabels": "",
+            "dimensions": ""
+          }
+        },
+        "exampleKey": "gplates-topography-4326"
+      },
+      "mode": "reconstructable",
+      "model": {
+        "name": "Zahirovic et al. (2022)",
+        "featureUrl": "/features/Global_EarthByte_GPlates_PresentDay_StaticPlatePolygons.gpmlz",
+        "featureLabel": "",
+        "rotationUrls": [
+          "/rotations/Zahirovic_etal_2022_OptimisedMantleRef_and_NNRMantleRef.rot"
+        ],
+        "rotationLabels": [],
+        "anchorPlateId": "0",
+        "polygonRenderIntent": "all-polygons-area"
+      },
+      "visible": true,
+      "opacity": 1,
+      "ageRange": null,
+      "loadMode": "level",
+      "level": 4,
+      "id": "bcee5521-5b57-4a3e-b073-83a20b349c0c",
+      "modelRequiresReselect": false
+    }
+  ]
+}

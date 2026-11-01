@@ -1,0 +1,169 @@
+/** Defines experiment import/export schemas shared by the demo modules. */
+import type {
+  ReconstructableTileLayerStats,
+  PolygonRenderIntentMode,
+  PrimitiveTransformMode,
+} from "reconstructable-tile-layer";
+import type { WebGLTileProcessor } from "reconstructable-tile-layer/processor";
+import type { LocalRasterDescriptor } from "../raster/context";
+import type { LayerDefinition } from "../layers/types";
+
+import type { ProviderKey, TileServiceConfig } from "../cesium/providers";
+import type {
+  FeaturePresetKey,
+  GplatesReferencePolygonKey,
+  RotationAnchorMode,
+  RotationPresetKey,
+} from "../dataSources";
+
+export type GeographicExtent = {
+  west: number;
+  south: number;
+  east: number;
+  north: number;
+};
+
+export type ExperimentCamera3D = {
+  targetLon: number;
+  targetLat: number;
+  range: number;
+  heading: number;
+  pitch: number;
+  roll: number;
+  orthographic: boolean;
+};
+
+export type ExperimentOutputConfig = {
+  width: number;
+  height: number;
+  pixelRatio: number;
+};
+
+export type ExperimentViewMode = "2D_RECTANGULAR" | "3D_GLOBE" | "3D_ORTHOGRAPHIC";
+
+export type ExperimentViewPreset =
+  | "prime-meridian"
+  | "antimeridian"
+  | "south-pole"
+  | "north-pole";
+
+export type ExperimentViewConfig = {
+  caseId: string;
+  modelName: string;
+  viewMode: ExperimentViewMode;
+  extent: GeographicExtent;
+  camera3D: ExperimentCamera3D;
+  output: ExperimentOutputConfig;
+};
+
+export type ExperimentProjection =
+  | "PlateCarree"
+  | "WebMercator"
+  | "PerspectiveGlobe"
+  | "OrthographicGlobe";
+
+export type ExperimentExportInfo = {
+  schemaVersion: 3;
+  layerStack: LayerDefinition[];
+  exportedAt: string;
+  exportBaseName: string;
+  caseId: string;
+  modelName: string;
+  rotationFile: string;
+  rotationFiles: string[];
+  platePolygonFile: string;
+  timeMa: number;
+  viewMode: ExperimentViewMode;
+  projection: ExperimentProjection;
+  centralMeridian: number;
+  extent?: GeographicExtent;
+  camera3D?: ExperimentCamera3D;
+  output: ExperimentOutputConfig & {
+    canvasWidth: number;
+    canvasHeight: number;
+    devicePixelRatio: number;
+    resolutionScale: number;
+    configuredCssWidth: number;
+    configuredCssHeight: number;
+    configuredPixelRatio: number;
+  };
+  layers: {
+    rtlLayer: string;
+    plateBoundary: boolean;
+    controlPoints: boolean;
+    graticule: boolean;
+    gplatesReferencePolygons: boolean;
+    backgroundColor: string;
+    opacity: number;
+  };
+  sources: {
+    localRaster?: LocalRasterDescriptor;
+    localModelFiles?: { feature?: string; rotations?: string[] };
+    featurePresetKey: FeaturePresetKey;
+    featureUrl: string;
+    gplatesReferencePolygonColor: string;
+    gplatesReferencePolygonKey: GplatesReferencePolygonKey;
+    gplatesReferencePolygonUrl: string | null;
+    rotationAnchorMode: RotationAnchorMode;
+    anchorPlateId: string | null;
+    rotationPresetKey: RotationPresetKey;
+    rotUrls: string[];
+    providerKey: ProviderKey;
+    providerLabel: string;
+    serviceConfig?: TileServiceConfig;
+  };
+  render: {
+    initialized: boolean;
+    level: number;
+    polygonRenderIntent: string;
+    primitiveTransformMode: string;
+    debugEnabled: boolean;
+    status: string;
+  };
+  cesium: {
+    sceneMode: string;
+    mapProjection: string;
+    camera: {
+      longitude: number;
+      latitude: number;
+      height: number;
+      heading: number;
+      pitch: number;
+      roll: number;
+      orthographic: boolean;
+      frustum: string;
+    };
+  };
+  stats: {
+    geoTileStats: ReconstructableTileLayerStats | null;
+    tileProcesserStats: ReturnType<WebGLTileProcessor["getRuntimeStats"]> | null;
+  };
+};
+
+export type ImportedExperimentControlState = {
+  layerStack: LayerDefinition[];
+  localRasterFileName?: string;
+  requiresLocalModelFiles?: boolean;
+  age?: number;
+  serviceConfig?: TileServiceConfig;
+  debugEnabled?: boolean;
+  experimentViewConfig?: Partial<ExperimentViewConfig> & {
+    camera3D?: Partial<ExperimentCamera3D>;
+    extent?: Partial<GeographicExtent>;
+    output?: Partial<ExperimentOutputConfig>;
+  };
+  featurePresetKey?: FeaturePresetKey;
+  featureUrl?: string;
+  globeBaseColor?: string;
+  graticuleEnabled?: boolean;
+  level?: number;
+  polygonRenderIntent?: PolygonRenderIntentMode;
+  primitiveTransformMode?: PrimitiveTransformMode;
+  providerKey?: ProviderKey;
+  referencePolygonColor?: string;
+  referencePolygonKey?: GplatesReferencePolygonKey;
+  rotationAnchorMode?: RotationAnchorMode;
+  anchorPlateId?: string | null;
+  rotPresetKey?: RotationPresetKey;
+  rotUrls?: string[];
+};

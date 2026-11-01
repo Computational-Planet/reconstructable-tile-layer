@@ -1,0 +1,97 @@
+{
+  "name": "reconstructable-tile-layer",
+  "version": "0.1.0",
+  "description": "Browser-side Reconstructable Tile Layers for published Web tile services.",
+  "type": "module",
+  "main": "./dist/cjs/index.cjs",
+  "module": "./dist/es/index.js",
+  "types": "./dist/types/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/types/src/index.d.ts",
+      "import": "./dist/es/index.js",
+      "require": "./dist/cjs/index.cjs",
+      "default": "./dist/es/index.js"
+    },
+    "./package.json": "./package.json",
+    "./gplates": {
+      "types": "./dist/types/src/gplates.d.ts",
+      "import": "./dist/es/gplates.js",
+      "require": "./dist/cjs/gplates.cjs",
+      "default": "./dist/es/gplates.js"
+    },
+    "./rotation": {
+      "types": "./dist/types/src/rotation.d.ts",
+      "import": "./dist/es/rotation.js",
+      "require": "./dist/cjs/rotation.cjs",
+      "default": "./dist/es/rotation.js"
+    },
+    "./quadtree": {
+      "types": "./dist/types/src/quadtree.d.ts",
+      "import": "./dist/es/quadtree.js",
+      "require": "./dist/cjs/quadtree.cjs",
+      "default": "./dist/es/quadtree.js"
+    },
+    "./processor": {
+      "types": "./dist/types/src/processor.d.ts",
+      "import": "./dist/es/processor.js",
+      "require": "./dist/cjs/processor.cjs",
+      "default": "./dist/es/processor.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "README.zh-CN.md",
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "pnpm run clean && rollup --config",
+    "clean": "rimraf dist",
+    "dev": "rollup --config --watch",
+    "lint": "eslint src --ext .ts --report-unused-disable-directives --max-warnings 0",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --exclude \"modules/**\""
+  },
+  "keywords": [
+    "cesium",
+    "gplates",
+    "gis",
+    "paleogeography",
+    "plate-reconstruction",
+    "reconstructable-tile-layer"
+  ],
+  "author": "Qiuhan Wang",
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Computational-Planet/reconstructable-tile-layer.git",
+    "directory": "packages/reconstructable-tile-layer"
+  },
+  "bugs": {
+    "url": "https://github.com/Computational-Planet/reconstructable-tile-layer/issues"
+  },
+  "homepage": "https://github.com/Computational-Planet/reconstructable-tile-layer#readme",
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "fflate": "^0.8.3",
+    "gl-matrix": "^3.4.3",
+    "polygon-clipping": "0.15.7"
+  },
+  "peerDependencies": {
+    "cesium": "^1.119.0"
+  },
+  "devDependencies": {
+    "rtl-gplates-source": "workspace:*",
+    "rtl-finite-rotation": "workspace:*",
+    "rtl-tile-plate-quadtree": "workspace:*",
+    "rtl-webgl-tile-processor": "workspace:*"
+  }
+}

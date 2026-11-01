@@ -1,0 +1,38 @@
+/* Styles modal overlays and provider configuration dialogs. */
+.global-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgb(0 0 0 / 58%);
+}
+
+.provider-dialog {
+  display: grid;
+  width: min(440px, calc(100vw - 40px));
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid rgb(255 255 255 / 14%);
+  border-radius: 8px;
+  background: #121821;
+  box-shadow: 0 24px 70px rgb(0 0 0 / 54%);
+}
+
+.provider-dialog header {
+  display: block;
+}
+
+.form-error {
+  margin: 0;
+  color: #ffb4a8;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.dialog-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}

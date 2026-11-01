@@ -1,0 +1,339 @@
+/* Styles native form controls and grouped action buttons. */
+input,
+select,
+textarea {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid rgb(255 255 255 / 16%);
+  border-radius: 6px;
+  background: #171d26;
+  color: #f8fafc;
+  outline: none;
+  transition:
+    border-color 120ms ease,
+    background-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+input,
+select {
+  height: 34px;
+  padding: 0 10px;
+}
+
+input:hover,
+select:hover,
+textarea:hover {
+  border-color: rgb(255 255 255 / 26%);
+  background-color: #1d2430;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: #7aa2ff;
+  box-shadow: 0 0 0 3px rgb(122 162 255 / 18%);
+}
+
+select {
+  appearance: none;
+  cursor: pointer;
+  padding-right: 38px;
+  background-color: #171d26;
+  background-image: linear-gradient(45deg, transparent 50%, #d7e2ef 50%),
+    linear-gradient(135deg, #d7e2ef 50%, transparent 50%),
+    linear-gradient(90deg, rgb(255 255 255 / 12%), rgb(255 255 255 / 12%));
+  background-position:
+    calc(100% - 18px) 14px,
+    calc(100% - 12px) 14px,
+    calc(100% - 34px) 8px;
+  background-repeat: no-repeat;
+  background-size:
+    6px 6px,
+    6px 6px,
+    1px 18px;
+}
+
+input[type="file"] {
+  height: auto;
+  padding: 8px 10px;
+  color: #cdd8e5;
+}
+
+input[type="color"] {
+  padding: 3px;
+  cursor: pointer;
+}
+
+input[type="range"] {
+  height: 34px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  accent-color: #f17922;
+}
+
+input[type="range"]:hover,
+input[type="range"]:focus {
+  background: transparent;
+  box-shadow: none;
+}
+
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 8px;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    #f17922 0%,
+    #f17922 var(--range-progress, 0%),
+    #2a303a var(--range-progress, 0%),
+    #2a303a 100%
+  );
+  box-shadow: inset 0 1px 2px rgb(0 0 0 / 42%);
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  margin-top: -6px;
+  border: 2px solid #ffb16f;
+  border-radius: 999px;
+  background: #f17922;
+  box-shadow:
+    0 0 0 4px rgb(241 121 34 / 14%),
+    0 2px 10px rgb(0 0 0 / 45%);
+}
+
+input[type="range"]:hover::-webkit-slider-thumb,
+input[type="range"]:focus::-webkit-slider-thumb {
+  border-color: #ffd3ad;
+  box-shadow:
+    0 0 0 6px rgb(241 121 34 / 20%),
+    0 2px 12px rgb(0 0 0 / 55%);
+}
+
+input[type="range"]::-moz-range-track {
+  height: 8px;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 999px;
+  background: #2a303a;
+  box-shadow: inset 0 1px 2px rgb(0 0 0 / 42%);
+}
+
+input[type="range"]::-moz-range-progress {
+  height: 8px;
+  border-radius: 999px;
+  background: #f17922;
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #ffb16f;
+  border-radius: 999px;
+  background: #f17922;
+  box-shadow:
+    0 0 0 4px rgb(241 121 34 / 14%),
+    0 2px 10px rgb(0 0 0 / 45%);
+}
+
+textarea {
+  resize: vertical;
+  padding: 9px 10px;
+}
+
+select option {
+  background: #151b23;
+  color: #f8fafc;
+}
+
+button {
+  min-height: 34px;
+  border: 0;
+  border-radius: 6px;
+  background: #f17922;
+  color: white;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.secondary-button {
+  border: 1px solid rgb(255 255 255 / 16%);
+  background: rgb(255 255 255 / 10%);
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.46;
+}
+
+.grid-2,
+.button-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.button-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.range-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 124px;
+  gap: 10px;
+  align-items: center;
+}
+
+.age-number-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.age-number-control span {
+  color: #c5d1df;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.color-control {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 10px;
+}
+
+.reference-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 42px;
+  gap: 10px;
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-weight: 700;
+}
+
+.checkbox-row input {
+  width: 16px;
+  height: 16px;
+}
+
+.view-level-control {
+  display: grid;
+  gap: 6px;
+}
+
+.view-level-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 68px;
+  gap: 10px;
+  align-items: center;
+}
+
+.view-level-row .checkbox-row,
+.view-level-control .field-hint {
+  margin: 0;
+}
+
+.view-level-row input[aria-invalid="true"] {
+  border-color: #ffc58e;
+}
+
+.section-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.compact-actions {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.align-end {
+  align-self: end;
+}
+
+@media (max-width: 900px) {
+  .button-grid,
+  .section-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .grid-2,
+  .section-actions {
+    grid-template-columns: 1fr;
+  }
+}
+/* 本地科学数据的元信息保持可读，不让长属性或变量路径撑开控制面板。 */
+.local-raster-section fieldset {
+  border: 1px solid rgb(255 255 255 / 14%);
+  border-radius: 6px;
+  margin: 12px 0;
+  padding: 10px;
+  min-width: 0;
+}
+.local-raster-section {
+  display: grid;
+  min-width: 0;
+  gap: 10px;
+}
+.local-raster-section fieldset {
+  margin: 0;
+}
+.local-raster-section legend {
+  font-size: 12px;
+  color: #a9d1ff;
+}
+.local-raster-section > p {
+  margin: 0;
+  font-size: 13px;
+}
+.local-raster-section > .panel-disclosure {
+  padding-top: 10px;
+  border-top: 1px solid rgb(255 255 255 / 10%);
+}
+.local-raster-section .panel-disclosure > .field-hint {
+  margin: 8px 0;
+}
+.local-raster-section label {
+  display: block;
+  margin: 8px 0;
+}
+.local-raster-section p {
+  overflow-wrap: anywhere;
+}
+.local-raster-section .field-hint {
+  font-size: 12px;
+  line-height: 1.5;
+  color: #bbc8d8;
+}
+.local-raster-section .button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.local-raster-section .checkbox-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.local-raster-section .checkbox-row input {
+  width: auto;
+  flex: 0 0 auto;
+}
+.raster-attributes {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 280px;
+  overflow: auto;
+  font-size: 11px;
+}
