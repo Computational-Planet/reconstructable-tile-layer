@@ -8,6 +8,8 @@ paper-aligned `ReconstructableTileLayer` and `WebGLTileProcessor` APIs while
 supporting tile services, local TIFF rasters, ordinary GeoJSON vectors, multiple
 layers, plate models, GPlates reference outlines, Macrostrat legends and experiment export.
 
+For illustrated, step-by-step instructions, see the [user guide](docs/USER_GUIDE.md).
+
 ## Quick start
 
 Use Node.js 22 and pnpm 9.0.5, matching the repository build. From the repository

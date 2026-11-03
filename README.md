@@ -82,9 +82,10 @@ packages with `pnpm build:packages` after changing their source or worker assets
 
 ![Reconstructable Tile Layer demo showing a paleogeographic reconstruction at 120 Ma](images/rtl_demo_preview.png)
 
-See the demo [English README](apps/reconstructable-tile-layer-demo/README.md) or
-[Chinese README](apps/reconstructable-tile-layer-demo/README.zh-CN.md) for its
-workflow, export behavior, and benchmark controller.
+See the illustrated user guide in [English](apps/reconstructable-tile-layer-demo/docs/USER_GUIDE.md) or
+[Chinese](apps/reconstructable-tile-layer-demo/docs/USER_GUIDE.zh-CN.md) for the Demo workflow.
+The demo [English README](apps/reconstructable-tile-layer-demo/README.md) and
+[Chinese README](apps/reconstructable-tile-layer-demo/README.zh-CN.md) also describe export behavior and the benchmark controller.
 
 ## Research materials
 
