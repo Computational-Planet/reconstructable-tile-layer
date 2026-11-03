@@ -16,7 +16,7 @@ export function ControlPanel(props: ControlPanelProps) {
       <aside className="control-panel">
         <header>
           <p className="eyebrow">Raster reconstruction</p>
-          <h1>Reconstruction Tile Layer Demo</h1>
+          <h1>Reconstructable Tile Layer Demo</h1>
         </header>
 
         <PlateModelSection
