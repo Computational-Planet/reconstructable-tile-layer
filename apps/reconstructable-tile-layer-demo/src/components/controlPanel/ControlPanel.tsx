@@ -17,6 +17,17 @@ export function ControlPanel(props: ControlPanelProps) {
         <header>
           <p className="eyebrow">Raster reconstruction</p>
           <h1>Reconstructable Tile Layer Demo</h1>
+          <a
+            className="user-guide-download"
+            href={`${import.meta.env.BASE_URL}user-guide/Reconstructable_Tile_Layer_User_Guide.pdf`}
+            download="Reconstructable_Tile_Layer_User_Guide.pdf"
+            aria-label="Download user guide (PDF)"
+          >
+            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path d="M12 3v11m-4-4 4 4 4-4M5 17v3h14v-3" strokeWidth="2" />
+            </svg>
+            User Guide <span>PDF</span>
+          </a>
         </header>
 
         <PlateModelSection
