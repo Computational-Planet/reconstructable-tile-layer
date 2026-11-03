@@ -7,6 +7,8 @@ Tile Layer，RTL）。它使用与论文一致的 `ReconstructableTileLayer` 和
 `WebGLTileProcessor` API，支持在线瓦片、本地 TIFF 栅格、普通 GeoJSON 矢量、多图层、
 板块模型、GPlates 参考轮廓、Macrostrat 图例和实验导出。
 
+带界面截图的逐步操作说明见[用户手册](docs/USER_GUIDE.zh-CN.md)。
+
 ## 快速开始
 
 使用与仓库构建一致的 Node.js 22 和 pnpm 9.0.5。依赖已经安装、工作区库已经构建时，

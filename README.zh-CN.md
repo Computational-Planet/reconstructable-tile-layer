@@ -68,9 +68,11 @@ Vite 会在终端输出本地地址。命令运行期间，核心库的代码变
 
 ![可重建瓦片图层 Demo 展示 120 Ma 古地理重建](images/rtl_demo_preview.png)
 
-有关操作流程、导出行为和基准测试控制器，请参阅 Demo 的
+带界面截图的 Demo 操作流程见[中文用户手册](apps/reconstructable-tile-layer-demo/docs/USER_GUIDE.zh-CN.md)
+或 [English user guide](apps/reconstructable-tile-layer-demo/docs/USER_GUIDE.md)。
+导出行为和基准测试控制器也见 Demo 的
 [English README](apps/reconstructable-tile-layer-demo/README.md)
-或[中文 README](apps/reconstructable-tile-layer-demo/README.zh-CN.md)。
+和[中文 README](apps/reconstructable-tile-layer-demo/README.zh-CN.md)。
 
 ## 研究材料
 
