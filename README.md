@@ -10,9 +10,8 @@ Browser-side paleogeographic reconstruction of published Web tile services in
 Cesium.
 
 This repository contains the TypeScript reference implementation accompanying
-the manuscript _Reconstructable Tile Layers for Geological-Time-Driven Digital
-Earth: Browser-side Paleogeographic Reconstruction of Published Web Tile
-Services without Republication_.
+the manuscript _Reconstructable Tile Layers: Bringing Published Tile Maps into
+Paleogeographic Frames in the Browser_.
 
 RTL treats geological age and the selected rigid plate model as executable
 layer state. It keeps a compatible published Web tile service as the imagery
@@ -21,15 +20,6 @@ ROT-derived finite rotations, masks boundary tiles in WebGL, and renders the
 processed fragments in Cesium. The implementation reconstructs the published
 visual layer; it does not recover source attributes, topology, feature
 identities, or numerical raster values.
-
-Two optional raster packages read numeric sources and adapt them to standard
-Cesium imagery. The demo accepts
-TIFF/GeoTIFF rasters and GeoJSON as ordinary vector layers; vector reconstruction
-is not implemented. NetCDF is available only through the raster library's explicit
-`/netcdf` API, not the demo upload controls. See the
-[raster](apps/reconstructable-tile-layer-demo/README.md#local-scientific-rasters),
-[GeoJSON](apps/reconstructable-tile-layer-demo/README.md#local-geojson-vectors), and
-[reference-data validation](scripts/raster/README.md) guides.
 
 ## Demo
 
@@ -161,7 +151,7 @@ retained-resource lifecycle.
 
 | Optional package                                                    | Responsibility                                                                          | Coupling                                                                          |
 | ------------------------------------------------------------------- | --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| [rtl-raster-source](packages/rtl-raster-source)                     | Local numeric windows, CRS/grid metadata, CF NetCDF slices via explicit `/netcdf` entry | No Cesium, React or reconstruction dependency                                     |
+| [rtl-raster-source](packages/rtl-raster-source)                     | Local numeric window reads and CRS/grid metadata                                        | No Cesium, React or reconstruction dependency                                     |
 | [rtl-raster-imagery-provider](packages/rtl-raster-imagery-provider) | Numeric sources → styled standard Cesium imagery; single band/RGB/NoData, bounded cache | Cesium peer; works with a standalone viewer or the existing RTL `provider` option |
 
 The main RTL package has no dependency on these optional engines. Local TIFF data flow

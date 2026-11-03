@@ -8,21 +8,13 @@
 
 在 Cesium 中对已发布 Web 瓦片服务进行浏览器端古地理重建。
 
-本仓库包含论文 _Reconstructable Tile Layers for Geological-Time-Driven Digital
-Earth: Browser-side Paleogeographic Reconstruction of Published Web Tile
-Services without Republication_ 配套的 TypeScript 参考实现。
+本仓库包含论文 _Reconstructable Tile Layers: Bringing Published Tile Maps into
+Paleogeographic Frames in the Browser_ 配套的 TypeScript 参考实现。
 
 RTL 将地质年代和选定的刚性板块模型作为可执行的图层状态。它保留兼容的已发布
 Web 瓦片服务作为影像源，将瓦片内容分配给多边形板块域，应用从 ROT 数据导出的
 有限旋转，在 WebGL 中对边界瓦片进行掩膜，并在 Cesium 中渲染处理后的片段。
 本实现重建的是已发布的可视图层，不会恢复源属性、拓扑、要素标识或数值栅格值。
-
-两个可选栅格包分别读取数值源、适配标准 Cesium 影像。
-Demo 接受 TIFF/GeoTIFF 栅格和作为普通矢量图层的 GeoJSON，尚未实现矢量重建。
-NetCDF 仅通过栅格库显式的 `/netcdf` API 提供，不在 Demo 上传范围内。
-详见[栅格操作](apps/reconstructable-tile-layer-demo/README.zh-CN.md#本地科学栅格)、
-[GeoJSON 操作](apps/reconstructable-tile-layer-demo/README.zh-CN.md#本地-geojson-矢量)
-及[参考数据验证说明](scripts/raster/README.md)。
 
 ## Demo
 
@@ -140,7 +132,7 @@ packages/
 
 | 可选包                                                              | 职责                                                          | 与主包的关系                                                |
 | ------------------------------------------------------------------- | ------------------------------------------------------------- | ----------------------------------------------------------- |
-| [rtl-raster-source](packages/rtl-raster-source)                     | 本地数值窗口、CRS/网格元数据、显式 `/netcdf` 子入口的 CF 选片 | 无 Cesium/React/重建依赖，可独立用于科学数据处理            |
+| [rtl-raster-source](packages/rtl-raster-source)                     | 本地数值窗口读取和 CRS/网格元数据                             | 无 Cesium/React/重建依赖，可独立用于科学数据处理            |
 | [rtl-raster-imagery-provider](packages/rtl-raster-imagery-provider) | 将数值源变成单波段/RGB/NoData 影像，控制缓存                  | Cesium peer；独立 Viewer 或现有 RTL `provider` 接口均可使用 |
 
 主包不强依赖这些引擎。本地 TIFF 的数据链路是 `rtl-raster-source` →
